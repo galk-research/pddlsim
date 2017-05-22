@@ -4,6 +4,6 @@
      "python.python3Path": "D:\\Programs\\Anaconda\\envs\\python3",
      "python.linting.pylintArgs": ["--errors-only"],
      
-     "python.linux.python3Path":"/home/micha/anaconda3/bin/python3"
-
+     "python.linux.python3Path":"/home/micha/anaconda3/bin/python3",
+     "python.linux.python2Path":"/usr/bin/python2"
 }
