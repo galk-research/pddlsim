@@ -4,10 +4,11 @@ from first_parser import FirstParser
 
 class Simulator(object):
     """docstring for Simulator."""
-    def __init__(self, domain_path):
+    def __init__(self, domain_path, print_actions=True):
         super(Simulator, self).__init__()
         self.domain_path = domain_path   
-        self.print_actions = True     
+        self.print_actions = print_actions     
+        self.reached_goal = False
      
     
 
@@ -33,7 +34,7 @@ class Simulator(object):
         params = [self.parser.get_object(param_name) for param_name in param_names]
         self.apply_action(action, params)
 
-    def begin(self,problem_path,executor):
+    def simulate(self,problem_path,executor):
         self.problem_path = problem_path
         self.executor = executor
         self.parser = FirstParser(self.domain_path,self.problem_path)

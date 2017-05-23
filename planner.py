@@ -21,7 +21,7 @@ def local(domain_path, problem_path):
     with open(out_path) as f:
         return f.read().split('\n')
 
-use_local = False
+use_local = True
 
 if use_local:
     make_plan = local

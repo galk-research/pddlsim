@@ -2,12 +2,19 @@
 import cloud_solver.planning_domains_api as api
 import os
 import urllib
+import glob
 
 COLLECTION_ID = 3
 OUT_DIR = 'ipc2002'
 TEST_ALL_DOMAIN_FILES_ARE_THE_SAME = True
 
 if __name__ == '__main__':
+    problems = []
+    for problem_path in glob.glob('ipc2002/*/prob*.pddl'):
+        domain_path = os.path.join(os.path.dirname(problem_path),'domain.pddl')
+        problems.append((domain_path,problem_path))
+    exit()
+
     # domains_in_collection = api.get_collection(COLLECTION_ID)['domain_set']
 
     if not os.path.exists(OUT_DIR):            

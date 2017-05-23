@@ -34,7 +34,23 @@
             ]
         },
         {
-            "name": "Python linux - main.py",
+            "name": "Python3 linux",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": false,
+            "pythonPath": "${config:python.linux.python3Path}",
+            "program": "${file}",
+            "cwd": "${workspaceRoot}",
+            "env": {},
+            "envFile": "${workspaceRoot}/.env",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ]
+        },
+        {
+            "name": "Python3 linux - main",
             "type": "python",
             "request": "launch",
             "stopOnEntry": false,
