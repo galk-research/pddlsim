@@ -1,9 +1,18 @@
 # import pddl.parser
 from first_parser import FirstParser
 from nav_model_resolution.generate_problem import create_pddl
+import copy
 DIST = 'distance'
 
 directions = {'north':'south','south':'north','east':'west','west':'east'}
+
+def generate_graph(state):
+    graph = {key:dict() for key in map(lambda x:x[0][0], state['empty'])}
+    for direction in directions:
+        for s in state[direction]:            
+            graph[s[0][0]][direction] = (s[1][0],1)
+    return graph
+
 def reduce_problem(domain_path, problem_path, new_problem_path):
     # pddlParser = pddl.parser.Parser(domain_path)
     # domain = pddlParser.parse_domain()
@@ -11,11 +20,8 @@ def reduce_problem(domain_path, problem_path, new_problem_path):
     # problem = pddlParser.parse_problem(domain)
     parser = FirstParser(domain_path,problem_path)
     state = parser.build_first_state()
-    graph = {key:dict() for key in map(lambda x:x[0][0], state['empty'])}
-    
-    for direction in directions:
-        for s in state[direction]:            
-            graph[s[0][0]][direction] = (s[1][0],1)
+    graph = generate_graph(state)
+    original_graph = copy.deepcopy(graph)
             # graph[s[0][0]][DIST] = 1
     # print (graph)
     # print()
@@ -26,7 +32,7 @@ def reduce_problem(domain_path, problem_path, new_problem_path):
         if len(neighbors) == 2 and t != start and t != goal:
             got_one = False
             for n in neighbors:
-                if n != DIST and directions[n] in neighbors:
+                if directions[n] in neighbors:
                     got_one = True
                     break            
             if got_one:
@@ -43,7 +49,7 @@ def reduce_problem(domain_path, problem_path, new_problem_path):
 
     # print(graph)
     generate_pddl_from_graph(graph,new_problem_path)
-    return graph
+    return graph, original_graph
 
 def generate_pddl_from_graph(graph,path):
     tiles = graph.keys()

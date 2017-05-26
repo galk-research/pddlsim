@@ -1,13 +1,8 @@
-Plan found with cost: 6
-1. (MOVE-EAST PERSON1 START_TILE T0)
-2. (MOVE-EAST PERSON1 T0 T1)
-3. (MOVE-EAST PERSON1 T1 T2)
-4. (MOVE-EAST PERSON1 T2 T3)
-5. (MOVE-EAST PERSON1 T3 T4)
-6. (MOVE-EAST PERSON1 T4 GOAL_TILE)
+Plan found with cost: 1
+1. (MOVE-EAST PERSON1 START_TILE GOAL_TILE)
 Time: 0
 Generated: 0
 Expanded: 0
-Total time: -1.8999e-10
-Nodes generated during search: 14
-Nodes expanded during search: 10
+Total time: 0
+Nodes generated during search: 2
+Nodes expanded during search: 1

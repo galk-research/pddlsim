@@ -19,7 +19,7 @@ def local(domain_path, problem_path):
     out_path = 'tmp.ipc'
     os.system('cloud_solver/siw-then-bfsf --domain ' + domain_path + ' --problem ' + problem_path + ' --output ' + out_path)
     with open(out_path) as f:
-        return f.read().split('\n')
+        return [line for line in f.read().split('\n') if line.rstrip()]
 
 use_local = True
 
