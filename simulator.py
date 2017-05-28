@@ -9,14 +9,23 @@ class Simulator(object):
         self.domain_path = domain_path   
         self.print_actions = print_actions     
         self.reached_goal = False
+        self.check_preconditions = True        
      
     
 
     def apply_action(self, action, params):
         param_mapping = self.parser.get_param_mapping(action,params)
         
+        if self.check_preconditions:
+            preconditions = self.parser.get_action_preconditions(action)            
+            passed = all([self.test_predicate(precondition.name,precondition.signature,param_mapping) for precondition in preconditions])
+            if not passed:
+                raise PreconditionFalseError()
+
         for (predicate_name,entry) in self.parser.to_delete(action,param_mapping):
-            self.state[predicate_name].remove(entry)
+            predicate_set = self.state[predicate_name]
+            if entry in predicate_set:
+                predicate_set.remove(entry)
         
         for (predicate_name,entry) in self.parser.to_add(action,param_mapping):
             self.state[predicate_name].add(entry)
@@ -66,3 +75,6 @@ class Simulator(object):
     def test_predicate(self, name, signature, dictionary):
         signature = tuple([dictionary[x[0]] for x in signature])
         return signature in self.state[name]
+
+class PreconditionFalseError(Exception):
+    pass

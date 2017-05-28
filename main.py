@@ -10,23 +10,24 @@ import os
 import first_parser
 import time
 
+IPC_PATH = 'ipc2002/'
 def test_all_ipc2002():
-     for domain_dir in glob.glob('ipc2002/*'):    
+     for domain_dir in glob.glob(IPC_PATH + '*')[2:]:    
         
         domain_path = os.path.join(domain_dir,'domain.pddl')
-        problem_path = os.path.join(domain_dir,'prob01.pddl')
-        # first_parser.FirstParser(domain_path,problem_path)
-        executor = PlanDispatcher()
-
-        sim = Simulator(domain_path,print_actions=False)
-        sim.simulate(problem_path, executor)
-        if sim.reached_goal:
-            print('Reached goal!',)
-        else:
-            print('Failed to reach goal',)
+        count, total = 0, 0
+        for problem_path in glob.glob(domain_dir+'/prob*.pddl'):        
+            print (problem_path)
+            executor = PlanDispatcher()
+            sim = Simulator(domain_path,print_actions=False)
+            sim.simulate(problem_path, executor)
+            if sim.reached_goal:
+                count += 1
+            total += 1
+        print(count,total,sep='/')
 
 def compare_executors():
-    length = 400
+    length = 100
     
     domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
         
@@ -53,7 +54,8 @@ def simulate(executor, domain_path, problem_path):
 
     
 if __name__ == '__main__':
-    compare_executors()
+    # compare_executors()
+    test_all_ipc2002()
     exit()
     
     #works:
