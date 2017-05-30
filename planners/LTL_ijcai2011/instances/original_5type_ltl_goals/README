@@ -1,0 +1,16 @@
+How to read instance names, e.g., blocks-9b-5l-1t.pddl
+
+9b = the instance contains 9 blocks
+
+5l = the (ltl) goal formula contains 5 atomic temporal-subformulas (e.g., <>p_1 ... && ... <>p_5)
+
+1t = the (ltl) goal formula is of type 1, where types are as below.
+
+0: eventualities, e.g., <>p_1 && <> p_2
+1: chained eventualities, e.g., <>p_1 && X<>( p_2 && X <>p_3)
+2: fairness, e.g., []<> p_1 && []<> p_2 && []<> p_3
+3: until, e.g., (((...(p U q) U r) U...)
+4: strong fairness, e.g., ([]<>p && []<>p -> []<> q) && ([]<> r -> []<>s), observe that the first conjunct 
+has an additional fairness conjunct, used to "activate" []<>q 
+
+

@@ -1,0 +1,19 @@
+=============================================================
+F. Patrizi, N. Lipovetzky, G. De Giacomo, H. Geffner
+Barcelona, 19th Mar 2012
+=============================================================
+
+=============================================================
+1. SOME VERY PRELIMINARY NOTES 
+=============================================================
+
+
+- In order to compile LTL goals to classical planning problems, go to folder instances/[original_5type_ltl_goals | original_reachability_ltl]: 
+	
+			# ./compile_ltl.py <Full_path_ltpddl2pddl>
+
+			IMPORTANT: specify the path of ltpddl2pddl binary. Need to compile it first.
+
+- In order to delete the generated files:
+			
+			# ./clean_compiled_files.py

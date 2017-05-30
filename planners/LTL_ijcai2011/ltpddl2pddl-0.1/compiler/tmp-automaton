@@ -1,0 +1,19 @@
+never { /* [] ((<> (at_robot_c12)) && (<> (at_robot_c11))) */
+T0_init:
+	if
+	:: (1) -> goto T0_init
+	:: (at_robot_c12) -> goto T1_S1
+	:: (at_robot_c12 && at_robot_c11) -> goto accept_S1
+	fi;
+T1_S1:
+	if
+	:: (1) -> goto T1_S1
+	:: (at_robot_c11) -> goto accept_S1
+	fi;
+accept_S1:
+	if
+	:: (1) -> goto T0_init
+	:: (at_robot_c12) -> goto T1_S1
+	:: (at_robot_c12 && at_robot_c11) -> goto accept_S1
+	fi;
+}

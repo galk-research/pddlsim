@@ -1,6 +1,7 @@
 from simulator import Simulator
-from plan_dispatch import PlanDispatcher
-from random_executor import RandomExecutor
+from executors.plan_dispatch import PlanDispatcher
+from executors.random_executor import RandomExecutor
+from executors.avoid_return_random import AvoidReturn
 from nav_model_resolution import reduce_domain,generate_problem
 from nav_model_resolution.maze_reducer_executor import MazeReducerExecutor
 import planner
@@ -27,11 +28,13 @@ def test_all_ipc2002():
         print(count,total,sep='/')
 
 def compare_executors():
-    length = 100
+    length = 5
     
     domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
         
-    executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
+    # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
+    # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
+    executors = {'No_Return':AvoidReturn(), 'Random':RandomExecutor()}    
 
     for name, executor in executors.items():        
         t0 = time.time()
@@ -55,8 +58,8 @@ def simulate(executor, domain_path, problem_path):
     
 if __name__ == '__main__':
     # compare_executors()
-    test_all_ipc2002()
-    exit()
+    # test_all_ipc2002()
+    # exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -76,3 +79,5 @@ if __name__ == '__main__':
     # simulate(PlanDispatcher(),domain_path,problem_path)
     # simulate(RandomExecutor(stop_at_goal=False),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
+
+    simulate(AvoidReturn(), domain_path, problem_path)

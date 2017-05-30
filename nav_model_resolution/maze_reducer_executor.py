@@ -1,4 +1,4 @@
-from executor import Executor
+from executors.executor import Executor
 import planner
 from nav_model_resolution import reduce_domain
 

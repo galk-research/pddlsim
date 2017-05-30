@@ -1,6 +1,7 @@
 import pddl.parser
 
 from first_parser import FirstParser
+import copy
 
 class Simulator(object):
     """docstring for Simulator."""
@@ -12,15 +13,14 @@ class Simulator(object):
         self.check_preconditions = True        
      
     
-
-    def apply_action(self, action, params):
+    def apply_action(self, action, params):    
         param_mapping = self.parser.get_param_mapping(action,params)
         
         if self.check_preconditions:
             preconditions = self.parser.get_action_preconditions(action)            
-            passed = all([self.test_predicate(precondition.name,precondition.signature,param_mapping) for precondition in preconditions])
-            if not passed:
-                raise PreconditionFalseError()
+            for precondition in preconditions:
+                if not self.test_predicate(precondition.name,precondition.signature,param_mapping):            
+                    raise PreconditionFalseError()
 
         for (predicate_name,entry) in self.parser.to_delete(action,param_mapping):
             predicate_set = self.state[predicate_name]
@@ -30,6 +30,7 @@ class Simulator(object):
         for (predicate_name,entry) in self.parser.to_add(action,param_mapping):
             self.state[predicate_name].add(entry)
         
+
     def act(self, action_sig):
         if self.print_actions:
             print(action_sig)
