@@ -1,4 +1,6 @@
 import pddl.parser
+from pddl.pddl import Action as PddlParserAction, Predicate as PddlParserPredicate
+
 
 class FirstParser(object):    
     def __init__(self,domain_path,problem_path):
@@ -7,6 +9,8 @@ class FirstParser(object):
         self.domain = self.pddlParser.parse_domain()
         self.pddlParser.set_prob_file(problem_path)
         self.problem = self.pddlParser.parse_problem(self.domain)
+
+        self.actions = {name:Action(action) for name, action in self.domain.actions.items()}
     
     def build_first_state(self):
         initial_state = self.problem.initial_state
@@ -47,40 +51,54 @@ class FirstParser(object):
         return [(subgoal.name, self.get_signature(subgoal.signature)) for subgoal in self.problem.goal]
 
     def get_action(self, action_name):
-        return self.domain.actions[action_name]
-    
-    def get_actions(self):
-        return self.domain.actions.items()
-
-    def get_param_mapping(self, action, params):
-        param_mapping = dict()
-        for (name,param_type),obj in zip(action.signature,params):
-            param_mapping[name] = obj
-        return param_mapping
-    
-    def get_entry(self, param_mapping, predicate):
+        # return self.domain.actions[action_name]
+        return self.actions[action_name]
+        
+    @staticmethod
+    def get_entry(param_mapping, predicate):
         names = [x[0] for x in predicate.signature]
         entry = tuple([param_mapping[name] for name in names])
         return entry
+      
+
+    def has_all_objects(self, precondition, objects):
+        return objects.keys() >= {obj_name for (obj_name,t) in precondition.signature}
+
+
+class Action(object):
+    def __init__(self, action):
+        self.name = action.name
+        self.signature = [(obj[0],obj[1][0]) for obj in action.signature]
+        self.effect = action.effect
+        self.precondition = list(map(Predicate,action.precondition))
+
+    def action_string(self,dictionary):
+        params = " ".join([dictionary[var[0]][0] for var in self.signature])
+        return "(" + self.name + " " + params + ")"
     
     def entries_from_list(self, preds, param_mapping):
-        return [(pred.name,self.get_entry(param_mapping,pred)) for pred in preds]
+        return [(pred.name,FirstParser.get_entry(param_mapping,pred)) for pred in preds]
 
-    def to_delete(self, action, param_mapping):
-        return self.entries_from_list(action.effect.dellist,param_mapping)        
+    def to_delete(self, param_mapping):
+        return self.entries_from_list(self.effect.dellist,param_mapping)        
     
-    def to_add(self, action, param_mapping):
-        return self.entries_from_list(action.effect.addlist,param_mapping)        
+    def to_add(self, param_mapping):
+        return self.entries_from_list(self.effect.addlist,param_mapping)       
     
-    def get_action_string(self, action, dictionary):
-        params = " ".join([dictionary[var[0]][0] for var in action.signature])
-        return "(" + action.name + " " + params + ")"
+    def get_param_mapping(self, params):
+        param_mapping = dict()
+        for (name,param_type),obj in zip(self.signature,params):
+            param_mapping[name] = obj
+        return param_mapping
 
-    def get_action_preconditions(self, action):
-        return action.precondition
+class Predicate(object):
+    def __init__(self,predicate):
+        self.name = predicate.name
+        self.signature = predicate.signature
     
-    def get_action_signature(self, action):
-        return [(obj[0],obj[1][0]) for obj in action.signature]
-
-    def has_all_objects(self, precondition,objects):
-        return objects.keys() >= {obj_name for (obj_name,t) in precondition.signature}
+    def ground(self, dictionary):
+        return tuple([dictionary[x[0]] for x in self.signature])
+    
+    def test(self, param_mapping, state):        
+        return self.ground(param_mapping) in state[self.name]
+    

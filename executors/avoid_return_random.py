@@ -15,8 +15,9 @@ class AvoidReturn(RandomExecutor):
         ''' 
         save previous state after choosing next action
         '''
+        
         choice = self.pick_action()
-        self.previous_state = copy.deepcopy(self.simulator.state)
+        self.previous_state = self.simulator.clone_state()
         return choice
 
     def pick_action(self):        
@@ -33,12 +34,7 @@ class AvoidReturn(RandomExecutor):
         # print(chosen)
         return chosen
 
-    def next_state(self, action):
-        original_state = copy.deepcopy(self.simulator.state)        
-        original_print_actions = self.simulator.print_actions
-        self.simulator.print_actions = False
-        self.simulator.act(action)
-        next_state = self.simulator.state        
-        self.simulator.state = original_state
-        self.simulator.print_actions = original_print_actions
+    def next_state(self, action):        
+        next_state = self.simulator.clone_state()                
+        self.simulator.act(action, next_state)                
         return next_state

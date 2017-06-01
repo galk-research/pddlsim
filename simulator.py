@@ -12,28 +12,28 @@ class Simulator(object):
         self.reached_goal = False
         self.check_preconditions = True        
      
-    
-    def apply_action(self, action, params):    
-        param_mapping = self.parser.get_param_mapping(action,params)
         
-        if self.check_preconditions:
-            preconditions = self.parser.get_action_preconditions(action)            
-            for precondition in preconditions:
-                if not self.test_predicate(precondition.name,precondition.signature,param_mapping):            
+    def apply_action(self, action, params, state=None):    
+        if state == None: state = self.state
+        param_mapping = action.get_param_mapping(params)
+        
+        if self.check_preconditions:                        
+            for precondition in action.precondition:
+                if not precondition.test(param_mapping, state):
+                # if not self.test_predicate(precondition.name, precondition.signature, param_mapping):
                     raise PreconditionFalseError()
 
-        for (predicate_name,entry) in self.parser.to_delete(action,param_mapping):
-            predicate_set = self.state[predicate_name]
+        for (predicate_name,entry) in action.to_delete(param_mapping):
+            predicate_set = state[predicate_name]
             if entry in predicate_set:
                 predicate_set.remove(entry)
         
-        for (predicate_name,entry) in self.parser.to_add(action,param_mapping):
-            self.state[predicate_name].add(entry)
+        for (predicate_name,entry) in action.to_add(param_mapping):
+            state[predicate_name].add(entry)
         
 
-    def act(self, action_sig):
-        if self.print_actions:
-            print(action_sig)
+    def act(self, action_sig, state=None):
+        if state == None: state = self.state        
         
         action_sig = action_sig.strip('()')
         parts = action_sig.split(' ')
@@ -41,8 +41,8 @@ class Simulator(object):
         param_names = parts[1:]
         
         action = self.parser.get_action(action_name)
-        params = [self.parser.get_object(param_name) for param_name in param_names]
-        self.apply_action(action, params)
+        params = map(self.parser.get_object,param_names)
+        self.apply_action(action, params, state)
 
     def simulate(self,problem_path,executor):
         self.problem_path = problem_path
@@ -61,7 +61,10 @@ class Simulator(object):
         while has_actions:
             action = self.executor.next_action()
             if action:
+                if self.print_actions:
+                    print(action)
                 self.act(action)
+
             else:
                 has_actions = False
         #check goal
@@ -76,6 +79,9 @@ class Simulator(object):
     def test_predicate(self, name, signature, dictionary):
         signature = tuple([dictionary[x[0]] for x in signature])
         return signature in self.state[name]
+
+    def clone_state(self):
+        return {name:set(entries) for name, entries in self.state.items()}
 
 class PreconditionFalseError(Exception):
     pass

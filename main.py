@@ -11,6 +11,8 @@ import os
 import first_parser
 import time
 
+import cProfile
+
 IPC_PATH = 'ipc2002/'
 def test_all_ipc2002():
      for domain_dir in glob.glob(IPC_PATH + '*')[2:]:    
@@ -27,14 +29,16 @@ def test_all_ipc2002():
             total += 1
         print(count,total,sep='/')
 
+
+
 def compare_executors():
-    length = 5
+    length = 400
     
     domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
         
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
-    executors = {'No_Return':AvoidReturn(), 'Random':RandomExecutor()}    
+    executors = {'No_Return':AvoidReturn(),'PlanDispatcher':PlanDispatcher()}    
 
     for name, executor in executors.items():        
         t0 = time.time()
@@ -55,11 +59,12 @@ def simulate(executor, domain_path, problem_path):
     else:
         print('Failed to reach goal')
 
-    
+import pstats
+
 if __name__ == '__main__':
-    # compare_executors()
+    compare_executors()
     # test_all_ipc2002()
-    # exit()
+    exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -70,14 +75,19 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_100.pddl'
 
     # print(planner.make_plan(domain_path,problem_path))
     # reduce_domain.reduce_problem(domain_path,problem_path)
     # exit()
         
     # simulate(PlanDispatcher(),domain_path,problem_path)
-    # simulate(RandomExecutor(stop_at_goal=False),domain_path,problem_path)
+    # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
 
-    simulate(AvoidReturn(), domain_path, problem_path)
+    profile_path = 'avoid_run_profile'
+    cProfile.run('simulate(AvoidReturn(), domain_path, problem_path)',profile_path)
+
+    p = pstats.Stats(profile_path)
+    p.strip_dirs().sort_stats('cumtime').print_stats()
+    
