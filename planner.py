@@ -1,6 +1,8 @@
 
-import urllib.request as urllib2
-# import urllib2
+try:
+    import urllib.request as urllib2
+except Exception:
+    import urllib2
 import os, json, sys
 
 # def make_plan(domain_path,problem_path):

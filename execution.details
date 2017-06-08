@@ -400,9 +400,9 @@ Plan found with cost: 401
 399. (MOVE-EAST PERSON1 T397 T398)
 400. (MOVE-EAST PERSON1 T398 T399)
 401. (MOVE-EAST PERSON1 T399 GOAL_TILE)
-Time: 0.76
+Time: 0.856
 Generated: 0
 Expanded: 0
-Total time: 0.76
+Total time: 0.856
 Nodes generated during search: 40402
 Nodes expanded during search: 40201

@@ -1,14 +1,18 @@
+from __future__ import print_function
 from simulator import Simulator
 from executors.plan_dispatch import PlanDispatcher
 from executors.random_executor import RandomExecutor
 from executors.avoid_return_random import AvoidReturn
+from executors import executor
 from nav_model_resolution import reduce_domain,generate_problem
 from nav_model_resolution.maze_reducer_executor import MazeReducerExecutor
+from lapkt.successors import Successors 
+
 import planner
 import glob
 import os
 
-import first_parser
+# import first_parser
 import time
 
 import cProfile
@@ -59,12 +63,25 @@ def simulate(executor, domain_path, problem_path):
     else:
         print('Failed to reach goal')
 
+def successors():
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'        
+    # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
+    sim = Simulator(domain_path)
+    sim.simulate(problem_path,executor.Executor())
+    succ = Successors(domain_path,problem_path)
+    # print(list(succ.expand_simulator_state(sim.state)))
+    res = succ.next(sim.state)
+    for r in res: 
+        print (r)
+    
+
 import pstats
 
 if __name__ == '__main__':
-    compare_executors()
+    # successors()
+    # compare_executors()
     # test_all_ipc2002()
-    exit()
+    # exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -76,7 +93,9 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
     domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_100.pddl'
-
+    # sim = Simulator(domain_path)
+    # sim.simulate(problem_path, executor.Executor())
+    # print(sim.state)
     # print(planner.make_plan(domain_path,problem_path))
     # reduce_domain.reduce_problem(domain_path,problem_path)
     # exit()
@@ -85,8 +104,8 @@ if __name__ == '__main__':
     # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
 
-    profile_path = 'avoid_run_profile'
-    cProfile.run('simulate(AvoidReturn(), domain_path, problem_path)',profile_path)
+    profile_path = 'avoid_run_profile_lapkt'
+    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
 
     p = pstats.Stats(profile_path)
     p.strip_dirs().sort_stats('cumtime').print_stats()

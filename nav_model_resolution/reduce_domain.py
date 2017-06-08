@@ -1,5 +1,6 @@
 # import pddl.parser
-from first_parser import FirstParser
+# from first_parser import FirstParser
+from fd_parser import FDParser
 from nav_model_resolution.generate_problem import create_pddl
 import copy
 DIST = 'distance'
@@ -18,7 +19,7 @@ def reduce_problem(domain_path, problem_path, new_problem_path):
     # domain = pddlParser.parse_domain()
     # pddlParser.set_prob_file(problem_path)
     # problem = pddlParser.parse_problem(domain)
-    parser = FirstParser(domain_path,problem_path)
+    parser = FDParser(domain_path,problem_path)
     state = parser.build_first_state()
     graph = generate_graph(state)
     original_graph = copy.deepcopy(graph)

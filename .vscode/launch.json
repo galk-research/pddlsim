@@ -18,6 +18,22 @@
             ]
         },
         {
+            "name": "Python2 linux - main.py",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": false,
+            "pythonPath": "${config:python.linux.python2Path}",
+            "program": "${workspaceRoot}/main.py",
+            "cwd": "${workspaceRoot}",
+            "env": {},
+            "envFile": "${workspaceRoot}/.env",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ]
+        },
+        {
             "name": "Python - main.py",
             "type": "python",
             "request": "launch",

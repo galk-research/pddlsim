@@ -1,16 +1,22 @@
-import pddl.parser
 
-from first_parser import FirstParser
 import copy
 
 class Simulator(object):
     """docstring for Simulator."""
-    def __init__(self, domain_path, print_actions=True):
+    def __init__(self, domain_path, print_actions=True, parser=None):
         super(Simulator, self).__init__()
         self.domain_path = domain_path   
         self.print_actions = print_actions     
         self.reached_goal = False
         self.check_preconditions = True        
+        if parser == None:
+            # import pddl.parser
+            # from first_parser import FirstParser   
+            # self.parser_type = FirstParser
+            import fd_parser
+            self.parser_type = fd_parser.FDParser
+        else:
+            self.parser_type = parser
      
         
     def apply_action(self, action, params, state=None):    
@@ -47,7 +53,9 @@ class Simulator(object):
     def simulate(self,problem_path,executor):
         self.problem_path = problem_path
         self.executor = executor
-        self.parser = FirstParser(self.domain_path,self.problem_path)
+        
+        self.parser = self.parser_type(self.domain_path,self.problem_path)
+        
         #setup internal state
         self.state = self.parser.build_first_state()
         self.reached_goal = False

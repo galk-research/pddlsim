@@ -4,7 +4,7 @@ class Executor(object):
         super(Executor, self).__init__()
 
     def initilize(self,simulator):
-        pass
+        return None
 
     def next_action(self):
-        pass
+        return None

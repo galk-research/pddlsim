@@ -1,16 +1,18 @@
 # import pddl.parsersimulate
 import random
-import numpy as np
-import numpy.lib.recfunctions as rfn
-
+from lapkt.successors import Successors
 class RandomExecutor(object):
     """docstring for RandomExecutor."""
-    def __init__(self,stop_at_goal=True):        
+    def __init__(self,stop_at_goal=True,use_lapkt_successor=True):        
         super(RandomExecutor, self).__init__()
         self.stop_at_goal = stop_at_goal
+        self.use_lapkt_successor = use_lapkt_successor
+        self.successors = None
 
     def initilize(self,simulator):
         self.simulator = simulator
+        if self.use_lapkt_successor:
+            self.successor = Successors(self.simulator.domain_path,self.simulator.problem_path)
 
     def next_action(self):
         if self.stop_at_goal and self.simulator.check_goal():
@@ -22,6 +24,15 @@ class RandomExecutor(object):
         # print(chosen)
         return chosen
     
+    def get_valid_actions(self):
+        if self.use_lapkt_successor:
+            return self.successor.next(self.simulator.state)
+        possible_actions = [] if self.stop_at_goal else [None]
+        for (name,action) in self.simulator.parser.actions.items():
+            for candidate in self.get_valid_candidates_for_action(action):
+                possible_actions.append(action.action_string(candidate))
+        return possible_actions
+
     def join_candidates(self, previous_candidates, new_candidates, p_indexes, n_indexes):
         shared_indexes = p_indexes.intersection(n_indexes)            
         if previous_candidates is None: return new_candidates
@@ -54,8 +65,8 @@ class RandomExecutor(object):
             thruths = self.simulator.state[precondition.name]            
             if len(thruths) == 0: return []
             # map from predicate index to candidate index
-            dtypes = [(name,'object') for (name,t) in precondition.signature]
-            reverse_map = {idx:signatures_to_match[pred[0]][0] for idx,pred in enumerate(precondition.signature)}
+            dtypes = [(name,'object') for name in precondition.signature]
+            reverse_map = {idx:signatures_to_match[pred][0] for idx,pred in enumerate(precondition.signature)}
             indexes = reverse_map.values()
             overlap = len(found.intersection(indexes)) > 0
             precondition_candidates = []            
@@ -113,11 +124,6 @@ class RandomExecutor(object):
         return candidates
 
 
-    def get_valid_actions(self):
-        possible_actions = [] if self.stop_at_goal else [None]
-        for (name,action) in self.simulator.parser.actions.items():
-            for candidate in self.get_valid_candidates_for_action(action):
-                possible_actions.append(action.action_string(candidate))
-        return possible_actions
+    
     
    

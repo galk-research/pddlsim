@@ -4,11 +4,12 @@ import random
 import copy
 
 class AvoidReturn(RandomExecutor):
-    def __init__(self):        
-        super(AvoidReturn, self).__init__(True)
+    def __init__(self,use_lapkt_successor=True):        
+        super(AvoidReturn, self).__init__(True,use_lapkt_successor)
         self.previous_state = None
 
     def initilize(self,simulator):
+        super(AvoidReturn, self).initilize(simulator)
         self.simulator = simulator
 
     def next_action(self):        

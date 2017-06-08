@@ -9,7 +9,7 @@ import fd.build_model
 from fd.pddl import actions,axioms,conditions, predicates, pddl_types, functions, f_expression
 from fd.pddl.tasks import *
 import fd.pddl as pddl
-
+# from lapkt.libfdplanner import Planner 
 from libfdplanner import Planner 
 # MRJ: Profiler imports
 #from prof import profiler_start, profiler_stop
@@ -134,9 +134,32 @@ def main( domain_file, problem_file, plan_file ) :
 
     atom_table = load( domain_file, problem_file, task )
 
-    atoms = create_atoms(
-        [['CLEAR', 'A'], ['CLEAR', 'C'], ['CLEAR', 'B'], ['ONTABLE', 'A'], ['ONTABLE', 'B'], ['ONTABLE','D'],
-                    ['ON', 'C', 'D'],['HANDEMPTY']])
+    states = [['CLEAR', 'A'], ['CLEAR', 'C'], ['CLEAR', 'B'], ['ONTABLE', 'A'], ['ONTABLE', 'B'], ['ONTABLE','D'],
+                    ['ON', 'C', 'D'],['HANDEMPTY']]
+    states= [
+    ('empty', 'start_tile'),
+	('empty', 't0'),
+	('empty', 't1'),
+	('empty', 't2'),
+	('empty', 't3'),
+	('empty', 't4'),
+	('empty', 'goal_tile'),
+	('east', 'start_tile t0'),
+	('west', 't0', 'start_tile'),
+	('east', 't0', 't1'),
+	('west', 't1', 't0'),
+	('east', 't1', 't2'),
+	('west', 't2', 't1'),
+	('east', 't2', 't3'),
+	('west', 't3', 't2'),
+	('east', 't3', 't4'),
+	('west', 't4', 't3'),
+	('east', 't4', 'goal_tile'),
+	('west', 'goal_tile', 't4'),
+    ('person', 'person1'),
+    ('at', 'person1', 't2')]
+    atoms = create_atoms( states
+        )
     
     state = task.create_state(encode(atoms,atom_table))
     #MRJ: Uncomment to check what actions are being loaded
@@ -179,6 +202,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         main( sys.argv[1], sys.argv[2], sys.argv[3] )
     else:
-        domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_100.pddl'
+        domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
+        
         main(domain_path,problem_path,'')
+        #  main('domain-blocksaips.pddl','blocksaips03.pddl','')
 
