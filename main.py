@@ -36,13 +36,13 @@ def test_all_ipc2002():
 
 
 def compare_executors():
-    length = 400
-    
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
+    # length = 400
+    domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
+    # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
         
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
-    executors = {'No_Return':AvoidReturn(),'PlanDispatcher':PlanDispatcher()}    
+    executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
 
     for name, executor in executors.items():        
         t0 = time.time()
@@ -65,6 +65,7 @@ def simulate(executor, domain_path, problem_path):
 
 def successors():
     domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'        
+    
     # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
     sim = Simulator(domain_path)
     sim.simulate(problem_path,executor.Executor())
@@ -79,9 +80,9 @@ import pstats
 
 if __name__ == '__main__':
     # successors()
-    # compare_executors()
+    compare_executors()
     # test_all_ipc2002()
-    # exit()
+    exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -104,9 +105,24 @@ if __name__ == '__main__':
     # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
 
-    profile_path = 'avoid_run_profile_lapkt'
-    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
+    profile_path = 'profile/avoid_run_lapkt'
+    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=False), domain_path, problem_path)',profile_path)
+
+    # profile_path = 'profile/plan_dispatch'
+    # cProfile.run('simulate(PlanDispatcher(),domain_path,problem_path)',profile_path)
 
     p = pstats.Stats(profile_path)
-    p.strip_dirs().sort_stats('cumtime').print_stats()
+    p.strip_dirs().sort_stats('cumtime').print_stats('encode')
+
+    # for profile_path in glob.glob("profile/*"):
+    #     p = pstats.Stats(profile_path)
+    #     p.strip_dirs().sort_stats('cumtime').print_stats('simulator')
+
+    # from pycallgraph import PyCallGraph
+    # from pycallgraph.output import GraphvizOutput
+    # graphviz = GraphvizOutput()
+    # graphviz.output_file = 'basic.png'
+
+    # with PyCallGraph(output=graphviz):
+    #     simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)
     
