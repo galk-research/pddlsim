@@ -13,3 +13,6 @@ class Planner_Wrapper(object):
     
     def next_actions(self,state):
         return self.task.next_actions(state)
+    
+    def encode(self, atoms, atom_table):
+        return self.task.encode(atoms,atom_table)

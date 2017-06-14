@@ -1,6 +1,7 @@
 # import pddl.parsersimulate
 import random
 from lapkt.successors import Successors
+
 class RandomExecutor(object):
     """docstring for RandomExecutor."""
     def __init__(self,stop_at_goal=True,use_lapkt_successor=True):        

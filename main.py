@@ -80,9 +80,9 @@ import pstats
 
 if __name__ == '__main__':
     # successors()
-    compare_executors()
+    # compare_executors()
     # test_all_ipc2002()
-    exit()
+    # exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -106,13 +106,13 @@ if __name__ == '__main__':
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
 
     profile_path = 'profile/avoid_run_lapkt'
-    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=False), domain_path, problem_path)',profile_path)
+    cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
 
     # profile_path = 'profile/plan_dispatch'
     # cProfile.run('simulate(PlanDispatcher(),domain_path,problem_path)',profile_path)
 
     p = pstats.Stats(profile_path)
-    p.strip_dirs().sort_stats('cumtime').print_stats('encode')
+    p.strip_dirs().sort_stats('cumtime').print_stats('')
 
     # for profile_path in glob.glob("profile/*"):
     #     p = pstats.Stats(profile_path)
