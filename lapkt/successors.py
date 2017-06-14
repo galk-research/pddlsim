@@ -35,5 +35,5 @@ class Successors(object):
         atoms = self.create_atoms(sim_state)
         # encoded = encode(atoms,self.atom_table)
         # state = self.task.create_state(encoded)
-        state = self.task.encode(atoms,self.atom_table)
-        return self.task.next_actions(state)
+        return self.task.next_actions_from_atoms(atoms,self.atom_table)
+        # return self.task.next_actions(state)

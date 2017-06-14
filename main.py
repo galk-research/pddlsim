@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_100.pddl'
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_1000.pddl'
     # sim = Simulator(domain_path)
     # sim.simulate(problem_path, executor.Executor())
     # print(sim.state)
@@ -106,17 +106,22 @@ if __name__ == '__main__':
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
 
     profile_path = 'profile/avoid_run_lapkt'
-    cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
+    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
+
+    # profile_path = 'profile/avoid_run'
+    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=False), domain_path, problem_path)',profile_path)
+
 
     # profile_path = 'profile/plan_dispatch'
     # cProfile.run('simulate(PlanDispatcher(),domain_path,problem_path)',profile_path)
 
     p = pstats.Stats(profile_path)
-    p.strip_dirs().sort_stats('cumtime').print_stats('')
+    p.strip_dirs().sort_stats('tottime').print_stats('')
 
     # for profile_path in glob.glob("profile/*"):
-    #     p = pstats.Stats(profile_path)
-    #     p.strip_dirs().sort_stats('cumtime').print_stats('simulator')
+    #     if not profile_path.endswith('.txt'):
+    #         p = pstats.Stats(profile_path)
+    #         p.strip_dirs().sort_stats('cumtime').print_stats('simulator')
 
     # from pycallgraph import PyCallGraph
     # from pycallgraph.output import GraphvizOutput

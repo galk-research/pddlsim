@@ -1,0 +1,22 @@
+corridor 100:
+
+profile/avoid_run 1.083
+
+profile/avoid_run_lapkt 1.364
+
+profile/plan_dispatch 0.223
+
+corridor 400:
+profile/avoid_run 12.384 seconds
+
+profile/avoid_run_lapkt 15.404 seconds
+
+profile/plan_dispatch 1.588 seconds
+
+
+corridor 1000 (lapkt improved):
+    profile/avoid_run 59.080 seconds
+
+    profile/avoid_run_lapkt 15.397 seconds
+
+    profile/plan_dispatch 28.148 seconds
