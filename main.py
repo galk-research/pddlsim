@@ -3,6 +3,7 @@ from simulator import Simulator
 from executors.plan_dispatch import PlanDispatcher
 from executors.random_executor import RandomExecutor
 from executors.avoid_return_random import AvoidReturn
+from executors.delayed_dispatch import DelayedDispatch
 from executors import executor
 from nav_model_resolution import reduce_domain,generate_problem
 from nav_model_resolution.maze_reducer_executor import MazeReducerExecutor
@@ -37,13 +38,14 @@ def test_all_ipc2002():
 
 def compare_executors():
     # length = 400
-    domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
+    # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
-        
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_T(2000,5,5)
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
-    executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
-
+    # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
+    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}    
+    
     for name, executor in executors.items():        
         t0 = time.time()
         
@@ -80,9 +82,9 @@ import pstats
 
 if __name__ == '__main__':
     # successors()
-    # compare_executors()
+    compare_executors()
     # test_all_ipc2002()
-    # exit()
+    exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -93,9 +95,11 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_1000.pddl'
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
+   
     # sim = Simulator(domain_path)
     # sim.simulate(problem_path, executor.Executor())
+    # sim.generate_problem('tmp/generated.pddl')
     # print(sim.state)
     # print(planner.make_plan(domain_path,problem_path))
     # reduce_domain.reduce_problem(domain_path,problem_path)
@@ -104,7 +108,9 @@ if __name__ == '__main__':
     # simulate(PlanDispatcher(),domain_path,problem_path)
     # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
+    simulate(DelayedDispatch(),domain_path,problem_path)
 
+    exit()
     profile_path = 'profile/avoid_run_lapkt'
     # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
 

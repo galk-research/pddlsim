@@ -91,5 +91,15 @@ class Simulator(object):
     def clone_state(self):
         return {name:set(entries) for name, entries in self.state.items()}
 
+    def generate_problem(self,path):
+        '''
+        generate a pddl problem at the path
+        this problem will be from the current state and not the original state
+        '''
+        predicates = [("(%s %s)"%(predicate_name," ".join(map(str,pred)))) for predicate_name,predicate_set in self.state.iteritems() for pred in predicate_set if predicate_name != '=']
+        self.parser.generate_problem(path, predicates)
+        return path
+
+
 class PreconditionFalseError(Exception):
     pass

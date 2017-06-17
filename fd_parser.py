@@ -58,7 +58,34 @@ class FDParser(object):
         names = [x for x in predicate]
         entry = tuple([param_mapping[name][0] for name in names])
         return entry
-      
+    
+    def pd_to_strips_string(self,condition):
+        if isinstance(condition,pddl.Literal):
+            return "({} {})".format(condition.predicate,' '.join(condition.args))
+        if isinstance(condition,pddl.Conjunction):
+            return "(and {})".format(' '.join(map(self.pd_to_strips_string,condition.parts)))
+
+    def generate_problem(self, path, predicates):
+        goal = self.pd_to_strips_string(self.task.goal)
+        with open(path,'w') as f:
+            f.write('''
+    (define (problem ''' + self.task.task_name + ''')
+    (:domain  ''' + self.task.domain_name +  ''')
+    (:objects
+        person1''')
+            for t in self.objects.keys():
+                f.write('\n\t'+t)
+            f.write(''')
+(:init
+''' )        
+            f.write('\t'+'\n\t'.join(predicates))
+            f.write('''        
+            )
+    (:goal 
+        ''' +goal + '''
+        )
+    )
+    ''')        
 
     # def has_all_objects(self, precondition, objects):
     #     return objects.keys() >= {obj_name for (obj_name,t) in precondition.signature}
