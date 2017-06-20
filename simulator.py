@@ -1,5 +1,6 @@
 
 import copy
+from obsub import event
 
 class Simulator(object):
     """docstring for Simulator."""
@@ -41,7 +42,7 @@ class Simulator(object):
     def act(self, action_sig, state=None):
         if state == None: state = self.state        
         
-        action_sig = action_sig.strip('()')
+        action_sig = action_sig.strip('()').lower()
         parts = action_sig.split(' ')
         action_name = parts[0]
         param_names = parts[1:]
@@ -61,6 +62,10 @@ class Simulator(object):
         self.reached_goal = False
         #setup executor
         self.executor.initilize(self)
+        if self.print_actions:
+            def printer(text):
+                print text
+            self.on_action += printer
 
         self.action_loop()
 
@@ -68,15 +73,19 @@ class Simulator(object):
         has_actions = True
         while has_actions:
             action = self.executor.next_action()
-            if action:
-                if self.print_actions:
-                    print(action)
+            if action:                
+                action = action.lower()
                 self.act(action)
-
+                self.on_action(action)
             else:
                 has_actions = False
         #check goal
         self.reached_goal = self.check_goal()
+
+    @event
+    def on_action(self,action_sig):
+        pass
+
 
     def check_goal(self):
         for (name,signature) in self.parser.get_goals():                        

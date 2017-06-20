@@ -166,7 +166,25 @@ def load( domain_file, problem_file, output_task ) :
     output_task.set_goal( encode( task.goal, atom_table ) )
     # output_task.parsing_time = parsing_timer.report()
     return atom_table
+
+def get_atom_table(task):
     
+    prog = pddl_to_prolog.translate(task)
+    model = build_model.compute_model(prog)    
+    atoms = get_fluent_facts(task, model)
+    
+    index = 0
+    atom_table = {}
+
+    atom_names = [ atom.text() for atom in atoms ]
+    atom_names.sort()
+
+    for atom in atom_names :
+        atom_table[ atom ] = index
+        # output_task.add_atom( atom )
+        index += 1
+    return atom_table
+
 def main( domain_file, problem_file, plan_file ) :
     # task = Planner( domain_file, problem_file )
     task = Planner()

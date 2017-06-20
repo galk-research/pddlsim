@@ -58,7 +58,7 @@ def generate_T(corridor_length,goal_length, deadend_length):
     predicates = ['(empty {})'.format(t) for t in tiles] + \
         connect_tiles(corridor_tiles,'east','west') + \
         connect_tiles(goal_tiles,'north','south') + \
-        connect_tiles(corridor_tiles,'south','north')                        
+        connect_tiles(deadend_tiles,'south','north')                        
     
     fork = corridor_tiles[-1]
     predicates.append('(north {} {})'.format(fork,goal_tiles[0]))

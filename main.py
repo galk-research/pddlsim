@@ -40,7 +40,7 @@ def compare_executors():
     # length = 400
     # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_T(2000,5,5)
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_T(400,5,5)
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
     # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
@@ -59,6 +59,7 @@ def compare_executors():
 
 def simulate(executor, domain_path, problem_path):    
     sim = Simulator(domain_path)
+    # sim.print_actions = False
     sim.simulate(problem_path, executor)
     if sim.reached_goal:
         print('Reached goal!')
@@ -95,7 +96,8 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
+    # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_400_5_5.pddl'
    
     # sim = Simulator(domain_path)
     # sim.simulate(problem_path, executor.Executor())
@@ -108,10 +110,10 @@ if __name__ == '__main__':
     # simulate(PlanDispatcher(),domain_path,problem_path)
     # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
     # simulate(MazeReducerExecutor(),domain_path,problem_path)
-    simulate(DelayedDispatch(),domain_path,problem_path)
+    # simulate(DelayedDispatch(),domain_path,problem_path)
 
-    exit()
-    profile_path = 'profile/avoid_run_lapkt'
+    # exit()
+    # profile_path = 'profile/avoid_run_lapkt'
     # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
 
     # profile_path = 'profile/avoid_run'
@@ -120,6 +122,9 @@ if __name__ == '__main__':
 
     # profile_path = 'profile/plan_dispatch'
     # cProfile.run('simulate(PlanDispatcher(),domain_path,problem_path)',profile_path)
+    
+    profile_path = 'profile/delayed_dispatch'    
+    cProfile.run('simulate(DelayedDispatch(),domain_path,problem_path)',profile_path)
 
     p = pstats.Stats(profile_path)
     p.strip_dirs().sort_stats('tottime').print_stats('')

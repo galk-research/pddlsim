@@ -1,6 +1,7 @@
 # import pddl.parsersimulate
 import random
-from lapkt.successors import Successors
+# from lapkt.successors import Successors
+from lapkt.tracked_successor import TrackedSuccessors
 
 class RandomExecutor(object):
     """docstring for RandomExecutor."""
@@ -13,7 +14,8 @@ class RandomExecutor(object):
     def initilize(self,simulator):
         self.simulator = simulator
         if self.use_lapkt_successor:
-            self.successor = Successors(self.simulator.domain_path,self.simulator.problem_path)
+            # self.successor = Successors(self.simulator.domain_path,self.simulator.problem_path)
+            self.successor = TrackedSuccessors(simulator)
 
     def next_action(self):
         if self.stop_at_goal and self.simulator.check_goal():
@@ -27,7 +29,9 @@ class RandomExecutor(object):
     
     def get_valid_actions(self):
         if self.use_lapkt_successor:
-            return self.successor.next(self.simulator.state)
+            # return self.successor.next(self.simulator.state)
+            return map(str.lower, self.successor.next())
+
         possible_actions = [] if self.stop_at_goal else [None]
         for (name,action) in self.simulator.parser.actions.items():
             for candidate in self.get_valid_candidates_for_action(action):

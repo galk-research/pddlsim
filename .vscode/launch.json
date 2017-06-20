@@ -5,6 +5,7 @@
             "name": "Python2 linux",
             "type": "python",
             "request": "launch",
+            
             "stopOnEntry": false,
             "pythonPath": "${config:python.linux.python2Path}",
             "program": "${file}",
