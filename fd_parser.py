@@ -1,4 +1,4 @@
-import lapkt.fd.pddl as pddl
+import fd.pddl as pddl
 # from pddl.pddl import Action as PddlParserAction, Predicate as PddlParserPredicate
 from six import iteritems,print_
 

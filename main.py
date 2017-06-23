@@ -44,7 +44,7 @@ def compare_executors():
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
     # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
-    executors = {'PlanDispatcher':PlanDispatcher(),'No_Return':AvoidReturn(), 'DelayedDispatch':DelayedDispatch()}    
+    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}    
     
     for name, executor in executors.items():        
         t0 = time.time()
@@ -84,9 +84,9 @@ import pstats
 if __name__ == '__main__':
     
     # successors()
-    # compare_executors()
+    compare_executors()
     # test_all_ipc2002()
-    # exit()
+    exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -107,20 +107,20 @@ if __name__ == '__main__':
     # sim.simulate(problem_path, d1)
     from lapkt.tracked_successor import TrackedSuccessors
     
-    sim = Simulator(domain_path,print_actions=False)
-    sim.problem_path = problem_path
-    # sim.simulate(problem_path, d2)
+    # sim = Simulator(domain_path,print_actions=False)
+    # sim.problem_path = problem_path
+    # # sim.simulate(problem_path, d2)
     
-    t1 = TrackedSuccessors(sim)
-    t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
+    # t1 = TrackedSuccessors(sim)
+    # t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
 
-    sim = Simulator(domain_path,print_actions=False)
-    sim.problem_path = problem_path
-    # sim.simulate(problem_path, d2)
+    # sim = Simulator(domain_path,print_actions=False)
+    # sim.problem_path = problem_path
+    # # sim.simulate(problem_path, d2)
     
-    # from lapkt.tracked_successor import TrackedSuccessors
-    t1 = TrackedSuccessors(sim)
-    t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
+    # # from lapkt.tracked_successor import TrackedSuccessors
+    # t1 = TrackedSuccessors(sim)
+    # t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
     exit()
         
     # simulate(PlanDispatcher(),domain_path,problem_path)

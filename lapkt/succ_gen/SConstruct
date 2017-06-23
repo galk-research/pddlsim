@@ -1,0 +1,24 @@
+import os
+
+debug = ARGUMENTS.get( 'debug', 0 )
+common_env = Environment(ENV = os.environ)
+
+common_env.Append( CCFLAGS = [ '-Wall', '-std=c++11', '-fPIC' ] )
+
+if int(debug) == 1 :
+        common_env.Append( CCFLAGS = ['-g',  '-DDEBUG' ] )
+elif int(debug) == 2 :
+        common_env.Append( CCFLAGS = ['-g',  '-DNDEBUG' ] )
+else:
+        common_env.Append( CCFLAGS = ['-O3', '-DNDEBUG'] )
+
+Export( 'common_env' )
+lapkt_root = '../LAPKT-dev/'
+generic_objs = SConscript(os.path.join( lapkt_root,'src/SConscript.aptk'))
+agnostic_objs = SConscript(os.path.join( lapkt_root,'interfaces/agnostic/SConscript.agnostic'))
+python_objs = SConscript(os.path.join( lapkt_root,'planners/python/agnostic/SConscript.python'))
+src_objs = SConscript('src/SConscript')
+ff_wrapper_objs = SConscript(os.path.join( lapkt_root,'interfaces/ff-wrapped/SConscript.ff'))
+
+
+common_env.SharedLibrary( 'fdplanner.so', src_objs + generic_objs + agnostic_objs + python_objs + ff_wrapper_objs ) 

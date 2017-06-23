@@ -1,9 +1,9 @@
 from lapkt.libfdplanner import Planner 
 
 from fd.grounding import encode
-from lapkt.fd.pddl.conditions import Atom
+from fd.pddl.conditions import Atom
 
-import lapkt.fd.pddl as pddl
+import fd.pddl as pddl
 
 import next_actions
 

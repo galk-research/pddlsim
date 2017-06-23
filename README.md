@@ -11,3 +11,13 @@ Files:
     - generate_problem.py - tool for generating problems in a maze domain
     - reduce_domain.py - reduces a full maze problem into a simpler problem
     - maze_reducer_executor.py - an executor for maze problems 
+
+Uses a git submodule for including LAPKT. 
+
+To download into the project run the following :
+    cd lapkt/LAPKT-dev
+    git submodule init
+    git submodule update
+
+Next compile libff and libfdplanner.
+    change libff make file, add -fPIC to flags
