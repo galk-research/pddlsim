@@ -9,7 +9,7 @@ class RandomExecutor(object):
         super(RandomExecutor, self).__init__()
         self.stop_at_goal = stop_at_goal
         self.use_lapkt_successor = use_lapkt_successor
-        self.successors = None
+        self.successor = None
 
     def initilize(self,simulator):
         self.simulator = simulator

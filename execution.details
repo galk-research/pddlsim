@@ -1,5 +1,5 @@
 Plan found with cost: 5
-1. (MOVE-NORTH PERSON1 C398 G0)
+1. (MOVE-NORTH PERSON1 C3 G0)
 2. (MOVE-NORTH PERSON1 G0 G1)
 3. (MOVE-NORTH PERSON1 G1 G2)
 4. (MOVE-NORTH PERSON1 G2 G3)
@@ -7,6 +7,6 @@ Plan found with cost: 5
 Time: 0
 Generated: 0
 Expanded: 0
-Total time: -2.08616e-10
-Nodes generated during search: 26
+Total time: 0.004
+Nodes generated during search: 25
 Nodes expanded during search: 18

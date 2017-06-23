@@ -44,7 +44,7 @@ def compare_executors():
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
     # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
-    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}    
+    executors = {'PlanDispatcher':PlanDispatcher(),'No_Return':AvoidReturn(), 'DelayedDispatch':DelayedDispatch()}    
     
     for name, executor in executors.items():        
         t0 = time.time()
@@ -82,10 +82,11 @@ def successors():
 import pstats
 
 if __name__ == '__main__':
+    
     # successors()
-    compare_executors()
+    # compare_executors()
     # test_all_ipc2002()
-    exit()
+    # exit()
     
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -97,15 +98,30 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_400_5_5.pddl'
-   
-    # sim = Simulator(domain_path)
-    # sim.simulate(problem_path, executor.Executor())
-    # sim.generate_problem('tmp/generated.pddl')
-    # print(sim.state)
-    # print(planner.make_plan(domain_path,problem_path))
-    # reduce_domain.reduce_problem(domain_path,problem_path)
-    # exit()
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_5_5_5.pddl'
+
+    # 2 random executors cause segmentation fault
+    # d1 = RandomExecutor()    
+    # d2 = RandomExecutor()
+    # sim = Simulator(domain_path,print_actions=False)
+    # sim.simulate(problem_path, d1)
+    from lapkt.tracked_successor import TrackedSuccessors
+    
+    sim = Simulator(domain_path,print_actions=False)
+    sim.problem_path = problem_path
+    # sim.simulate(problem_path, d2)
+    
+    t1 = TrackedSuccessors(sim)
+    t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
+
+    sim = Simulator(domain_path,print_actions=False)
+    sim.problem_path = problem_path
+    # sim.simulate(problem_path, d2)
+    
+    # from lapkt.tracked_successor import TrackedSuccessors
+    t1 = TrackedSuccessors(sim)
+    t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
+    exit()
         
     # simulate(PlanDispatcher(),domain_path,problem_path)
     # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
