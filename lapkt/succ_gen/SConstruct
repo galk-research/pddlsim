@@ -2,7 +2,7 @@ import os
 
 debug = ARGUMENTS.get( 'debug', 0 )
 common_env = Environment(ENV = os.environ)
-
+print(os.name)
 common_env.Append( CCFLAGS = [ '-Wall', '-std=c++11', '-fPIC' ] )
 
 if int(debug) == 1 :
@@ -21,4 +21,4 @@ src_objs = SConscript('src/SConscript')
 ff_wrapper_objs = SConscript(os.path.join( lapkt_root,'interfaces/ff-wrapped/SConscript.ff'))
 
 
-common_env.SharedLibrary( 'fdplanner.so', src_objs + generic_objs + agnostic_objs + python_objs + ff_wrapper_objs ) 
+common_env.SharedLibrary( 'fdplanner', src_objs + generic_objs + agnostic_objs + python_objs + ff_wrapper_objs ) 

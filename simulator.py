@@ -1,6 +1,7 @@
 
 import copy
 from obsub import event
+import time
 
 class Simulator(object):
     """docstring for Simulator."""
@@ -60,6 +61,8 @@ class Simulator(object):
         #setup internal state
         self.state = self.parser.build_first_state()
         self.reached_goal = False
+
+        t0 = time.time()
         #setup executor
         self.executor.initilize(self)
         if self.print_actions:
@@ -68,6 +71,10 @@ class Simulator(object):
             self.on_action += printer
 
         self.action_loop()
+        self.reached_goal = self.check_goal()
+
+        t1 = time.time()        
+        return t1-t0
 
     def action_loop(self):
         has_actions = True
@@ -78,9 +85,7 @@ class Simulator(object):
                 self.act(action)
                 self.on_action(action)
             else:
-                has_actions = False
-        #check goal
-        self.reached_goal = self.check_goal()
+                has_actions = False        
 
     @event
     def on_action(self,action_sig):

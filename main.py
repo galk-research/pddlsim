@@ -37,6 +37,7 @@ def test_all_ipc2002():
 
 
 def compare_executors():
+    
     # length = 400
     # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
@@ -45,16 +46,11 @@ def compare_executors():
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
     # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
     executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}    
-    
     for name, executor in executors.items():        
-        t0 = time.time()
         
         sim = Simulator(domain_path,print_actions=False)
-        sim.simulate(problem_path, executor)
-                
-        t1 = time.time()
-
-        total = t1-t0
+        total = sim.simulate(problem_path, executor)
+                        
         print(name, total)
 
 def simulate(executor, domain_path, problem_path):    
@@ -98,7 +94,7 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_5_5_5.pddl'
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_100_5_5.pddl'
 
     # 2 random executors cause segmentation fault
     # d1 = RandomExecutor()    
