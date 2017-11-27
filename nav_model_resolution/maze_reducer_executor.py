@@ -1,5 +1,5 @@
-from executors.executor import Executor
-import planner
+from pddlsim.executors.executor import Executor
+import pddlsim.planner
 from nav_model_resolution import reduce_domain
 
 
