@@ -117,3 +117,13 @@ class Simulator(object):
 
 class PreconditionFalseError(Exception):
     pass
+
+def compare_executors(domain_path,problem_path, executors):
+    results = dict()    
+    for name, executor in executors.items():        
+        
+        sim = Simulator(domain_path,print_actions=False)
+        total = sim.simulate(problem_path, executor)
+        # print(name, total)
+        results[name] = total
+    return results

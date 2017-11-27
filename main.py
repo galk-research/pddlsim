@@ -1,5 +1,5 @@
 from __future__ import print_function
-from simulator import Simulator
+from simulator import Simulator,compare_executors
 from executors.plan_dispatch import PlanDispatcher
 from executors.random_executor import RandomExecutor
 from executors.avoid_return_random import AvoidReturn
@@ -36,22 +36,21 @@ def test_all_ipc2002():
 
 
 
-def compare_executors():
+def compare_many():
     
     # length = 400
     # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_T(400,5,5)
+    domain_path = 'nav_model_resolution/domain.pddl'
+    # problems = [generate_problem.generate_T(i,5,5) for i in [100,200,300,400]]
+    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
     # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}    
     # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}    
-    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}    
-    for name, executor in executors.items():        
+    problem = generate_problem.generate_T(50,5,5)
+    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}
+    print(compare_executors(domain_path,problem,executors))
         
-        sim = Simulator(domain_path,print_actions=False)
-        total = sim.simulate(problem_path, executor)
-                        
-        print(name, total)
 
 def simulate(executor, domain_path, problem_path):    
     sim = Simulator(domain_path)
@@ -80,7 +79,7 @@ import pstats
 if __name__ == '__main__':
     
     # successors()
-    compare_executors()
+    compare_many()
     # test_all_ipc2002()
     exit()
     
