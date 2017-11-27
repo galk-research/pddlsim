@@ -1,6 +1,6 @@
 # import pddl.parser
 # from first_parser import FirstParser
-from fd_parser import FDParser
+from pddlsim.fd_parser import FDParser
 from nav_model_resolution.generate_problem import create_pddl
 import copy
 DIST = 'distance'
