@@ -41,7 +41,7 @@ class DelayedDispatch(AvoidReturn):
         if len(options) == 1: return options[0]
         
         # create pddl_problem for current state
-        problem_path = self.simulator.generate_problem('tmp/tmp_delayed_dispatch')
+        problem_path = self.simulator.generate_problem('tmp_delayed_dispatch')
 
         self.plan = make_plan(self.simulator.domain_path,problem_path) 
         return self.next_step_in_plan()
