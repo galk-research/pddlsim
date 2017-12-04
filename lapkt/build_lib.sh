@@ -1,6 +1,5 @@
-# do conditionally?
-
-if [ ! -d "LAPKT-dev" ]; then
+if [ -z "$(ls -A 'LAPKT-dev')" ]; then
+echo "-- init git submodule --"
     git submodule init
     git submodule update
 fi
@@ -13,12 +12,11 @@ scons
 
 echo "-- Make libff library --"
 cd external/libff
+sed -i "15s/.*/CFLAGS  =  -O6 -Wall -ansi \$(TYPE) \$(ADDONS) -fPIC/" Makefile
 make clean
 make depend
 make libff
 
-cd ../../../succ_gen
 echo "-- Construct libfbplanner.so --"
+cd ../../../succ_gen
 scons -j 8
-# cp libfbplanner.so 
-
