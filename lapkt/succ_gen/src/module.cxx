@@ -6,7 +6,7 @@
 using namespace boost::python;
 using aptk::State;
 
-BOOST_PYTHON_MODULE( libfdplanner )
+BOOST_PYTHON_MODULE( liblapkt )
 {
 	class_<StrList>("StrList")
         .def(vector_indexing_suite<StrList>() );

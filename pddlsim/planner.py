@@ -5,9 +5,6 @@ except Exception:
     import urllib2
 import os, json, sys
 
-# def make_plan(domain_path,problem_path):
-    
-
 def online(domain_path, problem_path):
     data = {'domain': open(domain_path, 'r').read(),
             'problem': open(problem_path, 'r').read()}
@@ -19,7 +16,7 @@ def online(domain_path, problem_path):
 
 def local(domain_path, problem_path):
     out_path = 'tmp.ipc'    
-    planner_path = "\"" + os.path.join(os.path.dirname( sys.modules[__name__].__file__),'external/planners/siw-then-bfsf') + "\""
+    planner_path = "\"" + os.path.join(os.path.dirname( sys.modules[__name__].__file__),'external/siw-then-bfsf') + "\""
     
     print planner_path
     os.system(planner_path +' --domain ' + domain_path + ' --problem ' + problem_path + ' --output ' + out_path)

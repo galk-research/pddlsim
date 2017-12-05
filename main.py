@@ -1,9 +1,9 @@
 from __future__ import print_function
 
-# import sys, os
-# # add fd parser to path
-# sys.path.append(os.path.join(os.getcwd(),'external'))
-# import libfdplanner
+import glob
+import os
+import time
+
 from pddlsim.simulator import Simulator,compare_executors
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 from pddlsim.executors.random_executor import RandomExecutor
@@ -12,16 +12,8 @@ from pddlsim.executors.delayed_dispatch import DelayedDispatch
 from pddlsim.executors import executor
 from nav_model_resolution import reduce_domain,generate_problem
 from nav_model_resolution.maze_reducer_executor import MazeReducerExecutor
-# from lapkt.successors import Successors 
 
 import pddlsim.planner
-import glob
-import os
-
-# import first_parser
-import time
-
-import cProfile
 
 IPC_PATH = 'ipc2002/'
 def test_all_ipc2002():
@@ -38,8 +30,6 @@ def test_all_ipc2002():
                 count += 1
             total += 1
         print(count,total,sep='/')
-
-
 
 def compare_many():
     
@@ -66,26 +56,60 @@ def simulate(executor, domain_path, problem_path):
     else:
         print('Failed to reach goal')
 
-def successors():
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'        
-    
-    # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
-    sim = Simulator(domain_path)
-    sim.simulate(problem_path,executor.Executor())
-    succ = Successors(domain_path,problem_path)
-    # print(list(succ.expand_simulator_state(sim.state)))
-    res = succ.next(sim.state)
-    for r in res: 
-        print (r)
-    
 
-import pstats
+def profile():
+    import pstats
+    import cProfile
+    
+    target = 'delayed_dispatch'
+    
+    profile_path = os.path.join('profile',target)
 
+    executives = {'avoid_run_lapkt':'AvoidReturn(use_lapkt_successor=True)',
+                  'avoid_run':'AvoidReturn(use_lapkt_successor=False)',
+                  'plan_dispatch':'PlanDispatcher()',
+                  'delayed_dispatch':'DelayedDispatch()'}
+    code = 'simulate('+executives[target] +',domain_path,problem_path)'
+    
+    # run profiling
+    cProfile.run(code, profile_path)
+
+    # print the results
+    p = pstats.Stats(profile_path)
+    p.strip_dirs().sort_stats('tottime').print_stats('')
+
+    # for profile_path in glob.glob("profile/*"):
+    #     if not profile_path.endswith('.txt'):
+    #         p = pstats.Stats(profile_path)
+    #         p.strip_dirs().sort_stats('cumtime').print_stats('simulator')
+
+    # use a graph tool to profile  
+
+    # from pycallgraph import PyCallGraph
+    # from pycallgraph.output import GraphvizOutput
+    # graphviz = GraphvizOutput()
+    # graphviz.output_file = 'basic.png'
+
+    # with PyCallGraph(output=graphviz):
+    #     simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)
+
+def libffbug():
+    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
+    d1 = RandomExecutor()        
+    sim = Simulator(domain_path,print_actions=False)
+    sim.simulate(problem_path, d1)
+    
+    d2 = RandomExecutor()
+    sim = Simulator(domain_path,print_actions=False)    
+    sim.simulate(problem_path, d2)
+        
+    
 if __name__ == '__main__':
     
-    # successors()
     # compare_many()
     # test_all_ipc2002()
+    # profile()
+
     # exit()
     
     #works:
@@ -100,60 +124,6 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
     domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_100_5_5.pddl'
     simulate(DelayedDispatch(),domain_path,problem_path)
-    # 2 random executors cause segmentation fault
-    # d1 = RandomExecutor()    
-    # d2 = RandomExecutor()
-    # sim = Simulator(domain_path,print_actions=False)
-    # sim.simulate(problem_path, d1)    
     
-    # sim = Simulator(domain_path,print_actions=False)
-    # sim.problem_path = problem_path
-    # # sim.simulate(problem_path, d2)
-    
-    # t1 = TrackedSuccessors(sim)
-    # t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
-
-    # sim = Simulator(domain_path,print_actions=False)
-    # sim.problem_path = problem_path
-    # # sim.simulate(problem_path, d2)
-    
-    # # from lapkt.tracked_successor import TrackedSuccessors
-    # t1 = TrackedSuccessors(sim)
-    # t1.proceed('(MOVE-EAST PERSON1 START_TILE C0)')
     exit()
         
-    
-    # simulate(RandomExecutor(stop_at_goal=True),domain_path,problem_path)
-    # simulate(MazeReducerExecutor(),domain_path,problem_path)
-    # simulate(DelayedDispatch(),domain_path,problem_path)
-
-    # exit()
-    # profile_path = 'profile/avoid_run_lapkt'
-    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)',profile_path)
-
-    # profile_path = 'profile/avoid_run'
-    # cProfile.run('simulate(AvoidReturn(use_lapkt_successor=False), domain_path, problem_path)',profile_path)
-
-
-    # profile_path = 'profile/plan_dispatch'
-    # cProfile.run('simulate(PlanDispatcher(),domain_path,problem_path)',profile_path)
-    
-    profile_path = 'profile/delayed_dispatch'    
-    cProfile.run('simulate(DelayedDispatch(),domain_path,problem_path)',profile_path)
-
-    p = pstats.Stats(profile_path)
-    p.strip_dirs().sort_stats('tottime').print_stats('')
-
-    # for profile_path in glob.glob("profile/*"):
-    #     if not profile_path.endswith('.txt'):
-    #         p = pstats.Stats(profile_path)
-    #         p.strip_dirs().sort_stats('cumtime').print_stats('simulator')
-
-    # from pycallgraph import PyCallGraph
-    # from pycallgraph.output import GraphvizOutput
-    # graphviz = GraphvizOutput()
-    # graphviz.output_file = 'basic.png'
-
-    # with PyCallGraph(output=graphviz):
-    #     simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)
-    

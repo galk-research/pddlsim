@@ -1,16 +1,4 @@
 setup.py
-cloud_solver/__init__.py
-cloud_solver/planning.domains.py
-cloud_solver/planning_domains_api.py
-cloud_solver/process_solution.py
-cloud_solver/utils/__init__.py
-cloud_solver/utils/action.py
-cloud_solver/utils/formula.py
-cloud_solver/utils/grounder.py
-cloud_solver/utils/parser.py
-cloud_solver/utils/pddl_tree.py
-cloud_solver/utils/predicate.py
-cloud_solver/utils/utils.py
 lapkt/__init__.py
 nav_model_resolution/__init__.py
 nav_model_resolution/generate_problem.py

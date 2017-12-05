@@ -1,13 +1,14 @@
-from pddlsim.external.libfdplanner import Planner 
+from pddlsim.external.liblapkt import Planner 
 
 
 from planner_wrapper import Planner_Wrapper
 
-
-class TrackedSuccessors(object):
-    def __init__(self, sim):
-        
-        # wrapper is used for profiling
+class TrackedSuccessor(object):
+    """
+    this class keeps uses liblapkt inorder to keep track of the state of the problem
+    this allows for swift calculation of the valid next actions
+    """
+    def __init__(self, sim):                
         self.task = Planner()        
         self.task.load(sim.domain_path,sim.problem_path)
         self.task.setup()
@@ -17,7 +18,7 @@ class TrackedSuccessors(object):
         
         sim.on_action += self.proceed
     
-    def next(self):        
+    def next(self):
         return self.task.next_actions_from_current()
 
     def proceed(self, sim, action_signature):

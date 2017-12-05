@@ -21,4 +21,4 @@ src_objs = SConscript('src/SConscript')
 ff_wrapper_objs = SConscript(os.path.join( lapkt_root,'interfaces/ff-wrapped/SConscript.ff'))
 
 
-common_env.SharedLibrary( 'fdplanner', src_objs + generic_objs + agnostic_objs + python_objs + ff_wrapper_objs ) 
+common_env.SharedLibrary( 'lapkt', src_objs + generic_objs + agnostic_objs + python_objs + ff_wrapper_objs ) 

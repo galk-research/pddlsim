@@ -1,10 +1,14 @@
 # import pddl.parsersimulate
 import random
 # from pddlsim.successors.successor import Successor
-from pddlsim.successors.tracked_successor import TrackedSuccessors
+from pddlsim.successors.tracked_successor import TrackedSuccessor
 
 class RandomExecutor(object):
-    """docstring for RandomExecutor."""
+    """ RandomExecutor - pick a random valid action each step 
+        the trick is finding out the valid actions
+        Most of the code here is a python implementation of that
+        But using the tracked successor is significantly faster
+    """
     def __init__(self,stop_at_goal=True,use_lapkt_successor=True):        
         super(RandomExecutor, self).__init__()
         self.stop_at_goal = stop_at_goal
@@ -13,9 +17,8 @@ class RandomExecutor(object):
 
     def initilize(self,simulator):
         self.simulator = simulator
-        if self.use_lapkt_successor:
-            # self.successor = Successor(self.simulator.domain_path,self.simulator.problem_path)
-            self.successor = TrackedSuccessors(simulator)
+        if self.use_lapkt_successor:            
+            self.successor = TrackedSuccessor(simulator)
 
     def next_action(self):
         if self.stop_at_goal and self.simulator.check_goal():
@@ -23,13 +26,11 @@ class RandomExecutor(object):
         # get all valid actions
         options = self.get_valid_actions()
         if len(options) == 0: return None
-        chosen = random.choice(options)
-        # print(chosen)
+        chosen = random.choice(options)        
         return chosen
     
     def get_valid_actions(self):
-        if self.use_lapkt_successor:
-            # return self.successor.next(self.simulator.state)
+        if self.use_lapkt_successor:            
             return map(str.lower, self.successor.next())
 
         possible_actions = [] if self.stop_at_goal else [None]
@@ -127,8 +128,3 @@ class RandomExecutor(object):
 
             candidates = new_candidates
         return candidates
-
-
-    
-    
-   

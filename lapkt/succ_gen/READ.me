@@ -1,16 +1,8 @@
-This is a very simple example that shows the basics for interfacing
-lwaptk with Fast Downward parser. In order to build the example issue
-the command:
 
-$ ./build.py
 
-and to run the example:
+run ./test_succ_gen.py to check if liblapkt complied correctly
+it should print the applicable actions and randomly choose one a few times
 
-$ ./parser.py <path to pddl domain file> <path to pddl problem file>
-
-if everything is working as it should, you should see FD parsing output
-on the standard output, as well as a dump of the grounded actions.
-
-Note that this will copy the folder externals/fd to the local directory, so
-DO NOT add it to the repository. If you need to do customize Fast Downward
-parsing scripts, just edit build.py to avoid it clobbering your local copy.
+this is also a way to demonstrate a known bug in libff parser
+if you change the amount of times that the `create_and_successors` is run (line 30)
+everything should work the first time but crash on the second attempt

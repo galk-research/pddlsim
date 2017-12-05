@@ -12,14 +12,10 @@ class Simulator(object):
         self.reached_goal = False
         self.check_preconditions = True        
         if parser == None:
-            # import pddl.parser
-            # from first_parser import FirstParser   
-            # self.parser_type = FirstParser
             import fd_parser
             self.parser_type = fd_parser.FDParser
         else:
             self.parser_type = parser
-     
         
     def apply_action(self, action, params, state=None):    
         if state == None: state = self.state
@@ -27,8 +23,7 @@ class Simulator(object):
         
         if self.check_preconditions:                        
             for precondition in action.precondition:
-                if not precondition.test(param_mapping, state):
-                # if not self.test_predicate(precondition.name, precondition.signature, param_mapping):
+                if not precondition.test(param_mapping, state):                
                     raise PreconditionFalseError()
 
         for (predicate_name,entry) in action.to_delete(param_mapping):
@@ -91,9 +86,6 @@ class Simulator(object):
             else:
                 has_actions = False        
 
-    
-
-
     def check_goal(self):
         for (name,signature) in self.parser.get_goals():                        
             if signature not in self.state[name]:
@@ -120,10 +112,9 @@ class Simulator(object):
 class PreconditionFalseError(Exception):
     pass
 
-def compare_executors(domain_path,problem_path, executors):
+def compare_executors(domain_path, problem_path, executors):
     results = dict()    
     for name, executor in executors.items():        
-        
         sim = Simulator(domain_path,print_actions=False)
         total = sim.simulate(problem_path, executor)
         # print(name, total)

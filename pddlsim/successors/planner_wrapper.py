@@ -1,4 +1,4 @@
-from pddlsim.external.libfdplanner import Planner 
+from pddlsim.external.liblapkt import Planner 
 
 # class for profiling purposes
 class Planner_Wrapper(object):
