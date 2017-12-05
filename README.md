@@ -21,17 +21,17 @@ This is a binary distribution of the project, which was compiled on a 64bit Ubun
 
 Project structure:
 
-dist - contains distributions of this project, created using setuptools (see setup.py)
-domains - a small collection of domains used for testing
-lapkt:
+- dist - contains distributions of this project, created using setuptools (see setup.py)
+- domains - a small collection of domains used for testing
+- lapkt:
     - LAPKT-dev - this is a git submodule contains lapkt source code
     - succ-gen - contains additional source code that is compiled for with LAPKT, this is necessary for successor generation.
     - build_lib.sh - downloads the lapkt source code, build the dependencies for succ_gen and also constructes the liblapkt library
-nav_model_resolution - code used for a experiments, includes code to generate a few some problems with variable sizes
+- nav_model_resolution - code used for a experiments, includes code to generate a few some problems with variable sizes
     - generate_problem.py - tool for generating problems in a maze domain
     - reduce_domain.py - reduces a full maze problem into a simpler problem
     - maze_reducer_executor.py - an executor for maze problems 
-pddlsim - this is the primary directory of this library, the files in here are what sould be distributed to users of this library
+- pddlsim - this is the primary directory of this library, the files in here are what sould be distributed to users of this library
     - executors - sample executives
     - external - code used from other sources:
           - the compiled lapkt library
@@ -43,5 +43,5 @@ pddlsim - this is the primary directory of this library, the files in here are w
     - executor.py - basic prototype for executors, not really used
     - plan_dispatch.py - an executor that plans then only executes that plan
     - random_executor.py - an executor that executes random valid actions
-main.py  - used to run experiments  
-setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
+- main.py  - used to run experiments  
+- setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
