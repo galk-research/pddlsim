@@ -1,0 +1,16 @@
+Plan found with cost: 9
+1. (MOVE-EAST PERSON1 START_TILE C0)
+2. (MOVE-EAST PERSON1 C0 C1)
+3. (MOVE-EAST PERSON1 C1 C2)
+4. (MOVE-EAST PERSON1 C2 C3)
+5. (MOVE-NORTH PERSON1 C3 G0)
+6. (MOVE-NORTH PERSON1 G0 G1)
+7. (MOVE-NORTH PERSON1 G1 G2)
+8. (MOVE-NORTH PERSON1 G2 G3)
+9. (MOVE-NORTH PERSON1 G3 GOAL_TILE)
+Time: 0
+Generated: 0
+Expanded: 0
+Total time: -3.7998e-10
+Nodes generated during search: 35
+Nodes expanded during search: 29

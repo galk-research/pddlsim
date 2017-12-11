@@ -10,8 +10,8 @@ from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.avoid_return_random import AvoidReturn
 from pddlsim.executors.delayed_dispatch import DelayedDispatch
 from pddlsim.executors import executor
-from nav_model_resolution import reduce_domain,generate_problem
-from nav_model_resolution.maze_reducer_executor import MazeReducerExecutor
+from experiments import reduce_domain,generate_problem
+from experiments.maze_reducer_executor import MazeReducerExecutor
 
 import pddlsim.planner
 
@@ -35,8 +35,8 @@ def compare_many():
     
     # length = 400
     # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
-    # domain_path,problem_path = 'nav_model_resolution/domain.pddl',generate_problem.generate_corridor(length)
-    domain_path = 'nav_model_resolution/domain.pddl'
+    # domain_path,problem_path = 'experiments/domain.pddl',generate_problem.generate_corridor(length)
+    domain_path = 'experiments/domain.pddl'
     # problems = [generate_problem.generate_T(i,5,5) for i in [100,200,300,400]]
     
     # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}    
@@ -94,7 +94,7 @@ def profile():
     #     simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)
 
 def libffbug():
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
+    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     d1 = RandomExecutor()        
     sim = Simulator(domain_path,print_actions=False)
     sim.simulate(problem_path, d1)
@@ -120,9 +120,9 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'domains/Sched_dom.pddl','domains/Sched_ins.pddl'
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
-    # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/simple_problem.pddl'
-    # domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/corridor_5.pddl'
-    domain_path,problem_path = 'nav_model_resolution/domain.pddl','nav_model_resolution/t_100_5_5.pddl'
+    # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
+    # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
+    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_100_5_5.pddl'
     simulate(DelayedDispatch(),domain_path,problem_path)
     
     exit()

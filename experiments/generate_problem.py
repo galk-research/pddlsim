@@ -39,7 +39,7 @@ def generate_corridor(length):
     predicates = ['(empty {})'.format(t) for t in tiles]        
     
     predicates += connect_tiles(tiles,'east','west')
-    path = 'nav_model_resolution/corridor_{}.pddl'.format(length)
+    path = 'experiments/problems/corridor_{}.pddl'.format(length)
     create_pddl(tiles,predicates,path)
     return path    
 
@@ -67,7 +67,7 @@ def generate_T(corridor_length,goal_length, deadend_length):
     predicates.append('(south {} {})'.format(fork,deadend_tiles[0]))
     predicates.append('(north {1} {0})'.format(fork,deadend_tiles[0]))
  
-    path = 'nav_model_resolution/t_{}_{}_{}.pddl'.format(corridor_length,goal_length,deadend_length)
+    path = 'experiments/problems/t_{}_{}_{}.pddl'.format(corridor_length,goal_length,deadend_length)
     create_pddl(tiles,predicates,path)
     return path    
 

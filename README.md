@@ -27,7 +27,7 @@ Project structure:
     - LAPKT-dev - this is a git submodule contains lapkt source code
     - succ-gen - contains additional source code that is compiled for with LAPKT, this is necessary for successor generation.
     - build_lib.sh - downloads the lapkt source code, build the dependencies for succ_gen and also constructes the liblapkt library
-- nav_model_resolution - code used for a experiments, includes code to generate a few some problems with variable sizes
+- experiments - code used for a experiments, includes code to generate a few some problems with variable sizes
     - generate_problem.py - tool for generating problems in a maze domain
     - reduce_domain.py - reduces a full maze problem into a simpler problem
     - maze_reducer_executor.py - an executor for maze problems 

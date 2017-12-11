@@ -1,7 +1,7 @@
 # import pddl.parser
 # from first_parser import FirstParser
 from pddlsim.fd_parser import FDParser
-from nav_model_resolution.generate_problem import create_pddl
+from experiments.generate_problem import create_pddl
 import copy
 DIST = 'distance'
 
@@ -49,14 +49,14 @@ def reduce_problem(domain_path, problem_path, new_problem_path):
                 del graph[t]
 
     # print(graph)
-    generate_pddl_from_graph(graph,new_problem_path)
+    generate_pddl_from_graph(graph, new_problem_path)
     return graph, original_graph
 
-def generate_pddl_from_graph(graph,path):
+def generate_pddl_from_graph(graph, path):
     tiles = graph.keys()
     predicates = ["(empty {})".format(t) for t in tiles]
     for t, neighbors in graph.items():
         for direction, (tile,distance) in neighbors.items():
             predicates.append("({} {} {})".format(direction,t,tile))
         
-    create_pddl(tiles,predicates,path)
+    create_pddl(tiles, predicates, path)
