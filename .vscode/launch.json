@@ -9,7 +9,7 @@
             "stopOnEntry": false,
             "pythonPath": "${config:python.linux.python2Path}",
             "program": "${file}",
-            "cwd": "${workspaceRoot}",
+            "cwd": "",
             "env": {},
             "envFile": "${workspaceRoot}/.env",
             "debugOptions": [

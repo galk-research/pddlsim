@@ -8,7 +8,7 @@ class FDParser(object):
         self.task  = pddl.pddl_file.open(problem_path, domain_path)        
         self.objects = {obj.name:obj.type for obj in self.task.objects}
         self.actions = {action.name:Action(action) for action in self.task.actions}
-        self.goals = [subgoal.key for subgoal in self.task.goal.parts]
+        self.goals = [[subgoal.key for subgoal in goal.parts] for goal in self.task.goal]
     
     def build_first_state(self):
         initial_state = self.task.init
@@ -27,7 +27,6 @@ class FDParser(object):
     def get_signature(self,original_signature):
         return tuple([self.get_object(x[0]) for x in original_signature])
     
-    # currently only support conjunctions
     def get_goals(self):
         return self.goals
 

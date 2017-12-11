@@ -8,9 +8,11 @@ class Simulator(object):
     def __init__(self, domain_path, print_actions=True, parser=None):
         super(Simulator, self).__init__()
         self.domain_path = domain_path   
-        self.print_actions = print_actions     
-        self.reached_goal = False
+        self.print_actions = print_actions             
         self.check_preconditions = True        
+        self.completed_goals = []
+        self.uncompleted_goals = []
+
         if parser == None:
             import fd_parser
             self.parser_type = fd_parser.FDParser
@@ -54,9 +56,10 @@ class Simulator(object):
         self.parser = self.parser_type(self.domain_path,self.problem_path)
         
         #setup internal state
-        self.state = self.parser.build_first_state()
-        self.reached_goal = False
-
+        self.state = self.parser.build_first_state()        
+        self.completed_goals = []
+        self.uncompleted_goals = self.parser.get_goals()[:]        
+        
         t0 = time.time()
         #setup executor
         self.executor.initilize(self)
@@ -65,8 +68,7 @@ class Simulator(object):
                 print text
             self.on_action += printer
 
-        self.action_loop()
-        self.reached_goal = self.check_goal()
+        self.action_loop()        
 
         t1 = time.time()        
         return t1-t0
@@ -85,12 +87,21 @@ class Simulator(object):
                 self.on_action(action)
             else:
                 has_actions = False        
+    @property
+    def reached_all_goals(self):
+        return len(self.uncompleted_goals) == 0
 
     def check_goal(self):
-        for (name,signature) in self.parser.get_goals():                        
-            if signature not in self.state[name]:
-                return False
-        return True
+        to_remove = []
+        for goal in self.uncompleted_goals:
+                done_subgoal = all(signature in self.state[name] for subgoal in goal for (name,signature) in subgoal )
+                if done_subgoal:                        
+                    to_remove.append(goal)
+                    self.completed_goals.append(goal)
+        for goal in to_remove:
+            self.uncompleted_goals.remove(goal)            
+        return self.reached_all_goals
+        
 
     def test_predicate(self, name, signature, dictionary):
         signature = tuple([dictionary[x[0]] for x in signature])
