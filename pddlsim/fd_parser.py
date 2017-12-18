@@ -45,9 +45,16 @@ class FDParser(object):
             return "({} {})".format(condition.predicate,' '.join(condition.args))
         if isinstance(condition,pddl.Conjunction):
             return "(and {})".format(' '.join(map(self.pd_to_strips_string,condition.parts)))
+    
+    def tuples_to_string(self, literal_tuple):
+        if isinstance(literal_tuple, list):
+            return "(and {})".format(' '.join(map(self.tuples_to_string,literal_tuple)))
+        else:
+            return "({} {})".format(literal_tuple[0],' '.join(literal_tuple[1]))
 
-    def generate_problem(self, path, predicates):
-        goal = self.pd_to_strips_string(self.task.goal)
+    def generate_problem(self, path, predicates, new_goal):
+        # goal = self.pd_to_strips_string(self.task.goal)
+        goal = self.tuples_to_string(new_goal)
         with open(path,'w') as f:
             f.write('''
     (define (problem ''' + self.task.task_name + ''')

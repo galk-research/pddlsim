@@ -12,7 +12,7 @@ class Simulator(object):
         self.check_preconditions = True        
         self.completed_goals = []
         self.uncompleted_goals = []
-
+        self.dirty = True
         if parser == None:
             import fd_parser
             self.parser_type = fd_parser.FDParser
@@ -35,6 +35,8 @@ class Simulator(object):
         
         for (predicate_name,entry) in action.to_add(param_mapping):
             state[predicate_name].add(entry)
+
+        self.dirty = True
         
 
     def act(self, action_sig, state=None):
@@ -77,30 +79,32 @@ class Simulator(object):
     def on_action(self,action_sig):
         pass
 
-    def action_loop(self):
-        has_actions = True
-        while has_actions:
+    def action_loop(self):        
+        while True:
             action = self.executor.next_action()
-            if action:                
-                action = action.lower()
-                self.act(action)                
-                self.on_action(action)
-            else:
-                has_actions = False        
+            if not action:                
+                return
+            action = action.lower()
+            self.act(action)                
+            self.on_action(action)
+            
     @property
     def reached_all_goals(self):
-        return len(self.uncompleted_goals) == 0
+        if self.dirty:
+            self.check_goal()
+            self.dirty = False
+        return not self.uncompleted_goals
 
     def check_goal(self):
-        to_remove = []
+        to_remove = list()
         for goal in self.uncompleted_goals:
-                done_subgoal = all(signature in self.state[name] for subgoal in goal for (name,signature) in subgoal )
+                done_subgoal = all(signature in self.state[name] for (name,signature) in goal )
                 if done_subgoal:                        
-                    to_remove.append(goal)
-                    self.completed_goals.append(goal)
+                    to_remove.append(goal)                 
         for goal in to_remove:
             self.uncompleted_goals.remove(goal)            
-        return self.reached_all_goals
+            self.completed_goals.append(goal)
+        # return self.reached_all_goals
         
 
     def test_predicate(self, name, signature, dictionary):
@@ -110,16 +114,17 @@ class Simulator(object):
     def clone_state(self):
         return {name:set(entries) for name, entries in self.state.items()}
 
-    def generate_problem(self,path):
+    def generate_problem(self, path, goal = None):
         '''
         generate a pddl problem at the path
         this problem will be from the current state and not the original state
         '''
+        if goal is None:
+            goal = self.uncompleted_goals[0]
         predicates = [("(%s %s)"%(predicate_name," ".join(map(str,pred)))) for predicate_name,predicate_set in self.state.iteritems() for pred in predicate_set if predicate_name != '=']
-        self.parser.generate_problem(path, predicates)
+        self.parser.generate_problem(path, predicates, goal)
         return path
-
-
+        
 class PreconditionFalseError(Exception):
     pass
 

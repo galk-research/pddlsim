@@ -8,9 +8,11 @@ class TrackedSuccessor(object):
     this class keeps uses liblapkt inorder to keep track of the state of the problem
     this allows for swift calculation of the valid next actions
     """
-    def __init__(self, sim):                
+    def __init__(self, sim, problem_path=None):
+        if problem_path is None:
+            problem_path = sim.problem_path
         self.task = Planner()        
-        self.task.load(sim.domain_path,sim.problem_path)
+        self.task.load(sim.domain_path,problem_path)
         self.task.setup()
         self.sig_to_index = dict()
         for i in range( 0, self.task.num_actions() ) :

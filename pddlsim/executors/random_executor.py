@@ -17,11 +17,15 @@ class RandomExecutor(object):
 
     def initilize(self,simulator):
         self.simulator = simulator
-        if self.use_lapkt_successor:            
-            self.successor = TrackedSuccessor(simulator)
+        if self.use_lapkt_successor:
+            if len(self.simulator.uncompleted_goals) > 1:
+                next_problem = self.simulator.generate_problem('multiple_goal_temp.pddl')
+                self.successor = TrackedSuccessor(simulator,next_problem)
+            else:
+                self.successor = TrackedSuccessor(simulator)
 
     def next_action(self):
-        if self.stop_at_goal and self.simulator.check_goal():
+        if self.stop_at_goal and self.simulator.reached_all_goals:
             return None
         # get all valid actions
         options = self.get_valid_actions()
