@@ -16,8 +16,8 @@ def simulate(executor, domain_path, problem_path):
 
 if __name__ == '__main__':
     domain_path, problem_path = 'domain.pddl','problems/t_5_5_5_multiple.pddl'
-    # simulate(MultipleGoalPlanDispatcher(), domain_path, problem_path)
-    simulate(RandomExecutor(), domain_path, problem_path)
+    simulate(MultipleGoalPlanDispatcher(), domain_path, problem_path)
+    # simulate(RandomExecutor(), domain_path, problem_path)
     
 
     

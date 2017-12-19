@@ -8,7 +8,8 @@ class FDParser(object):
         self.task  = pddl.pddl_file.open(problem_path, domain_path)        
         self.objects = {obj.name:obj.type for obj in self.task.objects}
         self.actions = {action.name:Action(action) for action in self.task.actions}
-        self.goals = [[subgoal.key for subgoal in goal.parts] for goal in self.task.goal]
+        # self.goals = [[subgoal.key for subgoal in goal.parts] for goal in self.task.goal]
+        self.goals = self.task.goal[:]
     
     def build_first_state(self):
         initial_state = self.task.init
@@ -30,7 +31,7 @@ class FDParser(object):
     def get_goals(self):
         return self.goals
 
-    def get_action(self, action_name):
+    def get_action(self, action_name):        
         # return self.domain.actions[action_name]
         return self.actions[action_name]
         
@@ -40,21 +41,25 @@ class FDParser(object):
         entry = tuple([param_mapping[name][0] for name in names])
         return entry
     
+    def test_condition(self, condition, mapping):
+        if isinstance(condition,pddl.Literal):                        
+            return condition.args in mapping[condition.predicate]        
+        if isinstance(condition,pddl.conditions.Conjunction):
+            return all([self.test_condition(part,mapping) for part in condition.parts])
+        if isinstance(condition,pddl.conditions.Disjunction):
+            return any([self.test_condition(part,mapping) for part in condition.parts])
+
     def pd_to_strips_string(self,condition):
         if isinstance(condition,pddl.Literal):
             return "({} {})".format(condition.predicate,' '.join(condition.args))
         if isinstance(condition,pddl.Conjunction):
             return "(and {})".format(' '.join(map(self.pd_to_strips_string,condition.parts)))
-    
-    def tuples_to_string(self, literal_tuple):
-        if isinstance(literal_tuple, list):
-            return "(and {})".format(' '.join(map(self.tuples_to_string,literal_tuple)))
-        else:
-            return "({} {})".format(literal_tuple[0],' '.join(literal_tuple[1]))
-
+        if isinstance(condition,pddl.Disjunction):
+            return "(or {})".format(' '.join(map(self.pd_to_strips_string,condition.parts)))
+        
     def generate_problem(self, path, predicates, new_goal):
-        # goal = self.pd_to_strips_string(self.task.goal)
-        goal = self.tuples_to_string(new_goal)
+        goal = self.pd_to_strips_string(new_goal)
+        # goal = self.tuples_to_string(new_goal)
         with open(path,'w') as f:
             f.write('''
     (define (problem ''' + self.task.task_name + ''')

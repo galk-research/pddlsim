@@ -82,7 +82,7 @@ class Simulator(object):
     def action_loop(self):        
         while True:
             action = self.executor.next_action()
-            if not action:                
+            if not action or action == '(reach-goal)':
                 return
             action = action.lower()
             self.act(action)                
@@ -98,19 +98,15 @@ class Simulator(object):
     def check_goal(self):
         to_remove = list()
         for goal in self.uncompleted_goals:
-                done_subgoal = all(signature in self.state[name] for (name,signature) in goal )
+                # done_subgoal = all(signature in self.state[name] for (name,signature) in goal )
+                done_subgoal = self.parser.test_condition(goal,self.state)
                 if done_subgoal:                        
                     to_remove.append(goal)                 
         for goal in to_remove:
             self.uncompleted_goals.remove(goal)            
             self.completed_goals.append(goal)
         # return self.reached_all_goals
-        
-
-    def test_predicate(self, name, signature, dictionary):
-        signature = tuple([dictionary[x[0]] for x in signature])
-        return signature in self.state[name]
-
+            
     def clone_state(self):
         return {name:set(entries) for name, entries in self.state.items()}
 

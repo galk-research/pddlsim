@@ -51,7 +51,7 @@ def simulate(executor, domain_path, problem_path):
     sim = Simulator(domain_path)
     # sim.print_actions = False
     sim.simulate(problem_path, executor)
-    if sim.reached_goal:
+    if sim.reached_all_goals:
         print('Reached goal!')
     else:
         print('Failed to reach goal')
@@ -122,8 +122,8 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
-    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_100_5_5.pddl'
-    simulate(DelayedDispatch(),domain_path,problem_path)
+    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5_or.pddl'
+    simulate(PlanDispatcher(),domain_path,problem_path)
     
     exit()
         
