@@ -14,8 +14,7 @@ def online(domain_path, problem_path):
     resp = json.loads(urllib2.urlopen(req, json.dumps(data).encode('utf-8')).read().decode('utf-8'))
     return [act['name'] for act in resp['result']['plan']]
 
-def local(domain_path, problem_path):
-    out_path = 'tmp.ipc'    
+def local(domain_path, problem_path,out_path = 'tmp.ipc'):    
     planner_path = "\"" + os.path.join(os.path.dirname( sys.modules[__name__].__file__),'external/siw-then-bfsf') + "\""
     
     print planner_path
