@@ -27,7 +27,7 @@ def create_and_successors(domain_file, problem_file):
         task.proceed_with_action(sig_to_index[random_action])
 
 def main( domain_file, problem_file, plan_file ) :
-    for _ in range(1):
+    for _ in range(2):
         create_and_successors(domain_file,problem_file)
 
 def debug() :
