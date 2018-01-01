@@ -1,9 +1,9 @@
 import socket, sys, os
-import struct 
+import struct
 
 
 # SENDING_DOMAIN, SENDING_PROBLEM, REQUEST_PLAN, SENDING_PLAN = "send_domain","send_problem", "request_plan","send_plan"
-SENDING_DOMAIN, SENDING_PROBLEM, REQUEST_PLAN, SENDING_PLAN = 0,1,2,3
+
 BUFFER_SIZE = 1024
 
 class BufferedSocket():
@@ -20,7 +20,7 @@ class BufferedSocket():
                 newbuf = self.sock.recv(count)
             if not newbuf: return None
             buf += newbuf
-            count -= len(newbuf)        
+            count -= len(newbuf)
         if count < 0:
             self.buf = newbuf[count:]
         return buf
@@ -30,29 +30,26 @@ class BufferedSocket():
         self.send_int(length)
         self.sock.sendall(data)
 
-    def recv_one_message(self):        
+    def recv_one_message(self):
         length = self.recv_int()
         return self.recvall(length)
 
     def recv_int(self):
-        print("reciving int..")
         numbuf = self.recvall(4)
         if numbuf is None: return None
         num, = struct.unpack('!I', numbuf)
-        return num 
+        return num
 
     def send_int(self, num):
-        self.sock.sendall(struct.pack('!I', num))    
+        self.sock.sendall(struct.pack('!I', num))
 
     def send_file(self, filename):
-        size = os.path.getsize(filename)        
+        size = os.path.getsize(filename)
         with open(filename,'rb') as f:
-            self.send_one_message(f.read())                
-        print('File sent')
+            self.send_one_message(f.read())
 
-    def recv_file(self, size, save_to_path):    
-        remaining_size = size
-        print('remaining_size=%d', (remaining_size))
+    def recv_file(self, size, save_to_path):
+        remaining_size = size        
         file_content = self.recvall(remaining_size)
         with open(save_to_path, 'wb') as f:
             f.write(file_content)
@@ -66,7 +63,7 @@ class BufferedSocket():
         #             break
         #         remaining_size -= len(data)
         #         # write data to a file
-        #         f.write(data)        
+        #         f.write(data)
 
     def get_file(self, save_to_path):
         # size = self.recv_int()
