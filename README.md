@@ -45,3 +45,18 @@ Project structure:
     - random_executor.py - an executor that executes random valid actions
 - main.py  - used to run experiments  
 - setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
+
+
+INSTALL
+=======
+1.  Clone the git
+2.  Install python modules:
+  - make sure you have python-pip installed
+    - If you don't (ubuntu):
+       - sudo apt-get install python-pip
+       - sudo -H pip install --upgrade pip
+  - sudo -H pip install setuptools
+  - sudo -H pip install obsub six
+3. Fix permissions of the planner executables in pddlsim/external/  :
+  - chmod +x <binary-names>, e.g., "chmod u+x siw-then-bfsf"
+   
