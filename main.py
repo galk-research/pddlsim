@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
-    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5_or.pddl'
-    simulate(RandomExecutor(),domain_path,problem_path)
+    domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5.pddl'
+    simulate(DelayedDispatch(),domain_path,problem_path)
 
     exit()

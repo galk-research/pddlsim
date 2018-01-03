@@ -16,14 +16,16 @@ class RandomExecutor(object):
         self.successor = None
 
     def initilize(self,services):
-        self.services = services        
+        self.services = services
 
     def next_action(self):
         if self.stop_at_goal and self.services.goal_tracking.reached_all_goals():
             return None
-        # get all valid actions
-        possible_actions = [] if self.stop_at_goal else [None]
-        options = self.services.valid_actions.get() + possible_actions
+        options = self.services.valid_actions.get() + ([] if self.stop_at_goal else [None])
         if len(options) == 0: return None
+        if len(options) == 1: return options[0]
+        return self.pick_from_many(options)
+
+    def pick_from_many(self, options):
         chosen = random.choice(options)
         return chosen

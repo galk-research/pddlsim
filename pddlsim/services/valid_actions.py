@@ -6,8 +6,8 @@ class ValidActions():
 
 class TrackedSuccessorValidActions():
     def __init__(self, simulator, goal_tracking):
-        if goal_tracking.has_multiple_goals:
-            next_problem = self.simulator.generate_problem('multiple_goal_temp.pddl')
+        if goal_tracking.has_multiple_goals():
+            next_problem = simulator.generate_problem('multiple_goal_temp.pddl')
             self.successor = TrackedSuccessor(simulator,next_problem)
         self.successor = TrackedSuccessor(simulator)
 

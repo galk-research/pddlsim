@@ -86,9 +86,8 @@ class Simulator(object):
     def action_loop(self, next_action_func):
         while True:
             action = next_action_func()
-            if not action or action == '(reach-goal)':
+            if not action or action.lower() == '(reach-goal)':
                 return
-            action = action.lower()
             self.act(action)
             self.on_action(action)
 
@@ -121,8 +120,7 @@ class Simulator(object):
         '''
         if goal is None:
             goal = self.uncompleted_goals[0]
-        predicates = [("(%s %s)"%(predicate_name," ".join(map(str,pred)))) for predicate_name,predicate_set in self.state.iteritems() for pred in predicate_set if predicate_name != '=']
-        self.parser.generate_problem(path, predicates, goal)
+        self.parser.generate_problem(path, self.state, goal)
         return path
 
 class PreconditionFalseError(Exception):

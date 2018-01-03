@@ -5,3 +5,9 @@ __pycache__
 tmp
 test_env
 build
+execution.details
+tmp_delayed_dispatch
+tmp_reduced.pddl
+tmp.ipc
+multiple_goal_temp.pddl
+tmp_problem_generation
