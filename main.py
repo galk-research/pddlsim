@@ -95,13 +95,14 @@ def profile():
 
 def libffbug():
     domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
-    d1 = RandomExecutor()
-    sim = Simulator(domain_path,print_actions=False)
-    sim.simulate(problem_path, d1)
+    for i in range(2):
+        d1 = RandomExecutor()
+        sim = Simulator(domain_path,print_actions=True)
+        sim.simulate(problem_path, d1)
 
-    d2 = RandomExecutor()
-    sim = Simulator(domain_path,print_actions=False)
-    sim.simulate(problem_path, d2)
+    # d2 = RandomExecutor()
+    # sim = Simulator(domain_path,print_actions=False)
+    # sim.simulate(problem_path, d2)
 
 
 if __name__ == '__main__':
@@ -109,8 +110,8 @@ if __name__ == '__main__':
     # compare_many()
     # test_all_ipc2002()
     # profile()
-    # libffbug()
-    # exit()
+    libffbug()
+    exit()
 
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -123,6 +124,7 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
     domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5.pddl'
-    simulate(DelayedDispatch(),domain_path,problem_path)
+    simulate(RandomExecutor(),domain_path,problem_path)    
+    simulate(RandomExecutor(),domain_path,problem_path)
 
     exit()

@@ -3,14 +3,14 @@
 (:domain maze)
 (:objects
 	person1
-	start_tile
-	goal_tile
+	s
+	g
 	)
 (:init
-	(empty start_tile)
-	(empty goal_tile)
-	(east start_tile goal_tile)
-	(west goal_tile start_tile)
+	(empty s)
+	(empty g)
+	(east s t)
+	(west g t)
     (person person1)
     (at person1 start_tile)   
         )

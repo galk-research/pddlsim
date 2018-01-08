@@ -1,9 +1,5 @@
 setup.py
 lapkt/__init__.py
-nav_model_resolution/__init__.py
-nav_model_resolution/generate_problem.py
-nav_model_resolution/maze_reducer_executor.py
-nav_model_resolution/reduce_domain.py
 pddlsim/__init__.py
 pddlsim/fd_parser.py
 pddlsim/planner.py
@@ -17,6 +13,7 @@ pddlsim/executors/avoid_return_random.py
 pddlsim/executors/delayed_dispatch.py
 pddlsim/executors/executor.py
 pddlsim/executors/plan_dispatch.py
+pddlsim/executors/plan_dispatch_multiple_goals.py
 pddlsim/executors/random_executor.py
 pddlsim/external/__init__.py
 pddlsim/external/fd/__init__.py
@@ -52,7 +49,5 @@ pddlsim/external/fd/pddl/predicates.py
 pddlsim/external/fd/pddl/pretty_print.py
 pddlsim/external/fd/pddl/tasks.py
 pddlsim/successors/__init__.py
-pddlsim/successors/next_actions.py
 pddlsim/successors/planner_wrapper.py
-pddlsim/successors/successor.py
 pddlsim/successors/tracked_successor.py

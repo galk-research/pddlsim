@@ -11,9 +11,8 @@ class DelayedDispatch(AvoidReturn):
         super(DelayedDispatch, self).__init__(use_lapkt_successor)
         self.previous_state = None
 
-    def initilize(self,simulator):
-        super(DelayedDispatch, self).initilize(simulator)
-        self.simulator = simulator
+    def initilize(self,services):
+        super(DelayedDispatch, self).initilize(services)        
         self.plan = None
 
     def next_step_in_plan(self):
@@ -29,7 +28,7 @@ class DelayedDispatch(AvoidReturn):
     def pick_from_many(self, options):
         options = self.remove_return_actions(options)
         # if there is only one options after reducing actions that take you back
-        if len(options) == 1: return options[0]        
+        if len(options) == 1: return options[0]
         # create pddl_problem for current state
         problem_path = self.services.problem_generator.generate_problem(self.services.memorizer.load_state())
         self.plan = make_plan(self.services.pddl.domain_path,problem_path)
