@@ -4,9 +4,9 @@ Plan found with cost: 5
 3. (MOVE-NORTH PERSON1 G1 G2)
 4. (MOVE-NORTH PERSON1 G2 G3)
 5. (MOVE-NORTH PERSON1 G3 GOAL_TILE)
-Time: 0.004
+Time: 0
 Generated: 0
 Expanded: 0
-Total time: 0.004
+Total time: -1.8999e-10
 Nodes generated during search: 25
 Nodes expanded during search: 18

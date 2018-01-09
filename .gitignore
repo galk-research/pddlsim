@@ -11,3 +11,5 @@ tmp_reduced.pddl
 tmp.ipc
 multiple_goal_temp.pddl
 tmp_problem_generation
+execution.details
+experiments/multiple_goal_temp.pddl

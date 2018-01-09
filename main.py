@@ -104,27 +104,97 @@ def libffbug():
     # sim = Simulator(domain_path,print_actions=False)
     # sim.simulate(problem_path, d2)
 
+import os
+import sys
+import threading
+
+
+class OutputGrabber(object):
+    """
+    Class used to grab standard output or another stream.
+    """
+    escape_char = "\b"
+
+    def __init__(self, stream=None, threaded=False):
+        self.origstream = stream
+        self.threaded = threaded
+        if self.origstream is None:
+            self.origstream = sys.stdout
+        self.origstreamfd = self.origstream.fileno()        
+        # Create a pipe so the stream can be captured:
+        self.pipe_out, self.pipe_in = os.pipe()
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.stop()
+
+    def start(self):                
+        # Save a copy of the stream:
+        self.streamfd = os.dup(self.origstreamfd)
+        # Replace the original stream with our write pipe:
+        os.dup2(self.pipe_in, self.origstreamfd)      
+
+    def stop(self):
+        """
+        Stop capturing the stream data and save the text in `capturedtext`.
+        """
+        # Print the escape character to make the readOutput method stop:
+        self.origstream.write(self.escape_char)
+        # Flush the stream to make sure all our data goes in before
+        # the escape character:
+        self.origstream.flush()        
+        self.readOutput()
+        # Close the pipe:
+        os.close(self.pipe_out)
+        # Restore the original stream:
+        os.dup2(self.streamfd, self.origstreamfd)
+
+    def readOutput(self):
+        """
+        Read the stream data (one byte at a time)
+        and save the text in `capturedtext`.
+        """
+        while True:
+            char = os.read(self.pipe_out, 1)
+            if not char or self.escape_char in char:
+                break
 
 if __name__ == '__main__':
 
     # compare_many()
     # test_all_ipc2002()
     # profile()
-    libffbug()
-    exit()
+    # with OutputGrabber():
+    #     libffbug()
+    
+    # print('Done')
+    # exit()
 
     #works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
 
     #doesn't work:
-    # domain_path,problem_path = 'domains/Mapana_dom.pddl','domains/Mapana_ins.pddl'
+    # domain_path,problem_path = 'domains/Mapana_dom.pddl','domains/Mapana_ins.pddl'    
     # domain_path,problem_path = 'domains/Sched_dom.pddl','domains/Sched_ins.pddl'
     # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
     domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5.pddl'
-    simulate(RandomExecutor(),domain_path,problem_path)    
-    simulate(RandomExecutor(),domain_path,problem_path)
 
+    executives = [PlanDispatcher(),RandomExecutor(),AvoidReturn(),DelayedDispatch()]
+    results = dict()
+    for executive in executives:                
+        results[executive.__class__.__name__] = False            
+        try:
+            with OutputGrabber():
+                simulate(executive,domain_path,problem_path)
+            results[executive.__class__.__name__] = True
+        except:
+            pass
+        
+    print (results)
     exit()
