@@ -2,7 +2,9 @@
 
 import socket, sys, os
 import struct
+import pickle
 from socket_utils import *
+from remote_simulator_mediator import RemoteSimulatorMediator
 
 INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
 
@@ -26,6 +28,7 @@ class RemoteSimulator():
         self.sent_domain_and_problem = False
         self.original_socket = None
         self.sock = None
+        self.report_card = None
 
     def __enter__(self):
         self.original_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,14 +53,18 @@ class RemoteSimulator():
             if message != INITILIZE_EXECUTIVE: return
 
             fake_sim = FakeSim(self.domain_path, self.problem_path)
-            executive.initilize(fake_sim)
+            
+            executive.initilize(RemoteSimulatorMediator(self))
 
             self.sock.send_int(INITILIZE_EXECUTIVE)
 
             while True:
                 message = self.sock.recv_int()
-                if message == DONE: return
+                if message == DONE: 
+                    self.report_card = pickle.loads(self.sock.recv_one_message())
+                    return 
                 next_action = executive.next_action()
                 if next_action is None:
                     next_action = '(reach-goal)'
                 self.sock.send_one_message(next_action)
+    

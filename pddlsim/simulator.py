@@ -14,6 +14,8 @@ class Simulator(object):
         self.completed_goals = []
         self.uncompleted_goals = []
         self.dirty = True
+        self.report_card = None
+
         if parser == None:
             import fd_parser
             self.parser_type = fd_parser.FDParser
@@ -49,12 +51,12 @@ class Simulator(object):
         param_names = parts[1:]
 
         action = self.parser.get_action(action_name)
-        params = map(self.parser.get_object,param_names)
+        params = map(self.parser.get_object,param_names)        
         self.apply_action(action, params, state)
 
     def simulate(self, problem_path, executor):
         init = lambda : executor.initilize(SimulatorMediator(self))
-        self.simulate_with_funcs(problem_path, init, executor.next_action)
+        return self.simulate_with_funcs(problem_path, init, executor.next_action)
 
     def simulate_with_funcs(self,problem_path,init_func,next_action_func):
         self.problem_path = problem_path
@@ -66,7 +68,7 @@ class Simulator(object):
         self.completed_goals = []
         self.uncompleted_goals = self.parser.get_goals()[:]
 
-        t0 = time.time()
+        self.report_card = ReportCard().start()
         #setup executor
         init_func()
         if self.print_actions:
@@ -75,9 +77,8 @@ class Simulator(object):
             self.on_action += printer
 
         self.action_loop(next_action_func)
-
-        t1 = time.time()
-        return t1-t0
+        
+        return self.report_card.done(self.reached_all_goals)
 
     @event
     def on_action(self,action_sig):
@@ -88,8 +89,13 @@ class Simulator(object):
             action = next_action_func()
             if not action or action.lower() == '(reach-goal)':
                 return
-            self.act(action)
-            self.on_action(action)
+            try:
+                self.act(action)    
+                self.on_action(action)
+                self.report_card.add_action()
+            except PreconditionFalseError as e:
+                self.report_card.add_action(True)
+            
 
     @property
     def reached_all_goals(self):
@@ -114,14 +120,71 @@ class Simulator(object):
         return {name:set(entries) for name, entries in self.state.items()}
 
     def generate_problem(self, path, goal = None):
-        '''
+        """
         generate a pddl problem at the path
         this problem will be from the current state and not the original state
-        '''
+        """
         if goal is None:
             goal = self.uncompleted_goals[0]
         self.parser.generate_problem(path, self.state, goal)
         return path
+
+class ReportCard():
+    def __init__(self):
+        self.success = False
+        self.failed_actions = 0        
+        self.total_perception_requests = 0
+        self.total_actions = 0
+        self.total_action_costs = 0
+        self.start_time = None
+        self.end_time = None
+        self.total_time = None
+    
+    def add_perception(self):
+        self.total_perception_requests += 1
+
+    def add_action(self, failed=False, cost=1):
+        self.total_actions += 1
+        if failed:
+            self.failed_actions += 1
+        else:
+            self.total_action_costs += cost
+    
+    def start(self):
+        """ 
+        Record start time
+        :return: self for a fluent api
+        """
+        self.start_time = time.time()
+        return self
+    
+    def done(self, success):
+        """
+        Record end time and success
+        :return: self for a fluent api
+        """
+        self.end_time = time.time()
+        self.total_time = self.end_time - self.start_time
+        self.success = success
+        return self
+    
+    def __str__(self):
+        """
+        Print the report card in a nice format
+        """
+        return """
+== REPORT CARD ==
+Success: {0.success}
+
+Start time: {0.start_time}
+End time: {0.end_time}
+Total time: {0.total_time}
+
+Total actions: {0.total_actions}
+Total actions costs: {0.total_action_costs}
+Failed actions: {0.failed_actions}
+Total perception requests: {0.total_perception_requests}""".format(self)
+    
 
 class PreconditionFalseError(Exception):
     pass

@@ -6,6 +6,7 @@ import struct
 from server.socket_utils import *
 import uuid
 import shutil
+import pickle
 from pddlsim.simulator import Simulator
 
 INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
@@ -34,7 +35,7 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
             sim.simulate(self.problem_path, remote)
 
             sock.send_int(DONE)
-
+            sock.send_one_message(pickle.dumps(sim.report_card))
             print('Reached goal!' if sim.reached_all_goals else 'Failed to reach goal')
         except socket.error, e:
             if e.errno == errno.ECONNRESET:

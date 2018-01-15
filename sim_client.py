@@ -13,3 +13,4 @@ if __name__ == '__main__':
     with RemoteSimulator(HOST, PORT) as sim:
         sim.use_domain_and_problem(domain_path, problem_path)
         sim.simulate(PlanDispatcher())
+        print str(sim.report_card)

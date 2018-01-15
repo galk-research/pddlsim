@@ -26,7 +26,7 @@ def test_all_ipc2002():
             executor = PlanDispatcher()
             sim = Simulator(domain_path,print_actions=False)
             sim.simulate(problem_path, executor)
-            if sim.reached_goal:
+            if sim.reached_all_goals:
                 count += 1
             total += 1
         print(count,total,sep='/')
@@ -55,6 +55,7 @@ def simulate(executor, domain_path, problem_path):
         print('Reached goal!')
     else:
         print('Failed to reach goal')
+    return sim.report_card
 
 
 def profile():
@@ -191,10 +192,9 @@ if __name__ == '__main__':
         results[executive.__class__.__name__] = False            
         try:
             with OutputGrabber():
-                simulate(executive,domain_path,problem_path)
-            results[executive.__class__.__name__] = True
+                results[executive.__class__.__name__] = simulate(executive,domain_path,problem_path)             
         except:
             pass
-        
-    print (results)
+    for ex,rc in results.iteritems():
+        print (ex,str(rc))
     exit()
