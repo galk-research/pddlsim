@@ -21,6 +21,7 @@ if __name__ == '__main__':
                 sim.use_domain_and_problem(domain_path, problem_path)
                 results[executive.__class__.__name__] = sim.simulate(executive)                
         except Exception as e:
-            raise e        
+            pass     
     for ex,rc in results.iteritems():        
-        print (ex, rc)    
+        print ex
+        print str(rc)    

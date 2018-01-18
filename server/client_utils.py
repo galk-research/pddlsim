@@ -58,8 +58,8 @@ class RemoteSimulator():
             if message != INITILIZE_EXECUTIVE: return
 
             fake_sim = FakeSim(self.domain_path, self.problem_path)
-            
-            executive.initilize(RemoteSimulatorMediator(self))
+            remote_sim = RemoteSimulatorMediator(self)
+            executive.initilize(remote_sim)
 
             self.sock.send_int(INITILIZE_EXECUTIVE)
 
@@ -69,7 +69,8 @@ class RemoteSimulator():
                     self.report_card = pickle.loads(self.sock.recv_one_message())
                     return self.report_card
                 next_action = executive.next_action()
+                remote_sim.on_action(next_action)
                 if next_action is None:
-                    next_action = '(reach-goal)'
+                    next_action = '(reach-goal)'                
                 self.sock.send_one_message(next_action)
     

@@ -5,14 +5,19 @@ class ValidActions():
         self.get = valid_action_func
 
 class TrackedSuccessorValidActions():
-    def __init__(self, simulator, goal_tracking):
+    def __init__(self, pddl, problem_generator, goal_tracking):
         if goal_tracking.has_multiple_goals():
-            next_problem = simulator.generate_problem('multiple_goal_temp.pddl')
-            self.successor = TrackedSuccessor(simulator,next_problem)
-        self.successor = TrackedSuccessor(simulator)
+            next_problem = problem_generator.generate_problem()
+            self.successor = TrackedSuccessor(pddl.domain_path,next_problem)
+        self.successor = TrackedSuccessor(pddl.domain_path,pddl.problem_path)
 
     def get(self):
         return map(str.lower, self.successor.next())
+
+    def on_action(self,action_sig):
+        if action_sig:
+            self.successor.proceed(action_sig)
+
 
 class PythonValidActions():
     def __init__(self, simulator):

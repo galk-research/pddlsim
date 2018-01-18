@@ -12,12 +12,14 @@ class SimulatorMediator():
         self.pddl = PDDL(simulator.domain_path,simulator.problem_path)
         self.perception = Perception(simulator)
         self.goal_tracking = GoalTracking(simulator.parser,self.perception.get_state)
-        self.valid_actions = TrackedSuccessorValidActions(simulator,self.goal_tracking)
+        self.problem_generator = ProblemGenerator(self.perception, simulator.parser, "tmp_problem_generation")
+        
         self.memorizer = Memorizer(self.perception)
         self.action_simulator = ActionSimulator(simulator)
-        self.problem_generator = ProblemGenerator(self.perception, simulator.parser, "tmp_problem_generation")
+        
+        self.valid_actions = TrackedSuccessorValidActions(self.pddl, self.problem_generator, self.goal_tracking)
+        simulator.on_action += self.on_action
 
-        simulator.on_action += lambda *x: self.on_action()
-
-    def on_action(self):
+    def on_action(self, sim, action_sig):
         self.goal_tracking.on_action()        
+        self.valid_actions.on_action(action_sig)
