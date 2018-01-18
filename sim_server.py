@@ -10,10 +10,12 @@ import pickle
 from pddlsim.simulator import Simulator
 
 INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
+PERCEPTION_REQUEST = 'request_perception'
 
 class RemoteExecutive():
-    def __init__(self, socket):
+    def __init__(self, socket, simulator):
         self.socket = socket
+        self.simulator = simulator
 
     def initilize(self, simulator):
         self.socket.send_int(INITILIZE_EXECUTIVE)
@@ -21,7 +23,12 @@ class RemoteExecutive():
 
     def next_action(self):
         self.socket.send_int(NEXT_ACTION)
-        return self.socket.recv_one_message()
+        while True:
+            message = self.socket.recv_one_message()        
+            if message == PERCEPTION_REQUEST:
+                self.socket.send_one_message(pickle.dumps(self.simulator.perceive_state()))
+            else:
+                return message
 
 class SimulatorHandler(SocketServer.BaseRequestHandler):
     def handle(self):
@@ -31,12 +38,12 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
             sock.get_file(self.problem_path)
 
             sim = Simulator(self.domain_path)
-            remote = RemoteExecutive(sock)
+            remote = RemoteExecutive(sock,sim)
             sim.simulate(self.problem_path, remote)
 
             sock.send_int(DONE)
             sock.send_one_message(pickle.dumps(sim.report_card))
-            print('Reached goal!' if sim.reached_all_goals else 'Failed to reach goal')
+            print('Reached goal!' if sim.report_card.success else 'Failed to reach goal')
         except socket.error, e:
             if e.errno == errno.ECONNRESET:
                 # Handle disconnection -- close & reopen socket etc.

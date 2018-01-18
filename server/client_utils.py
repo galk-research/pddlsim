@@ -7,6 +7,7 @@ from socket_utils import *
 from remote_simulator_mediator import RemoteSimulatorMediator
 
 INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
+PERCEPTION_REQUEST = 'request_perception'
 
 class FakeSim():
     def __init__(self, domain_path, problem_path):
@@ -46,6 +47,10 @@ class RemoteSimulator():
         self.sock.send_file(problem_path)
         self.sent_domain_and_problem = True
         return self
+    
+    def get_state(self):
+        self.sock.send_one_message(PERCEPTION_REQUEST)
+        return pickle.loads(self.sock.recv_one_message())
 
     def simulate(self, executive):
         if self.sent_domain_and_problem:
@@ -62,7 +67,7 @@ class RemoteSimulator():
                 message = self.sock.recv_int()
                 if message == DONE: 
                     self.report_card = pickle.loads(self.sock.recv_one_message())
-                    return 
+                    return self.report_card
                 next_action = executive.next_action()
                 if next_action is None:
                     next_action = '(reach-goal)'

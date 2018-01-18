@@ -7,8 +7,8 @@ from pddlsim.planner import make_plan
 
 
 class DelayedDispatch(AvoidReturn):
-    def __init__(self,use_lapkt_successor=True):
-        super(DelayedDispatch, self).__init__(use_lapkt_successor)
+    def __init__(self):
+        super(DelayedDispatch, self).__init__()
         self.previous_state = None
 
     def initilize(self,services):
@@ -30,6 +30,6 @@ class DelayedDispatch(AvoidReturn):
         # if there is only one options after reducing actions that take you back
         if len(options) == 1: return options[0]
         # create pddl_problem for current state
-        problem_path = self.services.problem_generator.generate_problem(self.services.memorizer.load_state())
+        problem_path = self.services.problem_generator.generate_problem(self.services.goal_tracking.uncompleted_goals[0], self.services.memorizer.load_state())
         self.plan = make_plan(self.services.pddl.domain_path,problem_path)
         return self.next_step_in_plan()

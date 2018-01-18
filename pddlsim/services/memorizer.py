@@ -1,10 +1,10 @@
 class Memorizer():
-    def __init__(self, simulator):
+    def __init__(self, perception):
         self.previous_state = None
-        self.simulator = simulator
+        self.perception = perception
 
     def save_state(self):
-        self.previous_state = self.simulator.clone_state()
+        self.previous_state = self.perception.get_state()
 
     def load_state(self):
         return self.previous_state

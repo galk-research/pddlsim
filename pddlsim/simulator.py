@@ -3,6 +3,8 @@ import copy
 from obsub import event
 import time
 from services.simulator_mediator import SimulatorMediator
+from services.goal_tracking import GoalTracking
+from services.perception import Perception
 
 class Simulator(object):
     """docstring for Simulator."""
@@ -11,19 +13,18 @@ class Simulator(object):
         self.domain_path = domain_path
         self.print_actions = print_actions
         self.check_preconditions = True
-        self.completed_goals = []
-        self.uncompleted_goals = []
+        self.goal_tracking = None
         self.dirty = True
         self.report_card = None
 
-        if parser == None:
+        if parser is None:
             import fd_parser
             self.parser_type = fd_parser.FDParser
         else:
             self.parser_type = parser
 
     def apply_action(self, action, params, state=None):
-        if state == None: state = self.state
+        if state == None: state = self._state
         param_mapping = action.get_param_mapping(params)
 
         if self.check_preconditions:
@@ -43,7 +44,7 @@ class Simulator(object):
 
 
     def act(self, action_sig, state=None):
-        if state == None: state = self.state
+        if state == None: state = self._state
 
         action_sig = action_sig.strip('()').lower()
         parts = action_sig.split(' ')
@@ -64,9 +65,12 @@ class Simulator(object):
         self.parser = self.parser_type(self.domain_path,self.problem_path)
 
         #setup internal state
-        self.state = self.parser.build_first_state()
-        self.completed_goals = []
-        self.uncompleted_goals = self.parser.get_goals()[:]
+        self._state = self.parser.build_first_state()
+
+        self.goal_tracking = GoalTracking(self.parser,lambda : self._state)
+        self.on_action +=  lambda s,sim: self.goal_tracking.on_action()
+        # self.completed_goals = []
+        # self.uncompleted_goals = self.parser.get_goals()[:]
 
         self.report_card = ReportCard().start()
         #setup executor
@@ -74,11 +78,11 @@ class Simulator(object):
         if self.print_actions:
             def printer(self,text):
                 print text
-            self.on_action += printer
+            self.on_action += printer        
 
         self.action_loop(next_action_func)
         
-        return self.report_card.done(self.reached_all_goals)
+        return self.report_card.done(self.goal_tracking.reached_all_goals())
 
     @event
     def on_action(self,action_sig):
@@ -96,38 +100,9 @@ class Simulator(object):
             except PreconditionFalseError as e:
                 self.report_card.add_action(True)
             
-
-    @property
-    def reached_all_goals(self):
-        if self.dirty:
-            self.check_goal()
-            self.dirty = False
-        return not self.uncompleted_goals
-
-    def check_goal(self):
-        to_remove = list()
-        for goal in self.uncompleted_goals:
-                # done_subgoal = all(signature in self.state[name] for (name,signature) in goal )
-                done_subgoal = self.parser.test_condition(goal,self.state)
-                if done_subgoal:
-                    to_remove.append(goal)
-        for goal in to_remove:
-            self.uncompleted_goals.remove(goal)
-            self.completed_goals.append(goal)
-        # return self.reached_all_goals
-
-    def clone_state(self):
-        return {name:set(entries) for name, entries in self.state.items()}
-
-    def generate_problem(self, path, goal = None):
-        """
-        generate a pddl problem at the path
-        this problem will be from the current state and not the original state
-        """
-        if goal is None:
-            goal = self.uncompleted_goals[0]
-        self.parser.generate_problem(path, self.state, goal)
-        return path
+    def perceive_state(self):
+        self.report_card.add_perception()
+        return {name:set(entries) for name, entries in self._state.items()}
 
 class ReportCard():
     def __init__(self):

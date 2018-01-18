@@ -50,8 +50,8 @@ def compare_many():
 def simulate(executor, domain_path, problem_path):
     sim = Simulator(domain_path)
     # sim.print_actions = False
-    sim.simulate(problem_path, executor)
-    if sim.reached_all_goals:
+    rc = sim.simulate(problem_path, executor)
+    if rc.success:
         print('Reached goal!')
     else:
         print('Failed to reach goal')
@@ -185,16 +185,18 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
     domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/t_5_5_5.pddl'
-
+    # simulate(DelayedDispatch(),domain_path,problem_path)
+    # exit()
     executives = [PlanDispatcher(),RandomExecutor(),AvoidReturn(),DelayedDispatch()]
     results = dict()
-    for executive in executives:                
+    for executive in executives:                 
         results[executive.__class__.__name__] = False            
-        try:
-            with OutputGrabber():
-                results[executive.__class__.__name__] = simulate(executive,domain_path,problem_path)             
-        except:
-            pass
+        # try:
+        #     with OutputGrabber():
+        results[executive.__class__.__name__] = simulate(executive,domain_path,problem_path)             
+        # except:
+        #     pass
     for ex,rc in results.iteritems():
-        print (ex,str(rc))
+        # print (ex,'Passed' if rc and rc.success else 'Failed')
+        print (ex, rc)
     exit()

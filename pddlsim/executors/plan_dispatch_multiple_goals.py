@@ -6,20 +6,20 @@ class MultipleGoalPlanDispatcher(Executor):
     def __init__(self):
         super(MultipleGoalPlanDispatcher, self).__init__()
         self.steps = []     
-        self.simulator = None   
+        self.services = None   
 
-    def initilize(self,sim):
-        self.simulator = sim
+    def initilize(self,services):
+        self.services = services
         
     def next_action(self):        
-        if not self.steps and self.simulator.uncompleted_goals:
-            if self.simulator.reached_all_goals:
+        if not self.steps and self.services.goal_tracking.uncompleted_goals:
+            if self.services.goal_tracking.reached_all_goals():
                 return None
-            next_goal = self.simulator.uncompleted_goals[-1]
+            next_goal = self.services.goal_tracking.uncompleted_goals()[-1]
             print next_goal
             # get only one goal
-            next_problem = self.simulator.generate_problem('multiple_goal_temp.pddl',next_goal)
-            self.steps = planner.make_plan(self.simulator.domain_path,next_problem)            
+            next_problem = self.services.problem_generator.generate_problem(next_goal)
+            self.steps = planner.make_plan(self.services.pddl.domain_path,next_problem)            
         
         if self.steps:
             return self.steps.pop(0).lower()
