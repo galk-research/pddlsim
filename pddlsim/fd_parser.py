@@ -84,6 +84,32 @@ class FDParser(object):
     )
     ''')
 
+    def apply_action_to_state(self, action_sig, state, check_preconditions=True):        
+
+        action_sig = action_sig.strip('()').lower()
+        parts = action_sig.split(' ')
+        action_name = parts[0]
+        param_names = parts[1:]
+
+        action = self.get_action(action_name)
+        params = map(self.get_object,param_names)        
+        
+        param_mapping = action.get_param_mapping(params)
+
+        if check_preconditions:
+            for precondition in action.precondition:
+                if not precondition.test(param_mapping, state):
+                    raise PreconditionFalseError()
+
+        for (predicate_name,entry) in action.to_delete(param_mapping):
+            predicate_set = state[predicate_name]
+            if entry in predicate_set:
+                predicate_set.remove(entry)
+
+        for (predicate_name,entry) in action.to_add(param_mapping):
+            state[predicate_name].add(entry)
+
+
 class Action(object):
     def __init__(self, action):
         self.name = action.name
@@ -131,6 +157,8 @@ class Predicate(object):
     def test(self, param_mapping, state):
         return self.ground(param_mapping) in state[self.name]
 
+class PreconditionFalseError(Exception):
+    pass
 
 def main():
     domain_path, problem_path = "domains/ipc2002/zenotravel/domain.pddl","domains/ipc2002/zenotravel/prob01.pddl"

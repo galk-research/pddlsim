@@ -7,7 +7,7 @@ class ValidActions():
 class TrackedSuccessorValidActions():
     def __init__(self, pddl, problem_generator, goal_tracking):
         if goal_tracking.has_multiple_goals():
-            next_problem = problem_generator.generate_problem()
+            next_problem = problem_generator.generate_problem(goal_tracking.uncompleted_goals[0])
             self.successor = TrackedSuccessor(pddl.domain_path,next_problem)
         self.successor = TrackedSuccessor(pddl.domain_path,pddl.problem_path)
 

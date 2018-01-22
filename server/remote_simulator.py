@@ -6,21 +6,9 @@ import pickle
 from socket_utils import *
 from remote_simulator_mediator import RemoteSimulatorMediator
 
-INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
+NEXT_ACTION, DONE = 0,1
+INITILIZE_EXECUTIVE = 'init'
 PERCEPTION_REQUEST = 'request_perception'
-
-class FakeSim():
-    def __init__(self, domain_path, problem_path):
-        self.domain_path = domain_path
-        self.problem_path = problem_path
-
-    @property
-    def domain_path(self):
-        return self.domain_path
-
-    @property
-    def problem_path(self):
-        return self.problem_path
 
 class RemoteSimulator():
     def __init__(self, host='localhost', port=9999):
@@ -54,20 +42,19 @@ class RemoteSimulator():
 
     def simulate(self, executive):
         if self.sent_domain_and_problem:
-            message = self.sock.recv_int()
+            message = self.sock.recv_one_message()
             if message != INITILIZE_EXECUTIVE: return
-
-            fake_sim = FakeSim(self.domain_path, self.problem_path)
+            
             remote_sim = RemoteSimulatorMediator(self)
             executive.initilize(remote_sim)
 
-            self.sock.send_int(INITILIZE_EXECUTIVE)
+            self.sock.send_one_message(INITILIZE_EXECUTIVE)
 
             while True:
                 message = self.sock.recv_int()
                 if message == DONE: 
                     self.report_card = pickle.loads(self.sock.recv_one_message())
-                    return self.report_card
+                    return self.report_card                
                 next_action = executive.next_action()
                 remote_sim.on_action(next_action)
                 if next_action is None:

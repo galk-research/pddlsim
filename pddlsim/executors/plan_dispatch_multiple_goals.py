@@ -15,7 +15,7 @@ class MultipleGoalPlanDispatcher(Executor):
         if not self.steps and self.services.goal_tracking.uncompleted_goals:
             if self.services.goal_tracking.reached_all_goals():
                 return None
-            next_goal = self.services.goal_tracking.uncompleted_goals()[-1]
+            next_goal = self.services.goal_tracking.uncompleted_goals[-1]
             print next_goal
             # get only one goal
             next_problem = self.services.problem_generator.generate_problem(next_goal)

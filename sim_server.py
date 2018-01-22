@@ -9,7 +9,8 @@ import shutil
 import pickle
 from pddlsim.simulator import Simulator
 
-INITILIZE_EXECUTIVE, NEXT_ACTION, DONE = 0,1,2
+NEXT_ACTION, DONE = 0,1
+INITILIZE_EXECUTIVE = 'init'
 PERCEPTION_REQUEST = 'request_perception'
 
 class RemoteExecutive():
@@ -17,20 +18,28 @@ class RemoteExecutive():
         self.socket = socket
         self.simulator = simulator
 
-    def initilize(self, simulator):
-        self.socket.send_int(INITILIZE_EXECUTIVE)
-        self.socket.recv_int()
-
+    def initilize(self,services):
+        self.socket.send_one_message(INITILIZE_EXECUTIVE)
+        return self.wait_for_one_message_and_serve_perception()
+    
     def next_action(self):
         self.socket.send_int(NEXT_ACTION)
-        while True:
-            message = self.socket.recv_one_message()        
+        return self.wait_for_one_message_and_serve_perception()
+
+    def wait_for_one_message_and_serve_perception(self):
+        while True:            
+            message = self.socket.recv_one_message()            
             if message == PERCEPTION_REQUEST:
                 self.socket.send_one_message(pickle.dumps(self.simulator.perceive_state()))
             else:
                 return message
 
 class SimulatorHandler(SocketServer.BaseRequestHandler):
+    def simulate(self,sim, problem_path, executor):
+        init = lambda : executor.initilize(None)
+
+        return sim.simulate_with_funcs(problem_path, init, executor.next_action)
+
     def handle(self):
         try:
             sock = BufferedSocket(self.request)
@@ -39,7 +48,8 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
 
             sim = Simulator(self.domain_path)
             remote = RemoteExecutive(sock,sim)
-            sim.simulate(self.problem_path, remote)
+            # sim.simulate_with_funcs(self.problem_path, lambda : remote.initilize(None), remote.next_action)
+            self.simulate(sim,self.problem_path,remote)
 
             sock.send_int(DONE)
             sock.send_one_message(pickle.dumps(sim.report_card))

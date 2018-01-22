@@ -5,6 +5,7 @@ import time
 from services.simulator_mediator import SimulatorMediator
 from services.goal_tracking import GoalTracking
 from services.perception import Perception
+from fd_parser import PreconditionFalseError
 
 class Simulator(object):
     """docstring for Simulator."""
@@ -13,8 +14,7 @@ class Simulator(object):
         self.domain_path = domain_path
         self.print_actions = print_actions
         self.check_preconditions = True
-        self.goal_tracking = None
-        self.dirty = True
+        self.goal_tracking = None        
         self.report_card = None
 
         if parser is None:
@@ -23,37 +23,6 @@ class Simulator(object):
         else:
             self.parser_type = parser
 
-    def apply_action(self, action, params, state=None):
-        if state == None: state = self._state
-        param_mapping = action.get_param_mapping(params)
-
-        if self.check_preconditions:
-            for precondition in action.precondition:
-                if not precondition.test(param_mapping, state):
-                    raise PreconditionFalseError()
-
-        for (predicate_name,entry) in action.to_delete(param_mapping):
-            predicate_set = state[predicate_name]
-            if entry in predicate_set:
-                predicate_set.remove(entry)
-
-        for (predicate_name,entry) in action.to_add(param_mapping):
-            state[predicate_name].add(entry)
-
-        self.dirty = True
-
-
-    def act(self, action_sig, state=None):
-        if state == None: state = self._state
-
-        action_sig = action_sig.strip('()').lower()
-        parts = action_sig.split(' ')
-        action_name = parts[0]
-        param_names = parts[1:]
-
-        action = self.parser.get_action(action_name)
-        params = map(self.parser.get_object,param_names)        
-        self.apply_action(action, params, state)
 
     def simulate(self, problem_path, executor):
         init = lambda : executor.initilize(SimulatorMediator(self))
@@ -63,18 +32,17 @@ class Simulator(object):
         self.problem_path = problem_path
 
         self.parser = self.parser_type(self.domain_path,self.problem_path)
-
         #setup internal state
         self._state = self.parser.build_first_state()
 
         self.goal_tracking = GoalTracking(self.parser,lambda : self._state)
         self.on_action +=  lambda s,sim: self.goal_tracking.on_action()
-        # self.completed_goals = []
-        # self.uncompleted_goals = self.parser.get_goals()[:]
 
         self.report_card = ReportCard().start()
+        
         #setup executor
         init_func()
+        
         if self.print_actions:
             def printer(self,text):
                 print text
@@ -94,7 +62,7 @@ class Simulator(object):
             if not action or action.lower() == '(reach-goal)':
                 return
             try:
-                self.act(action)    
+                self.parser.apply_action_to_state(action,self._state,self.check_preconditions)
                 self.on_action(action)
                 self.report_card.add_action()
             except PreconditionFalseError as e:
@@ -160,9 +128,6 @@ Total actions costs: {0.total_action_costs}
 Failed actions: {0.failed_actions}
 Total perception requests: {0.total_perception_requests}""".format(self)
     
-
-class PreconditionFalseError(Exception):
-    pass
 
 def compare_executors(domain_path, problem_path, executors):
     results = dict()

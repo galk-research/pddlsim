@@ -7,21 +7,21 @@ class AvoidReturn(RandomExecutor):
     def __init__(self,use_lapkt_successor=True):
         super(AvoidReturn, self).__init__(True,use_lapkt_successor)
 
-    def initilize(self,services):
+    def initilize(self,services): 
         super(AvoidReturn, self).initilize(services)
+        self.previous_state = None
 
     def next_action(self):
         '''
         save previous state after choosing next action
         '''
         next_action = super(AvoidReturn, self).next_action()
-        self.services.memorizer.save_state()
+        self.previous_state = self.services.perception.get_state() 
         return next_action
 
     def remove_return_actions(self,options):
-        if self.services.memorizer.has_state():
-            previous_state = self.services.memorizer.load_state()
-            return filter(lambda option: self.services.action_simulator.next_state(option) != previous_state, options)
+        if self.previous_state:            
+            return filter(lambda option: self.services.action_simulator.next_state(option) != self.previous_state, options)
         return options
 
     def pick_from_many(self, options):
