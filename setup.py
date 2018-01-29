@@ -10,6 +10,6 @@ setup(
     package_data={'pddlsim':['external/liblapkt.so','external/siw-then-bfsf']},
     include_package_data=True,
     distclass=BinaryDistribution,
-    packages=['pddlsim','pddlsim/external/fd','pddlsim/executors','pddlsim/successors'],
-    # packages=find_packages('pddlsim')
+    # packages=['pddlsim','pddlsim/external/fd','pddlsim/executors','pddlsim/successors','pddlsim/services','pddlsim/remote'],
+    packages=find_packages(exclude=['experiments'])
 )

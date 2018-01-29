@@ -1,0 +1,3 @@
+NEXT_ACTION, DONE = 0,1
+INITILIZE_EXECUTIVE = 'init'
+PERCEPTION_REQUEST = 'request_perception'

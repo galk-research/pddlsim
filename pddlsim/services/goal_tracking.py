@@ -7,7 +7,8 @@ class GoalTracking():
         self.dirty = True
 
     def on_action(self):
-        self.dirty = True        
+        self.dirty = True
+        self.reached_all_goals()        
 
     def has_multiple_goals(self):
         return len(self.uncompleted_goals) > 1

@@ -23,7 +23,6 @@ class Simulator(object):
         else:
             self.parser_type = parser
 
-
     def simulate(self, problem_path, executor):
         init = lambda : executor.initilize(SimulatorMediator(self))
         return self.simulate_with_funcs(problem_path, init, executor.next_action)
@@ -128,12 +127,3 @@ Total actions costs: {0.total_action_costs}
 Failed actions: {0.failed_actions}
 Total perception requests: {0.total_perception_requests}""".format(self)
     
-
-def compare_executors(domain_path, problem_path, executors):
-    results = dict()
-    for name, executor in executors.items():
-        sim = Simulator(domain_path,print_actions=False)
-        total = sim.simulate(problem_path, executor)
-        # print(name, total)
-        results[name] = total
-    return results

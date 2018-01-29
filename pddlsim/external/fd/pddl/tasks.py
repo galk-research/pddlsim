@@ -9,7 +9,6 @@ from . import predicates
 from . import pddl_types
 from . import functions
 from . import f_expression
-from . import multiple_goals
 
 class Task(object):
     def __init__(self, domain_name, task_name, requirements,
@@ -235,7 +234,10 @@ def parse_task(task_pddl):
         yield [conditions.parse_condition(goal[1])]
     else:
         assert goal[0] == ":goals" and len(goal) == 2        
-        yield multiple_goals.parse_multiple_goals(goal[1])
+        # yield multiple_goals.parse_multiple_goals(goal[1])
+        goals = goal[1]
+        assert goals[0] == 'all'
+        yield [conditions.parse_condition(goal) for goal in goals[1:]]
 
     use_metric = False
     for entry in iterator:

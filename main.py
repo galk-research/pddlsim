@@ -4,7 +4,7 @@ import glob
 import os
 import time
 
-from pddlsim.simulator import Simulator,compare_executors
+from pddlsim.simulator import Simulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.avoid_return_random import AvoidReturn
@@ -30,22 +30,6 @@ def test_all_ipc2002():
                 count += 1
             total += 1
         print(count,total,sep='/')
-
-def compare_many():
-
-    # length = 400
-    # domain_path, problem_path = "ipc2002/zenotravel/domain.pddl","ipc2002/zenotravel/prob01.pddl"
-    # domain_path,problem_path = 'experiments/domain.pddl',generate_problem.generate_corridor(length)
-    domain_path = 'experiments/domain.pddl'
-    # problems = [generate_problem.generate_T(i,5,5) for i in [100,200,300,400]]
-
-    # executors = {'PlanDispatcher':PlanDispatcher(), 'MazeReducerExecutor':MazeReducerExecutor()}
-    # executors = {'PlanDispatcher':PlanDispatcher(), 'Random':RandomExecutor()}
-    # executors = {'No_Return':AvoidReturn(use_lapkt_successor=False),'PlanDispatcher':PlanDispatcher()}
-    problem = generate_problem.generate_T(50,5,5)
-    executors = {'PlanDispatcher':PlanDispatcher(), 'DelayedDispatch':DelayedDispatch()}
-    print(compare_executors(domain_path,problem,executors))
-
 
 def simulate(executor, domain_path, problem_path):
     sim = Simulator(domain_path)
@@ -164,8 +148,7 @@ class OutputGrabber(object):
                 break
 
 if __name__ == '__main__':
-
-    # compare_many()
+    
     # test_all_ipc2002()
     # profile()
     # with OutputGrabber():

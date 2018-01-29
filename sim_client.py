@@ -2,7 +2,7 @@
 # from pddlsim.executors.plan_dispatch import PlanDispatcher
 from experiments.maze_reducer_executor import MazeReducerExecutor
 from pddlsim.executors import (plan_dispatch,random_executor,avoid_return_random,delayed_dispatch,plan_dispatch_multiple_goals)
-from server.remote_simulator import *
+from pddlsim.remote.remote_simulator import *
 
 HOST, PORT = "localhost", 9999
 
@@ -13,9 +13,9 @@ if __name__ == '__main__':
     # problem_path = './experiments/problems/t_400_5_5.pddl'
     # problem_path = './experiments/problems/t_5_5_5_multiple.pddl'
     
-    executives = [plan_dispatch.PlanDispatcher(),random_executor.RandomExecutor(),avoid_return_random.AvoidReturn(),delayed_dispatch.DelayedDispatch()]
+    # executives = [plan_dispatch.PlanDispatcher(),random_executor.RandomExecutor(),avoid_return_random.AvoidReturn(),delayed_dispatch.DelayedDispatch()]
     # executives = [plan_dispatch.PlanDispatcher(),delayed_dispatch.DelayedDispatch()]
-    # executives = [plan_dispatch_multiple_goals.MultipleGoalPlanDispatcher(), random_executor.RandomExecutor()]
+    executives = [plan_dispatch_multiple_goals.MultipleGoalPlanDispatcher(), random_executor.RandomExecutor()]
 
     results = dict()
     for executive in executives:                 
@@ -28,4 +28,5 @@ if __name__ == '__main__':
         #     pass     
     for ex,rc in results.iteritems():        
         print ex
-        print str(rc)    
+        print str(rc)
+        print    

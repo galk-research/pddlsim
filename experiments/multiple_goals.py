@@ -9,7 +9,7 @@ from pddlsim.executors.delayed_dispatch import DelayedDispatch
 def simulate(executor, domain_path, problem_path):    
     sim = Simulator(domain_path)
     sim.simulate(problem_path, executor)
-    if sim.reached_all_goals:
+    if sim.report_card.success:
         print('Reached goal!')
     else:
         print('Failed to reach goal')
