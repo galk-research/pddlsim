@@ -13,9 +13,10 @@ if __name__ == '__main__':
     # problem_path = './experiments/problems/t_400_5_5.pddl'
     # problem_path = './experiments/problems/t_5_5_5_multiple.pddl'
     
+    executives = [plan_dispatch.PlanDispatcher()]
     # executives = [plan_dispatch.PlanDispatcher(),random_executor.RandomExecutor(),avoid_return_random.AvoidReturn(),delayed_dispatch.DelayedDispatch()]
     # executives = [plan_dispatch.PlanDispatcher(),delayed_dispatch.DelayedDispatch()]
-    executives = [plan_dispatch_multiple_goals.MultipleGoalPlanDispatcher(), random_executor.RandomExecutor()]
+    # executives = [plan_dispatch_multiple_goals.MultipleGoalPlanDispatcher(), random_executor.RandomExecutor()]
 
     results = dict()
     for executive in executives:                 

@@ -5,10 +5,16 @@ import time
 from services.simulator_mediator import SimulatorMediator
 from services.goal_tracking import GoalTracking
 from services.perception import Perception
-from fd_parser import PreconditionFalseError
+from fd_parser import FDParser, PreconditionFalseError
 
 class Simulator(object):
-    """docstring for Simulator."""
+    """ 
+    The simulator is in charge of managing the true state of the world
+    This means 3 essential things:
+    1. The action loop - this is where changes to the true state can be incepted
+    2. Applying the change to the true state
+    3. Providing perceptions of the true state to external factors (these perceptions aren't required to be truthful)
+    """
     def __init__(self, domain_path, print_actions=True, parser=None):
         super(Simulator, self).__init__()
         self.domain_path = domain_path
@@ -17,9 +23,8 @@ class Simulator(object):
         self.goal_tracking = None        
         self.report_card = None
 
-        if parser is None:
-            import fd_parser
-            self.parser_type = fd_parser.FDParser
+        if parser is None:            
+            self.parser_type = FDParser
         else:
             self.parser_type = parser
 
@@ -65,7 +70,7 @@ class Simulator(object):
                 self.on_action(action)
                 self.report_card.add_action()
             except PreconditionFalseError as e:
-                self.report_card.add_action(True)
+                self.report_card.add_failed_action()
             
     def perceive_state(self):
         self.report_card.add_perception()
@@ -85,12 +90,14 @@ class ReportCard():
     def add_perception(self):
         self.total_perception_requests += 1
 
-    def add_action(self, failed=False, cost=1):
+    def add_action(self, cost=1):
+        self.total_actions += 1        
+        self.total_action_costs += cost
+    
+    def add_failed_action(self, cost=0):
         self.total_actions += 1
-        if failed:
-            self.failed_actions += 1
-        else:
-            self.total_action_costs += cost
+        self.failed_actions += 1        
+        self.total_action_costs += cost
     
     def start(self):
         """ 
@@ -125,5 +132,6 @@ Total time: {0.total_time}
 Total actions: {0.total_actions}
 Total actions costs: {0.total_action_costs}
 Failed actions: {0.failed_actions}
-Total perception requests: {0.total_perception_requests}""".format(self)
+Total perception requests: {0.total_perception_requests}
+""".format(self)
     

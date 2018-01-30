@@ -5,10 +5,8 @@ import struct
 import pickle
 from socket_utils import *
 from remote_simulator_mediator import RemoteSimulatorMediator
-
-NEXT_ACTION, DONE = 0,1
-INITILIZE_EXECUTIVE = 'init'
-PERCEPTION_REQUEST = 'request_perception'
+from messages import *
+from tmpdir import TmpDir
 
 class RemoteSimulator():
     def __init__(self, host='localhost', port=9999):
@@ -30,10 +28,7 @@ class RemoteSimulator():
 
     def use_domain_and_problem(self, domain_path, problem_path):
         self.domain_path = domain_path
-        self.problem_path = problem_path
-        self.sock.send_file(domain_path)
-        self.sock.send_file(problem_path)
-        self.sent_domain_and_problem = True
+        self.problem_path = problem_path        
         return self
     
     def get_state(self):
@@ -41,23 +36,34 @@ class RemoteSimulator():
         return pickle.loads(self.sock.recv_one_message())
 
     def simulate(self, executive):
-        if self.sent_domain_and_problem:
-            message = self.sock.recv_one_message()
-            if message != INITILIZE_EXECUTIVE: return
-            
-            remote_sim = RemoteSimulatorMediator(self)
-            executive.initilize(remote_sim)
+        message = self.sock.recv_one_message()        
+        if message == SENDING_PDDLS:
+            tmp_dir = TmpDir('.tmp')
+            self.domain_path = tmp_dir.join('domain.pddl')
+            self.problem_path = tmp_dir.join('problem.pddl')
+            self.sock.get_file(self.domain_path)
+            self.sock.get_file(self.problem_path)
+        elif message == WAITING_FOR_PDDLS:
+            self.sock.send_file(self.domain_path)
+            self.sock.send_file(self.problem_path)
+        else: return        
 
-            self.sock.send_one_message(INITILIZE_EXECUTIVE)
+        message = self.sock.recv_one_message()
+        if message != INITILIZE_EXECUTIVE: return
+        
+        remote_sim = RemoteSimulatorMediator(self)
+        executive.initilize(remote_sim)
 
-            while True:
-                message = self.sock.recv_int()
-                if message == DONE: 
-                    self.report_card = pickle.loads(self.sock.recv_one_message())
-                    return self.report_card                
-                next_action = executive.next_action()
-                remote_sim.on_action(next_action)
-                if next_action is None:
-                    next_action = '(reach-goal)'                
-                self.sock.send_one_message(next_action)
+        self.sock.send_one_message(INITILIZE_EXECUTIVE)
+
+        while True:
+            message = self.sock.recv_int()
+            if message == DONE: 
+                self.report_card = pickle.loads(self.sock.recv_one_message())
+                return self.report_card                
+            next_action = executive.next_action()
+            remote_sim.on_action(next_action)
+            if next_action is None:
+                next_action = '(reach-goal)'                
+            self.sock.send_one_message(next_action)
     
