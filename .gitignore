@@ -8,6 +8,7 @@ build
 tmp_delayed_dispatch
 tmp_reduced.pddl
 tmp.ipc
+plan.ipc
 multiple_goal_temp.pddl
 tmp_problem_generation
 execution.details
