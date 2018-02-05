@@ -56,7 +56,7 @@ INSTALL
        - sudo apt-get install python-pip
        - sudo -H pip install --upgrade pip
   - sudo -H pip install setuptools
-  - sudo -H pip install obsub six
+  - sudo -H pip install six
 3. Fix permissions of the planner executables in pddlsim/external/  :
   - chmod +x <binary-names>, e.g., "chmod u+x siw-then-bfsf"
    
