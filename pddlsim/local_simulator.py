@@ -1,18 +1,18 @@
 from simulator import Simulator
 from fd_parser import FDParser
-from services.simulator_mediator import SimulatorMediator
+from services.simulator_services import SimulatorServices
 from services.pddl import PDDL
+from services.perception import Perception
 
 
-class SimEnv:
+class LocalSimulator:
     def __init__(self, print_actions=True):
         self.print_actions = print_actions
 
     def run(self, domain_path, problem_path, executive):
         parser = FDParser(domain_path, problem_path)
         sim = Simulator(parser)
-        pddl = PDDL(domain_path, problem_path)
-        mediator = SimulatorMediator(sim, pddl)
+        mediator = SimulatorServices(parser, sim.perceive_state)
         if self.print_actions:
             def printer(text):
                 print text
@@ -22,7 +22,7 @@ class SimEnv:
 
         def next_action():
             if self.previous_action:
-                mediator.on_action(sim, self.previous_action)
+                mediator.on_action(self.previous_action)
             self.previous_action = executive.next_action()
             return self.previous_action
 

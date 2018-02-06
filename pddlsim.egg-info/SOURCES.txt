@@ -2,6 +2,7 @@ setup.py
 lapkt/__init__.py
 pddlsim/__init__.py
 pddlsim/fd_parser.py
+pddlsim/local_simulator.py
 pddlsim/planner.py
 pddlsim/simulator.py
 pddlsim.egg-info/PKG-INFO
@@ -52,16 +53,16 @@ pddlsim/remote/__init__.py
 pddlsim/remote/messages.py
 pddlsim/remote/remote_executive.py
 pddlsim/remote/remote_simulator.py
-pddlsim/remote/remote_simulator_mediator.py
 pddlsim/remote/simulator_server.py
 pddlsim/remote/socket_utils.py
+pddlsim/remote/tmpdir.py
 pddlsim/services/__init__.py
 pddlsim/services/action_simulator.py
 pddlsim/services/goal_tracking.py
 pddlsim/services/pddl.py
 pddlsim/services/perception.py
 pddlsim/services/problem_generator.py
-pddlsim/services/simulator_mediator.py
+pddlsim/services/simulator_services.py
 pddlsim/services/valid_actions.py
 pddlsim/successors/__init__.py
 pddlsim/successors/planner_wrapper.py

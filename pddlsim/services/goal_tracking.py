@@ -1,7 +1,12 @@
 class GoalTracking():
-    def __init__(self, parser, perception_func):
+    """
+    A service to keep track of completed and uncompleted goals
+    This is very useful for situations with multiple goals
+    """
+
+    def __init__(self, parser, perception):
         self.parser = parser
-        self.perception_func = perception_func
+        self.perception = perception
         self.completed_goals = []
         self.uncompleted_goals = self.parser.get_goals()[:]
         self.dirty = True
@@ -23,7 +28,7 @@ class GoalTracking():
         to_remove = list()
         for goal in self.uncompleted_goals:
             done_subgoal = self.parser.test_condition(
-                goal, self.perception_func())
+                goal, self.perception.get_state())
             if done_subgoal:
                 to_remove.append(goal)
         for goal in to_remove:

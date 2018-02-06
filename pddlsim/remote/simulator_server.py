@@ -5,10 +5,12 @@ import SocketServer
 import errno
 
 from pddlsim.simulator import Simulator
+from pddlsim.fd_parser import FDParser
 from remote_executive import RemoteExecutive
 from socket_utils import *
 from messages import *
 from tmpdir import TmpDir
+
 
 class SimulatorHandler(SocketServer.BaseRequestHandler):
     TMP_ROOT = '.tmp'
@@ -23,13 +25,14 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
             self, request, client_address, server)
 
     def simulate(self, sim, problem_path, executor):
-        init = lambda: executor.initilize(None)
+        def init(): return executor.initilize(None)
+        sim.simulate()
         return sim.simulate_with_funcs(problem_path, init, executor.next_action)
 
     def handle(self):
         self.request.settimeout(self.timeout)
         try:
-            sock = BufferedSocket(self.request)                        
+            sock = BufferedSocket(self.request)
             if self.provide_pddls:
                 print 'Sending pddls'
                 sock.send_one_message(SENDING_PDDLS)
@@ -41,12 +44,14 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
                 sock.get_file(self.domain_path)
                 sock.get_file(self.problem_path)
 
-            sim = Simulator(self.domain_path)
+            parser = FDParser(self.domain_path, self.problem_path)
+            sim = Simulator(parser)
             remote = RemoteExecutive(sock, sim)
+            remote.initilize(None)
             # sim.simulate_with_funcs(self.problem_path, lambda :
             # remote.initilize(None), remote.next_action)
-            self.simulate(sim, self.problem_path, remote)
-
+            # self.simulate(sim, self.problem_path, remote)
+            sim.simulate(remote.next_action)
             sock.send_int(DONE)
             sock.send_one_message(pickle.dumps(sim.report_card))
             print(
@@ -61,7 +66,7 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
                 # Other error, re-raise
                 raise
 
-    def setup(self):        
+    def setup(self):
         if not self.provide_pddls:
             self.tmp_dir = TmpDir(self.TMP_ROOT)
             self.domain_path = self.tmp_dir.join('domain.pddl')
@@ -78,27 +83,28 @@ class InvalidSimulatorHandlerConfigsError(Exception):
     pass
 
 
-class SimulatorForkedTCPServer(SocketServer.ForkingMixIn, SocketServer.TCPServer):    
-    def __init__(self, server_address):        
+class SimulatorForkedTCPServer(SocketServer.ForkingMixIn, SocketServer.TCPServer):
+    def __init__(self, server_address):
         self.timeout = 60
         self.domain_path = None
         self.problem_path = None
-                
+
         SocketServer.TCPServer.allow_reuse_address = True
         SocketServer.TCPServer.__init__(
-            self, server_address, SimulatorHandler)        
-    
+            self, server_address, SimulatorHandler)
+
     @staticmethod
     def default():
-        return SimulatorForkedTCPServer(("localhost",9999))
+        return SimulatorForkedTCPServer(("localhost", 9999))
 
-    def finish_request(self, request, client_address):        
+    def finish_request(self, request, client_address):
         self.RequestHandlerClass(
             request, client_address, self, self.timeout, self.domain_path, self.problem_path)
 
     def provide_pddls(self, domain_path, problem_path):
         if (domain_path is None) or (problem_path is None):
-            raise InvalidSimulatorHandlerConfigsError("Please supply both a domain and a problem path")
+            raise InvalidSimulatorHandlerConfigsError(
+                "Please supply both a domain and a problem path")
         self.domain_path = domain_path
         self.problem_path = problem_path
         return self
@@ -109,7 +115,7 @@ def start(host="localhost", port=9999, requests_to_serve=-1):
     Start a remote simulator server with host and port
     requests_to_serve will serve the specified amount
     default is -1 which will server forever
-    """        
+    """
     server = SimulatorForkedTCPServer((host, port),)
 
     print("Server starting...")
@@ -119,6 +125,7 @@ def start(host="localhost", port=9999, requests_to_serve=-1):
     else:
         for _ in xrange(requests_to_serve):
             server.handle_request()
+
 
 if __name__ == "__main__":
     start()

@@ -153,7 +153,7 @@ class OutputGrabber(object):
                 break
 
 
-from pddlsim.sim_env import SimEnv
+from pddlsim.local_simulator import LocalSimulator
 
 if __name__ == '__main__':
 
@@ -181,14 +181,14 @@ if __name__ == '__main__':
     executives = [PlanDispatcher(), RandomExecutor(),
                   AvoidReturn(), DelayedDispatch()]
     results = dict()
-    simenv = SimEnv()
+    simenv = LocalSimulator()
     for executive in executives:
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
         # results[executive.__class__.__name__] = simulate(
         #     executive, domain_path, problem_path)
-
+        simenv = LocalSimulator()
         results[executive.__class__.__name__] = simenv.run(
             domain_path, problem_path, executive)
         # except:

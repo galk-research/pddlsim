@@ -1,4 +1,9 @@
 class Perception():
+    """
+    Perception is wrapper around a real perception function to
+     ensure that the real function is called only when the state has changed
+    """
+
     def __init__(self, perception_func):
         self.perception_func = perception_func
         self.state = None

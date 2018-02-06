@@ -1,4 +1,8 @@
 class ActionSimulator():
+    """
+    Use `next_state` to predict the result of an action on a state
+    """
+
     def __init__(self, parser, perception):
         self.parser = parser
         self.perception = perception

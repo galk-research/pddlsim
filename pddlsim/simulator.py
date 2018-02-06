@@ -22,7 +22,8 @@ class Simulator(object):
         self.check_preconditions = True
         self.parser = parser
         self._state = self.parser.build_first_state()
-        self.goal_tracking = GoalTracking(self.parser, lambda: self._state)
+        self.goal_tracking = GoalTracking(
+            self.parser, Perception(lambda: self._state))
         self.report_card = ReportCard()
 
     def simulate(self, next_action_func):
@@ -45,7 +46,7 @@ class Simulator(object):
 
     def perceive_state(self):
         self.report_card.add_perception()
-        return {name: set(entries) for name, entries in self._state.items()}
+        return self.parser.copy_state(self._state)
 
 
 class ReportCard():

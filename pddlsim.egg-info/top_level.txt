@@ -1,6 +1,2 @@
+lapkt
 pddlsim
-pddlsim/executors
-pddlsim/external/fd
-pddlsim/remote
-pddlsim/services
-pddlsim/successors
