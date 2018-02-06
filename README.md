@@ -1,17 +1,13 @@
 sample usage of the library:
 ```
-from pddlsim.simulator import Simulator,compare_executors
+from pddlsim.local_simulator import LocalSimulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 
-sim = Simulator(domain_path)
-sim.simulate(problem_path, PlanDispatcher())
-if sim.reached_goal:
-    print('Reached goal!')
-else:
-    print('Failed to reach goal')
+print LocalSimulator().run(
+        domain_path, problem_path, PlanDispatcher())
 ```
 This code should use a plan dispatcher to solve the problem 
-The simulate function gets an executive as its second argument this can be any executive.
+
 An empty example that shows the necessary functions for an exective can be found in pddlsim/executors/executor.py
 
 If all that you need is to use the library and not develop it:

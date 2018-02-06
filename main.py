@@ -181,7 +181,7 @@ if __name__ == '__main__':
     executives = [PlanDispatcher(), RandomExecutor(),
                   AvoidReturn(), DelayedDispatch()]
     results = dict()
-    simenv = LocalSimulator()
+
     for executive in executives:
         results[executive.__class__.__name__] = False
         # try:
