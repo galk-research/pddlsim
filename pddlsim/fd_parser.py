@@ -169,22 +169,3 @@ class Predicate(object):
 
 class PreconditionFalseError(Exception):
     pass
-
-
-def main():
-    domain_path, problem_path = "domains/ipc2002/zenotravel/domain.pddl", "domains/ipc2002/zenotravel/prob01.pddl"
-    # parser = FDParser(domain_path, problem_path)
-    # print(parser.build_first_state())
-    # print(parser.get_object('city1'))
-    # print(parser.get_goals())
-
-    import simulator
-    from executors.executor import Executor
-    from executors.plan_dispatch import PlanDispatcher
-    from executors.random_executor import RandomExecutor
-    sim = simulator.Simulator(domain_path, parser=FDParser)
-    sim.simulate(problem_path, RandomExecutor())
-
-
-if __name__ == '__main__':
-    main()

@@ -10,8 +10,10 @@ from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.avoid_return_random import AvoidReturn
 from pddlsim.executors.delayed_dispatch import DelayedDispatch
 from pddlsim.executors import executor
+from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
 from experiments import reduce_domain, generate_problem
 from experiments.maze_reducer_executor import MazeReducerExecutor
+from pddlsim.local_simulator import LocalSimulator
 
 import pddlsim.planner
 
@@ -26,23 +28,11 @@ def test_all_ipc2002():
         for problem_path in glob.glob(domain_dir + '/prob*.pddl'):
             print (problem_path)
             executor = PlanDispatcher()
-            sim = Simulator(domain_path, print_actions=False)
-            sim.simulate(problem_path, executor)
-            if sim.reached_all_goals:
+            rc = LocalSimulator().run(domain_path, problem_path, executor)
+            if rc.success:
                 count += 1
             total += 1
         print(count, total, sep='/')
-
-
-def simulate(executor, domain_path, problem_path):
-    sim = Simulator(domain_path)
-    # sim.print_actions = False
-    rc = sim.simulate(problem_path, executor)
-    if rc.success:
-        print('Reached goal!')
-    else:
-        print('Failed to reach goal')
-    return sim.report_card
 
 
 def profile():
@@ -57,7 +47,8 @@ def profile():
                   'avoid_run': 'AvoidReturn(use_lapkt_successor=False)',
                   'plan_dispatch': 'PlanDispatcher()',
                   'delayed_dispatch': 'DelayedDispatch()'}
-    code = 'simulate(' + executives[target] + ',domain_path,problem_path)'
+    code = 'LocalSimulator().run(domain_path,problem_path,' + \
+        executives[target] + ')'
 
     # run profiling
     cProfile.run(code, profile_path)
@@ -86,8 +77,7 @@ def libffbug():
     domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/simple_problem.pddl'
     for i in range(2):
         d1 = RandomExecutor()
-        sim = Simulator(domain_path, print_actions=True)
-        sim.simulate(problem_path, d1)
+        LocalSimulator().run(domain_path, problem_path, d1)
 
     # d2 = RandomExecutor()
     # sim = Simulator(domain_path,print_actions=False)
@@ -153,8 +143,6 @@ class OutputGrabber(object):
                 break
 
 
-from pddlsim.local_simulator import LocalSimulator
-
 if __name__ == '__main__':
 
     # test_all_ipc2002()
@@ -175,21 +163,23 @@ if __name__ == '__main__':
 
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
-    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
-    # simulate(DelayedDispatch(),domain_path,problem_path)
+    # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
+
+    domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
+    # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
-    executives = [PlanDispatcher(), RandomExecutor(),
-                  AvoidReturn(), DelayedDispatch()]
+    # executives = [PlanDispatcher(), RandomExecutor(),
+    #               AvoidReturn(), DelayedDispatch()]
+
+    executives = [MultipleGoalPlanDispatcher(), DelayedDispatch()]
+    # executives = [PlanDispatcher()]
     results = dict()
 
     for executive in executives:
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
-        # results[executive.__class__.__name__] = simulate(
-        #     executive, domain_path, problem_path)
-        simenv = LocalSimulator()
-        results[executive.__class__.__name__] = simenv.run(
+        results[executive.__class__.__name__] = LocalSimulator().run(
             domain_path, problem_path, executive)
         # except:
         #     pass
