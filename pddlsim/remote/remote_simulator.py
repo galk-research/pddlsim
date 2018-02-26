@@ -1,4 +1,3 @@
-# echo_client.py
 
 import socket
 import sys
@@ -61,7 +60,6 @@ class RemoteSimulator():
 
         services = SimulatorServices.from_pddls(
             self.domain_path, self.problem_path, self.get_state)
-
         executive.initilize(services)
         self.sock.send_one_message(INITILIZE_EXECUTIVE)
 
@@ -71,6 +69,7 @@ class RemoteSimulator():
                 self.report_card = pickle.loads(self.sock.recv_one_message())
                 return self.report_card
             next_action = executive.next_action()
+
             services.on_action(next_action)
             if next_action is None:
                 next_action = '(reach-goal)'
