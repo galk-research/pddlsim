@@ -8,7 +8,7 @@ from pddlsim.simulator import Simulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.avoid_return_random import AvoidReturn
-from pddlsim.executors.delayed_dispatch import DelayedDispatch
+from experiments.executive_over_planner.delayed_dispatch import DelayedDispatch
 from pddlsim.executors import executor
 from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
 from experiments import reduce_domain, generate_problem
@@ -165,8 +165,8 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
     # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
 
-    domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
-    # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
+    # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
+    domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
     # executives = [PlanDispatcher(), RandomExecutor(),
     #               AvoidReturn(), DelayedDispatch()]

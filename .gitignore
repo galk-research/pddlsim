@@ -2,9 +2,8 @@
 __pycache__
 # **/__pycache__
 **.pyc
-tmp
+tmp/
 test_env
-build
 tmp_delayed_dispatch
 tmp_reduced.pddl
 tmp.ipc
@@ -13,5 +12,23 @@ multiple_goal_temp.pddl
 tmp_problem_generation
 execution.details
 experiments/multiple_goal_temp.pddl
-pddlsim.egg-info
 reusage_log
+
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg

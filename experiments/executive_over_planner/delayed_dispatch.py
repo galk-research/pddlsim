@@ -1,7 +1,7 @@
 import random
 import copy
 
-from avoid_return_random import AvoidReturn
+from pddlsim.executors.avoid_return_random import AvoidReturn
 from pddlsim.simulator import Simulator
 from pddlsim.planner import make_plan
 

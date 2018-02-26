@@ -1,3 +1,5 @@
+use ```pip install pddlsim``` to install the library
+ 
 sample usage of the library:
 ```
 from pddlsim.local_simulator import LocalSimulator
@@ -9,10 +11,6 @@ print LocalSimulator().run(
 This code should use a plan dispatcher to solve the problem 
 
 An empty example that shows the necessary functions for an exective can be found in pddlsim/executors/executor.py
-
-If all that you need is to use the library and not develop it:
-The pddlsim library can be installed using `pip install dist/pddlsim-0.1.dev0-py2-none-any.whl`
-This is a binary distribution of the project, which was compiled on a 64bit Ubuntu 16.04 and it won't necessarily work on other platforms.
 
 
 Project structure:
@@ -41,18 +39,3 @@ Project structure:
     - random_executor.py - an executor that executes random valid actions
 - main.py  - used to run experiments  
 - setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
-
-
-INSTALL
-=======
-1.  Clone the git
-2.  Install python modules:
-  - make sure you have python-pip installed
-    - If you don't (ubuntu):
-       - sudo apt-get install python-pip
-       - sudo -H pip install --upgrade pip
-  - sudo -H pip install setuptools
-  - sudo -H pip install six
-3. Fix permissions of the planner executables in pddlsim/external/  :
-  - chmod +x <binary-names>, e.g., "chmod u+x siw-then-bfsf"
-   
