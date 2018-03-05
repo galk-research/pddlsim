@@ -2,13 +2,14 @@ from setuptools import setup, dist, find_packages
 
 
 class BinaryDistribution(dist.Distribution):
+
     def is_pure(self):
         return False
 
 
 setup(
     name='pddlsim',
-    version='0.1.3dev',
+    version='0.1.4dev',
     classifiers=['Programming Language :: Python :: 2.7',
                  'Development Status :: 2 - Pre-Alpha',
                  'Intended Audience :: Science/Research',
