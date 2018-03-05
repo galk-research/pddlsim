@@ -1,19 +1,25 @@
 
 import external.fd.pddl as pddl
 from six import iteritems, print_
+import abc
+from parser_independent import *
 
 
 class FDParser(object):
+
     def __init__(self, domain_path, problem_path):
         super(FDParser, self).__init__()
         self.domain_path = domain_path
         self.problem_path = problem_path
         self.task = pddl.pddl_file.open(problem_path, domain_path)
         self.objects = {obj.name: obj.type for obj in self.task.objects}
-        self.actions = {action.name: Action(action)
+        self.actions = {action.name: self.convert_action(action)
                         for action in self.task.actions}
-        # self.goals = [[subgoal.key for subgoal in goal.parts] for goal in self.task.goal]
-        self.goals = self.task.goal[:]
+        # self.goals = [[subgoal.key for subgoal in goal.parts] for goal in
+        # self.task.goal]
+
+        self.goals = [self.convert_condition(subgoal)
+                      for subgoal in self.task.goal]
 
     def build_first_state(self):
         initial_state = self.task.init
@@ -40,26 +46,36 @@ class FDParser(object):
         return self.actions[action_name]
 
     @staticmethod
-    def get_entry(param_mapping, predicate):
-        names = [x for x in predicate]
-        entry = tuple([param_mapping[name][0] for name in names])
-        return entry
+    def convert_condition(condition):
+        if isinstance(condition, pddl.Literal):
+            return Literal(condition.predicate, condition.args)
+        sub_conditions = [FDParser.convert_condition(sub_condition)
+                          for sub_condition in condition.parts]
+        if isinstance(condition, pddl.Conjunction):
+            return Conjunction(sub_conditions)
+        if isinstance(condition, pddl.Disjunction):
+            return Disjunction(sub_conditions)
+
+    @staticmethod
+    def convert_action(action):
+        name = action.name
+        signature = [(obj.name, obj.type) for obj in action.parameters]
+        addlist = []
+        dellist = []
+        for effect in action.effects:
+            if effect.literal.negated:
+                dellist.append(effect.literal.key)
+            else:
+                addlist.append(effect.literal.key)
+        precondition = [Predicate(pred.predicate, pred.args)
+                        for pred in action.precondition.parts]
+        return Action(action.name, signature, addlist, dellist, precondition)
 
     def test_condition(self, condition, mapping):
-        if isinstance(condition, pddl.Literal):
-            return condition.args in mapping[condition.predicate]
-        if isinstance(condition, pddl.conditions.Conjunction):
-            return all([self.test_condition(part, mapping) for part in condition.parts])
-        if isinstance(condition, pddl.conditions.Disjunction):
-            return any([self.test_condition(part, mapping) for part in condition.parts])
+        return condition.test(mapping)
 
     def pd_to_strips_string(self, condition):
-        if isinstance(condition, pddl.Literal):
-            return "({} {})".format(condition.predicate, ' '.join(condition.args))
-        if isinstance(condition, pddl.Conjunction):
-            return "(and {})".format(' '.join(map(self.pd_to_strips_string, condition.parts)))
-        if isinstance(condition, pddl.Disjunction):
-            return "(or {})".format(' '.join(map(self.pd_to_strips_string, condition.parts)))
+        return condition.accept(StripsStringVisitor())
 
     def predicates_from_state(self, state):
         return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in state.iteritems() for pred in predicate_set if predicate_name != '=']
@@ -115,57 +131,3 @@ class FDParser(object):
 
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
-
-
-class Action(object):
-    def __init__(self, action):
-        self.name = action.name
-        self.signature = [(obj.name, obj.type) for obj in action.parameters]
-        self.addlist = []
-        self.dellist = []
-        for effect in action.effects:
-            if effect.literal.negated:
-                self.dellist.append(effect.literal.key)
-            else:
-                self.addlist.append(effect.literal.key)
-        self.precondition = [Predicate.from_predicate(
-            pred) for pred in action.precondition.parts]
-
-    def action_string(self, dictionary):
-        params = " ".join([dictionary[var[0]] for var in self.signature])
-        return "(" + self.name + " " + params + ")"
-
-    def entries_from_list(self, preds, param_mapping):
-        return [(pred[0], FDParser.get_entry(param_mapping, pred[1])) for pred in preds]
-
-    def to_delete(self, param_mapping):
-        return self.entries_from_list(self.dellist, param_mapping)
-
-    def to_add(self, param_mapping):
-        return self.entries_from_list(self.addlist, param_mapping)
-
-    def get_param_mapping(self, params):
-        param_mapping = dict()
-        for (name, param_type), obj in zip(self.signature, params):
-            param_mapping[name] = obj
-        return param_mapping
-
-
-class Predicate(object):
-    def __init__(self, name, signature):
-        self.name = name
-        self.signature = signature
-
-    @staticmethod
-    def from_predicate(predicate):
-        return Predicate(predicate.predicate, predicate.args)
-
-    def ground(self, dictionary):
-        return tuple([dictionary[x][0] for x in self.signature])
-
-    def test(self, param_mapping, state):
-        return self.ground(param_mapping) in state[self.name]
-
-
-class PreconditionFalseError(Exception):
-    pass

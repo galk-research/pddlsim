@@ -13,6 +13,7 @@ from pddlsim.services.perception import Perception
 
 
 class RemoteSimulator():
+
     def __init__(self, host='localhost', port=9999):
         self.host = host
         self.port = port
@@ -60,7 +61,7 @@ class RemoteSimulator():
 
         services = SimulatorServices.from_pddls(
             self.domain_path, self.problem_path, self.get_state)
-        executive.initilize(services)
+        executive.initialize(services)
         self.sock.send_one_message(INITILIZE_EXECUTIVE)
 
         while True:

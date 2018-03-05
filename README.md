@@ -1,17 +1,28 @@
-use ```pip install pddlsim``` to install the library
+Prerequisites:
+    Boost Python - install with ```sudo apt-get install libboost-python-dev```
+
+Installation:
+    use ```pip install pddlsim``` to install the library
  
-sample usage of the library:
+Sample usage:
+
+the following runs a local simulator with a PlanDispatcher executive
 ```
 from pddlsim.local_simulator import LocalSimulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 
+#domain_path - a path to a pddl file of the domain.
+#problem_path - a path to a pddl file of the problem
+#PlanDispatcher - an executive that solves the problem with planning.
 print LocalSimulator().run(
         domain_path, problem_path, PlanDispatcher())
 ```
-This code should use a plan dispatcher to solve the problem 
 
 An empty example that shows the necessary functions for an exective can be found in pddlsim/executors/executor.py
-
+All executive must have these 2 functions:
+1. initialize(self,services) - called first by the server and recives all the services that are used to communicate with
+ the the server. This is where you can initialize anything related to the domain or problem the server is simulating.
+2. next_action(self) - returns the next action to execute.
 
 Project structure:
 
@@ -39,3 +50,14 @@ Project structure:
     - random_executor.py - an executor that executes random valid actions
 - main.py  - used to run experiments  
 - setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
+
+Developer notes:
+
+Run ```./reinstall.sh``` to uninstall the current version of pddlsim, then build a wheel from the current source and install it. This is very useful for testing changes to the library.
+
+To upload a new version to PyPi:
+1. Don't forget to update the version in ```setup.py``` 
+2. Build the wheel with ```python setup.py bdist_wheel```
+3. Upload the wheel with twine: ```twine upload dist/$(ls dist -t | head -n1)```
+
+

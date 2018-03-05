@@ -25,7 +25,7 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
             self, request, client_address, server)
 
     def simulate(self, sim, problem_path, executor):
-        def init(): return executor.initilize(None)
+        def init(): return executor.initialize(None)
         sim.simulate()
         return sim.simulate_with_funcs(problem_path, init, executor.next_action)
 
@@ -47,9 +47,9 @@ class SimulatorHandler(SocketServer.BaseRequestHandler):
             parser = FDParser(self.domain_path, self.problem_path)
             sim = Simulator(parser)
             remote = RemoteExecutive(sock, sim)
-            remote.initilize(None)
+            remote.initialize(None)
             # sim.simulate_with_funcs(self.problem_path, lambda :
-            # remote.initilize(None), remote.next_action)
+            # remote.initialize(None), remote.next_action)
             # self.simulate(sim, self.problem_path, remote)
             sim.simulate(remote.next_action)
             sock.send_int(DONE)
@@ -84,6 +84,7 @@ class InvalidSimulatorHandlerConfigsError(Exception):
 
 
 class SimulatorForkedTCPServer(SocketServer.ForkingMixIn, SocketServer.TCPServer):
+
     def __init__(self, server_address):
         self.timeout = 60
         self.domain_path = None

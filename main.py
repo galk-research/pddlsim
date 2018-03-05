@@ -70,7 +70,8 @@ def profile():
     # graphviz.output_file = 'basic.png'
 
     # with PyCallGraph(output=graphviz):
-    #     simulate(AvoidReturn(use_lapkt_successor=True), domain_path, problem_path)
+    # simulate(AvoidReturn(use_lapkt_successor=True), domain_path,
+    # problem_path)
 
 
 def libffbug():
@@ -90,6 +91,7 @@ import threading
 
 
 class OutputGrabber(object):
+
     """
     Class used to grab standard output or another stream.
     """
@@ -159,19 +161,21 @@ if __name__ == '__main__':
     # doesn't work:
     # domain_path,problem_path = 'domains/Mapana_dom.pddl','domains/Mapana_ins.pddl'
     # domain_path,problem_path = 'domains/Sched_dom.pddl','domains/Sched_ins.pddl'
-    # domain_path,problem_path = 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
+    # domain_path,problem_path =
+    # 'domains/Elev_dom.pddl','domains/Elev_ins.pddl'
 
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
-    # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
-    # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
+    # domain_path,problem_path =
+    # 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
+    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
 
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
-    domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
+    # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
-    # executives = [PlanDispatcher(), RandomExecutor(),
-    #               AvoidReturn(), DelayedDispatch()]
+    executives = [PlanDispatcher(), RandomExecutor(),
+                  AvoidReturn(), DelayedDispatch()]
 
-    executives = [MultipleGoalPlanDispatcher(), DelayedDispatch()]
+    # executives = [MultipleGoalPlanDispatcher()]
     # executives = [PlanDispatcher()]
     results = dict()
 

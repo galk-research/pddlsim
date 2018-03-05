@@ -4,6 +4,7 @@ import pickle
 
 
 class ExecutorProfiler(Executor):
+
     """The executor profile uses the decorator pattern to log the rusage for a given executive"""
 
     def __init__(self, target):
@@ -17,12 +18,12 @@ class ExecutorProfiler(Executor):
         with open(path, mode="w") as f:
             pickle.dump(self.rusage_log, f)
 
-    def initilize(self, services):
+    def initialize(self, services):
         self.rusage_log = dict()
         self.action_count = 0
 
         self.log_rusage('pre_init')
-        self.target.initilize(services)
+        self.target.initialize(services)
         self.log_rusage('post_init')
         return None
 

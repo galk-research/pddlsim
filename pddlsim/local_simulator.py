@@ -6,6 +6,7 @@ from services.perception import Perception
 
 
 class LocalSimulator:
+
     def __init__(self, print_actions=True):
         self.print_actions = print_actions
 
@@ -17,7 +18,7 @@ class LocalSimulator:
             def printer(text):
                 print text
             mediator.on_action_observers.append(printer)
-        executive.initilize(mediator)
+        executive.initialize(mediator)
         self.previous_action = None
 
         def next_action():

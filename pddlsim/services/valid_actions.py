@@ -2,11 +2,13 @@ from pddlsim.successors.tracked_successor import TrackedSuccessor
 
 
 class ValidActions():
+
     def __init__(self, valid_action_func):
         self.get = valid_action_func
 
 
 class TrackedSuccessorValidActions():
+
     """
     Use the TrackedSuccessor to query for valid actions at the current state
     This successor is tracked because LAPKT needs to keep track of the state
@@ -30,6 +32,7 @@ class TrackedSuccessorValidActions():
 
 
 class PythonValidActions():
+
     """
     Python implemention for valid actions
     This is significantly less efficient than the TrackedSuccessor version
@@ -135,7 +138,8 @@ class PythonValidActions():
             for precondition in preconditions_to_test:
                 new_candidates[:] = [c for c in new_candidates if self.simulator.test_predicate(
                     precondition.name, precondition.signature, c)]
-                # new_candidates[:] = [c for c in new_candidates if precondition.test(c, self.simulator.state)]
+                # new_candidates[:] = [c for c in new_candidates if
+                # precondition.test(c, self.simulator.state)]
 
             candidates = new_candidates
         return candidates

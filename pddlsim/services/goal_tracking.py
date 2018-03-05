@@ -1,7 +1,9 @@
 class GoalTracking():
+
     """
     A service to keep track of completed and uncompleted goals
     This is very useful for situations with multiple goals
+    Note that this will use perception for each round in order to check goals were accomplished at the current state
     """
 
     def __init__(self, parser, perception):
