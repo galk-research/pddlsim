@@ -1,7 +1,6 @@
 # import pddl.parsersimulate
 import random
 # from pddlsim.successors.successor import Successor
-from pddlsim.successors.tracked_successor import TrackedSuccessor
 
 
 class RandomExecutor(object):
@@ -12,10 +11,9 @@ class RandomExecutor(object):
         But using the tracked successor is significantly faster
     """
 
-    def __init__(self, stop_at_goal=True, use_lapkt_successor=True):
+    def __init__(self, stop_at_goal=True):
         super(RandomExecutor, self).__init__()
         self.stop_at_goal = stop_at_goal
-        self.use_lapkt_successor = use_lapkt_successor
         self.successor = None
 
     def initialize(self, services):

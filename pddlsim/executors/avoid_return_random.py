@@ -6,8 +6,8 @@ import copy
 
 class AvoidReturn(RandomExecutor):
 
-    def __init__(self, use_lapkt_successor=True):
-        super(AvoidReturn, self).__init__(True, use_lapkt_successor)
+    def __init__(self):
+        super(AvoidReturn, self).__init__(True)
 
     def initialize(self, services):
         super(AvoidReturn, self).initialize(services)

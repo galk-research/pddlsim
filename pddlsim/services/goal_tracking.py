@@ -10,7 +10,7 @@ class GoalTracking():
         self.parser = parser
         self.perception = perception
         self.completed_goals = []
-        self.uncompleted_goals = self.parser.get_goals()[:]
+        self.uncompleted_goals = self.parser.goals[:]
         self.dirty = True
 
     def on_action(self, action):

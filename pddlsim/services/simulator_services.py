@@ -1,6 +1,6 @@
 from pddl import PDDL
 from goal_tracking import GoalTracking
-from valid_actions import TrackedSuccessorValidActions, PythonValidActions
+from valid_actions import ValidActions
 from problem_generator import ProblemGenerator
 from perception import Perception
 from pddlsim.fd_parser import FDParser
@@ -17,8 +17,8 @@ class SimulatorServices():
         self.problem_generator = ProblemGenerator(
             self.perception, self.parser, "tmp_problem_generation")
 
-        self.valid_actions = TrackedSuccessorValidActions(
-            self.pddl, self.problem_generator, self.goal_tracking)
+        self.valid_actions = ValidActions(
+            self.pddl, self.perception, self.problem_generator, self.goal_tracking)
 
         self.on_action_observers = [self.goal_tracking.on_action,
                                     self.valid_actions.on_action, self.perception.on_action]

@@ -1,10 +1,31 @@
-from pddlsim.successors.tracked_successor import TrackedSuccessor
+SUPPORTS_LAPKT = False
+try:
+    from pddlsim.external.liblapkt import Planner
+    SUPPORTS_LAPKT = True
+except:
+    pass
 
 
 class ValidActions():
 
-    def __init__(self, valid_action_func):
-        self.get = valid_action_func
+    def __init__(self, parser, perception, problem_generator, goal_tracking):
+        problem = parser.problem_path
+
+        self.provider = None
+        if SUPPORTS_LAPKT:
+            if goal_tracking.has_multiple_goals():
+                problem = problem_generator.generate_problem(
+                    goal_tracking.uncompleted_goals[0])
+            self.provider = TrackedSuccessorValidActions(
+                parser.domain_path, problem)
+        else:
+            self.provider = PythonValidActions(parser, perception)
+
+    def get(self):
+        return self.provider.get()
+
+    def on_action(self, action_sig):
+        self.provider.on_action(action_sig)
 
 
 class TrackedSuccessorValidActions():
@@ -14,21 +35,20 @@ class TrackedSuccessorValidActions():
     This successor is tracked because LAPKT needs to keep track of the state
     """
 
-    def __init__(self, pddl, problem_generator, goal_tracking):
-        if goal_tracking.has_multiple_goals():
-            next_problem = problem_generator.generate_problem(
-                goal_tracking.uncompleted_goals[0])
-            self.successor = TrackedSuccessor(pddl.domain_path, next_problem)
-        else:
-            self.successor = TrackedSuccessor(
-                pddl.domain_path, pddl.problem_path)
+    def __init__(self, domain_path, problem_path):
+        self.task = Planner()
+        self.task.load(domain_path, problem_path)
+        self.task.setup()
+        self.sig_to_index = dict()
+        for i in range(0, self.task.num_actions()):
+            self.sig_to_index[self.task.get_action_signature(i)] = i
 
     def get(self):
-        return map(str.lower, self.successor.next())
+        return map(str.lower, self.task.next_actions_from_current())
 
-    def on_action(self, action_sig):
-        if action_sig:
-            self.successor.proceed(action_sig)
+    def on_action(self, action_signature):
+        self.task.proceed_with_action(
+            self.sig_to_index[action_signature.upper()])
 
 
 class PythonValidActions():
@@ -38,13 +58,15 @@ class PythonValidActions():
     This is significantly less efficient than the TrackedSuccessor version
     """
 
-    def __init__(self, simulator):
-        self.simulator = simulator
+    def __init__(self, parser, perception):
+        self.parser = parser
+        self.perception = perception
 
     def get(self):
+        current_state = self.perception.get_state()
         possible_actions = []
-        for (name, action) in self.simulator.parser.actions.items():
-            for candidate in self.get_valid_candidates_for_action(action):
+        for (name, action) in self.parser.actions.items():
+            for candidate in self.get_valid_candidates_for_action(current_state, action):
                 possible_actions.append(action.action_string(candidate))
         return possible_actions
 
@@ -65,7 +87,10 @@ class PythonValidActions():
     def indexed_candidate_to_dict(self, candidate, index_to_name):
         return {name[0]: candidate[idx] for idx, name in index_to_name.items()}
 
-    def get_valid_candidates_for_action(self, action):
+    def on_action(self, action_sig):
+        pass
+
+    def get_valid_candidates_for_action(self, state, action):
         '''
         Get all the valid parameters for a given action for the current state of the simulation
         '''
@@ -78,8 +103,8 @@ class PythonValidActions():
         found = set()
         candidates = None
         # copy all preconditions
-        for precondition in sorted(action.precondition, key=lambda x: len(self.simulator.state[x.name])):
-            thruths = self.simulator.state[precondition.name]
+        for precondition in sorted(action.precondition, key=lambda x: len(state[x.name])):
+            thruths = state[precondition.name]
             if len(thruths) == 0:
                 return []
             # map from predicate index to candidate index
@@ -101,45 +126,3 @@ class PythonValidActions():
             found = found.union(indexes)
 
         return [self.indexed_candidate_to_dict(c, index_to_name) for c in candidates]
-
-    def get_valid_candidates_for_action_original(self, action):
-        '''
-        Get all the valid parameters for a given action for the current state of the simulation
-        '''
-        objects = dict()
-        candidates = []
-        # copy all preconditions
-        precondition_left = action.precondition[:]
-        for (name, t) in action.signature:
-            objects[name] = t
-
-            # add all possible objects of the type
-            matching_objects = self.simulator.parser.get_objects_of_type(t)
-
-            # filter predicates that can be tested at this stage
-            preconditions_to_test = []
-            for precondition in precondition_left:
-                if self.simulator.parser.has_all_objects(precondition, objects):
-                    preconditions_to_test.append(precondition)
-            for pre in preconditions_to_test:
-                precondition_left.remove(pre)
-
-            new_candidates = []
-            if len(objects) == 1:
-                for instance in matching_objects:
-                    new_candidates.append({name: instance})
-            else:
-                for previous_candidate in candidates:
-                    for instance in matching_objects:
-                        candidate = previous_candidate.copy()
-                        candidate[name] = instance
-                        new_candidates.append(candidate)
-            # maybe this can happed while building candidates
-            for precondition in preconditions_to_test:
-                new_candidates[:] = [c for c in new_candidates if self.simulator.test_predicate(
-                    precondition.name, precondition.signature, c)]
-                # new_candidates[:] = [c for c in new_candidates if
-                # precondition.test(c, self.simulator.state)]
-
-            candidates = new_candidates
-        return candidates
