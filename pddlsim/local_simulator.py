@@ -7,13 +7,14 @@ from services.perception import Perception
 
 class LocalSimulator:
 
-    def __init__(self, print_actions=True):
+    def __init__(self, print_actions=True, planner=None):
         self.print_actions = print_actions
+        self.planner = planner
 
     def run(self, domain_path, problem_path, executive):
         parser = FDParser(domain_path, problem_path)
         sim = Simulator(parser)
-        mediator = SimulatorServices(parser, sim.perceive_state)
+        mediator = SimulatorServices(parser, sim.perceive_state, self.planner)
         if self.print_actions:
             def printer(text):
                 print text

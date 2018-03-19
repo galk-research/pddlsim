@@ -14,7 +14,6 @@ from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispa
 from experiments import reduce_domain, generate_problem
 from experiments.maze_reducer_executor import MazeReducerExecutor
 from pddlsim.local_simulator import LocalSimulator
-
 import pddlsim.planner
 
 IPC_PATH = 'ipc2002/'
@@ -183,7 +182,7 @@ if __name__ == '__main__':
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
-        results[executive.__class__.__name__] = LocalSimulator().run(
+        results[executive.__class__.__name__] = LocalSimulator(False, pddlsim.planner.online).run(
             domain_path, problem_path, executive)
         # except:
         #     pass

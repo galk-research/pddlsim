@@ -1,15 +1,17 @@
 # echo_server.py
 
 import SocketServer
-from pddlsim.planner import make_plan
+from pddlsim.services.planner import make_plan
 import struct
 from server.socket_utils import *
 import uuid
 import shutil
 
-SENDING_DOMAIN, SENDING_PROBLEM, REQUEST_PLAN, SENDING_PLAN = 0,1,2,3
+SENDING_DOMAIN, SENDING_PROBLEM, REQUEST_PLAN, SENDING_PLAN = 0, 1, 2, 3
+
 
 class PlanningHandler(SocketServer.BaseRequestHandler):
+
     """
     The RequestHandler class for our server.
 
@@ -17,12 +19,13 @@ class PlanningHandler(SocketServer.BaseRequestHandler):
     override the handle() method to implement communication to the
     client.
     """
+
     def handle(self):
         try:
             sock = BufferedSocket(self.request)
             sock.get_file(self.domain_path)
             sock.get_file(self.problem_path)
-            make_plan(self.domain_path,self.problem_path,self.plan_path)
+            make_plan(self.domain_path, self.problem_path, self.plan_path)
             sock.send_file(self.plan_path)
                 # send_int(self.request,ACK)
         except socket.error, e:
@@ -34,15 +37,15 @@ class PlanningHandler(SocketServer.BaseRequestHandler):
                 raise
 
     def setup(self):
-        self.directory = os.path.join('.tmp',uuid.uuid4().hex)
+        self.directory = os.path.join('.tmp', uuid.uuid4().hex)
         os.makedirs(self.directory)
-        self.domain_path = os.path.join(self.directory,'domain.pddl')
-        self.problem_path = os.path.join(self.directory,'problem.pddl')
-        self.plan_path = os.path.join(self.directory,'plan.ipc')
+        self.domain_path = os.path.join(self.directory, 'domain.pddl')
+        self.problem_path = os.path.join(self.directory, 'problem.pddl')
+        self.plan_path = os.path.join(self.directory, 'plan.ipc')
         return SocketServer.BaseRequestHandler.setup(self)
 
     def finish(self):
-        #auto clean temporary directory for process
+        # auto clean temporary directory for process
         shutil.rmtree(self.directory)
         return SocketServer.BaseRequestHandler.finish(self)
 

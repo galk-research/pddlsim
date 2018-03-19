@@ -1,16 +1,14 @@
 from executor import Executor
-import pddlsim.planner
 
 
 class MultipleGoalPlanDispatcher(Executor):
 
     """docstring for PlanDispatcher."""
 
-    def __init__(self, planner=None):
+    def __init__(self):
         super(MultipleGoalPlanDispatcher, self).__init__()
         self.steps = []
         self.services = None
-        self.planner = planner or pddlsim.planner.make_plan
 
     def initialize(self, services):
         self.services = services
@@ -24,7 +22,7 @@ class MultipleGoalPlanDispatcher(Executor):
             # get only one goal
             next_problem = self.services.problem_generator.generate_problem(
                 next_goal)
-            self.steps = self.planner(
+            self.steps = self.services.planner(
                 self.services.pddl.domain_path, next_problem)
 
         if self.steps:

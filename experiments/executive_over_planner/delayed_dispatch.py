@@ -3,7 +3,6 @@ import copy
 
 from pddlsim.executors.avoid_return_random import AvoidReturn
 from pddlsim.simulator import Simulator
-from pddlsim.planner import make_plan
 
 
 class DelayedDispatch(AvoidReturn):
@@ -35,5 +34,6 @@ class DelayedDispatch(AvoidReturn):
         # create pddl_problem for current state
         problem_path = self.services.problem_generator.generate_problem(
             self.services.goal_tracking.uncompleted_goals[0], self.services.perception.get_state())
-        self.plan = make_plan(self.services.pddl.domain_path, problem_path)
+        self.plan = self.services.planner(
+            self.services.pddl.domain_path, problem_path)
         return self.next_step_in_plan()
