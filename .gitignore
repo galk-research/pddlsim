@@ -13,6 +13,7 @@ tmp_problem_generation
 execution.details
 experiments/multiple_goal_temp.pddl
 reusage_log
+experiments/domain_resolution/tmp_problem.pddl
 
 
 # Distribution / packaging

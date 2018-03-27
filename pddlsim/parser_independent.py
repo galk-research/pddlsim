@@ -64,13 +64,16 @@ class PDDL(object):
     )
     ''')
 
-    def apply_action_to_state(self, action_sig, state, check_preconditions=True):
-
-        action_sig = action_sig.strip('()').lower()
+    @staticmethod
+    def parse_action(action):
+        action_sig = action.strip('()').lower()
         parts = action_sig.split(' ')
         action_name = parts[0]
         param_names = parts[1:]
+        return action_name, param_names
 
+    def apply_action_to_state(self, action_sig, state, check_preconditions=True):
+        action_name, param_names = self.parse_action(action_sig)
         action = self.actions[action_name]
         params = map(self.get_object, param_names)
 
