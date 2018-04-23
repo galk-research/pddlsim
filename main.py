@@ -144,8 +144,17 @@ class OutputGrabber(object):
                 break
 
 
-if __name__ == '__main__':
+def parser_test():
+    from pddlsim.fd_parser import FDParser
+    from pddlsim.services.valid_actions import TrackedSuccessorValidActions
 
+    domain_path, problem_path = 'domains/complex_football_domain.pddl', 'domains/complex_football_problem.pddl'
+    # print(TrackedSuccessorValidActions(domain_path, problem_path).get())
+    print(LocalSimulator(True).run(
+        domain_path, problem_path, RandomExecutor()))
+
+if __name__ == '__main__':
+    # parser_test()
     # test_all_ipc2002()
     # profile()
     # with OutputGrabber():
@@ -166,7 +175,9 @@ if __name__ == '__main__':
     # domain_path,problem_path = 'experiments/domain.pddl','experiments/problems/simple_problem.pddl'
     # domain_path,problem_path =
     # 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
-    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5.pddl'
+    # domain_path, problem_path = 'experiments/domain.pddl',
+    # 'experiments/problems/t_5_5_5.pddl'
+    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
 
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
