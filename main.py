@@ -149,19 +149,21 @@ def parser_test():
     from pddlsim.services.valid_actions import TrackedSuccessorValidActions
 
     domain_path, problem_path = 'domains/complex_football_domain.pddl', 'domains/complex_football_problem.pddl'
-    # print(TrackedSuccessorValidActions(domain_path, problem_path).get())
-    print(LocalSimulator(True).run(
-        domain_path, problem_path, RandomExecutor()))
+    domain_path, problem_path = 'domains/attack_domain.pddl', 'domains/attack_problem2.pddl'
+
+    print(TrackedSuccessorValidActions(domain_path, problem_path).get())
+    # print(LocalSimulator(True).run(
+    #     domain_path, problem_path, RandomExecutor()))
 
 if __name__ == '__main__':
-    # parser_test()
-    # test_all_ipc2002()
+    parser_test()
+    test_all_ipc2002()
     # profile()
     # with OutputGrabber():
     #     libffbug()
 
     # print('Done')
-    # exit()
+    exit()
 
     # works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -178,15 +180,15 @@ if __name__ == '__main__':
     # domain_path, problem_path = 'experiments/domain.pddl',
     # 'experiments/problems/t_5_5_5.pddl'
     domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
-
+    domain_path, problem_path = 'domains/attack_domain.pddl', 'domains/attack_problem2.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
-    executives = [PlanDispatcher(), RandomExecutor(),
-                  AvoidReturn(), DelayedDispatch()]
+    # executives = [PlanDispatcher(), RandomExecutor(),
+    #               AvoidReturn(), DelayedDispatch()]
 
     # executives = [MultipleGoalPlanDispatcher()]
-    # executives = [PlanDispatcher()]
+    executives = [PlanDispatcher()]
     results = dict()
 
     for executive in executives:

@@ -8,6 +8,11 @@ except:
 
 class ValidActions():
 
+    """
+    ValidActions creates the provider for the actual valid action.
+    It has a fallback if LAPKT isn't available to the python implementation, note that that implementation neither efficient nor stable
+    """
+
     def __init__(self, parser, perception, problem_generator, goal_tracking):
         problem = parser.problem_path
 
@@ -47,6 +52,10 @@ class TrackedSuccessorValidActions():
         return map(str.lower, self.task.next_actions_from_current())
 
     def on_action(self, action_signature):
+        """
+        This is called by the SimulatorServices to notify that an action has been selected
+        It is necessary because TrackedSuccessors keeps track of it's own state
+        """
         self.task.proceed_with_action(
             self.sig_to_index[action_signature.upper()])
 
