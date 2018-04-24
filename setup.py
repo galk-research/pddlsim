@@ -9,7 +9,7 @@ class BinaryDistribution(dist.Distribution):
 
 setup(
     name='pddlsim',
-    version='0.1.6dev',
+    version='0.1.7dev',
     classifiers=['Programming Language :: Python :: 2.7',
                  'Development Status :: 2 - Pre-Alpha',
                  'Intended Audience :: Science/Research',
