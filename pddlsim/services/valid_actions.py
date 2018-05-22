@@ -18,7 +18,7 @@ class ValidActions():
 
         self.provider = None
         if SUPPORTS_LAPKT:
-            if goal_tracking.has_multiple_goals():
+            if goal_tracking.has_multiple_goals() or parser.failure_probabilities:
                 problem = problem_generator.generate_problem(
                     goal_tracking.uncompleted_goals[0])
             self.provider = TrackedSuccessorValidActions(

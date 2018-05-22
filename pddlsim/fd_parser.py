@@ -16,7 +16,7 @@ class FDParser(PDDL):
                  for subgoal in self.task.goal]
 
         super(FDParser, self).__init__(
-            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state())
+            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), self.task.failure_probabilities)
 
     def build_first_state(self):
         initial_state = self.task.init

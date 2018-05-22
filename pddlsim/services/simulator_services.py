@@ -14,13 +14,15 @@ class SimulatorServices():
         self.parser = parser
         self.planner = planner or make_plan
         self.perception = Perception(perception_func)
-        self.pddl = self.parser
+
         self.goal_tracking = GoalTracking(self.parser, self.perception)
         self.problem_generator = ProblemGenerator(
             self.perception, self.parser, "tmp_problem_generation")
 
+        self.pddl = PDDL.create_with_simplified_problem_if_necessary(
+            self.parser, self.problem_generator)
         self.valid_actions = ValidActions(
-            self.pddl, self.perception, self.problem_generator, self.goal_tracking)
+            self.parser, self.perception, self.problem_generator, self.goal_tracking)
 
         self.on_action_observers = [self.goal_tracking.on_action,
                                     self.valid_actions.on_action, self.perception.on_action]

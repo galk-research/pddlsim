@@ -67,6 +67,6 @@
     (at person1 start_tile)   
         )
 (:goals
-	(all (and (at person1 goal_tile))  (and (at person1 d4)))    
+	(all (at person1 goal_tile)  (at person1 d4))    
 	)
 )

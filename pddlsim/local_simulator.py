@@ -15,17 +15,16 @@ class LocalSimulator:
         parser = FDParser(domain_path, problem_path)
         sim = Simulator(parser)
         mediator = SimulatorServices(parser, sim.perceive_state, self.planner)
-        if self.print_actions:
-            def printer(text):
-                print text
-            mediator.on_action_observers.append(printer)
         executive.initialize(mediator)
         self.previous_action = None
 
         def next_action():
-            if self.previous_action:
+            if self.previous_action and not sim.action_failed:
                 mediator.on_action(self.previous_action)
             self.previous_action = executive.next_action()
+            if self.print_actions and self.previous_action:
+                print self.previous_action + (" -failed- " if sim.action_failed else "")
+
             return self.previous_action
 
         return sim.simulate(next_action)

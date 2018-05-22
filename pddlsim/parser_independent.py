@@ -1,11 +1,12 @@
 import abc
+import random
 
 REACH_GOAL = 'reach-goal'
 
 
 class PDDL(object):
 
-    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state):
+    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state, failure_probabilities=dict()):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -15,6 +16,7 @@ class PDDL(object):
         :param actions: action of type Action
         :param goals: a list of Condition
         :param initial_state: the initial state of the problem
+        :param failure_probabilities the probablity that each action will fail
         """
         self.domain_path = domain_path
         self.domain_name = domain_name
@@ -24,6 +26,7 @@ class PDDL(object):
         self.actions = actions
         self.goals = goals
         self.initial_state = initial_state
+        self.failure_probabilities = failure_probabilities
 
     def build_first_state(self):
         return self.copy_state(self.initial_state)
@@ -73,6 +76,11 @@ class PDDL(object):
         action_name = parts[0]
         param_names = parts[1:]
         return action_name, param_names
+
+    def check_action_failure(self, action_name):
+        if not action_name in self.failure_probabilities:
+            return False
+        return random.random() < self.failure_probabilities[action_name]
 
     def apply_action_to_state(self, action_sig, state, check_preconditions=True):
         action_name, param_names = self.parse_action(action_sig)

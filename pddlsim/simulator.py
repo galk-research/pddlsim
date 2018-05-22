@@ -2,14 +2,14 @@
 import copy
 
 import time
-from services.simulator_mediator import SimulatorMediator
 from services.goal_tracking import GoalTracking
 from services.perception import Perception
 from fd_parser import FDParser, PreconditionFalseError
 
 
 class Simulator(object):
-    """ 
+
+    """
     The simulator is in charge of managing the true state of the world
     This means 3 essential things:
     1. The action loop - this is where changes to the true state can be incepted
@@ -25,6 +25,7 @@ class Simulator(object):
         self.goal_tracking = GoalTracking(
             self.parser, Perception(lambda: self._state))
         self.report_card = ReportCard()
+        self.action_failed = False
 
     def simulate(self, next_action_func):
         self.report_card.start()
@@ -34,15 +35,22 @@ class Simulator(object):
     def action_loop(self, next_action_func):
         while True:
             action = next_action_func()
+            self.action_failed = False
             if not action or action.lower() == '(reach-goal)':
                 return
             try:
-                self.parser.apply_action_to_state(
-                    action, self._state, self.check_preconditions)
-                self.goal_tracking.on_action(action)
-                self.report_card.add_action()
+                action_name = self.parser.parse_action(action)[0]
+                if self.parser.check_action_failure(action_name):
+                    self.report_card.add_failed_action()
+                    self.action_failed = True
+                else:
+                    self.parser.apply_action_to_state(
+                        action, self._state, self.check_preconditions)
+                    self.goal_tracking.on_action(action)
+                    self.report_card.add_action()
             except PreconditionFalseError as e:
                 self.report_card.add_failed_action()
+                self.action_failed = True
 
     def perceive_state(self):
         self.report_card.add_perception()
@@ -50,6 +58,7 @@ class Simulator(object):
 
 
 class ReportCard():
+
     def __init__(self):
         self.success = False
         self.failed_actions = 0
@@ -73,7 +82,7 @@ class ReportCard():
         self.total_action_costs += cost
 
     def start(self):
-        """ 
+        """
         Record start time
         :return: self for a fluent api
         """
