@@ -189,18 +189,18 @@ if __name__ == '__main__':
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
-    executives = [PlanDispatcher(), RandomExecutor(),
-                  AvoidReturn(), DelayedDispatch()]
+    # executives = [PlanDispatcher(), RandomExecutor(),
+    #               AvoidReturn(), DelayedDispatch()]
 
     # executives = [MultipleGoalPlanDispatcher()]
-    # executives = [DelayedDispatch()]
+    executives = [DelayedDispatch()]
     results = dict()
 
     for executive in executives:
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
-        results[executive.__class__.__name__] = LocalSimulator(True).run(
+        results[executive.__class__.__name__] = LocalSimulator(True, None, True).run(
             domain_path, problem_path, executive)
         # except:
         #     pass

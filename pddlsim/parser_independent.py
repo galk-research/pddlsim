@@ -1,5 +1,6 @@
 import abc
 import random
+import copy
 
 REACH_GOAL = 'reach-goal'
 
@@ -27,6 +28,9 @@ class PDDL(object):
         self.goals = goals
         self.initial_state = initial_state
         self.failure_probabilities = failure_probabilities
+
+        self.uses_custom_features = (not self.failure_probabilities is None or len(
+            self.goals) > 1)
 
     def build_first_state(self):
         return self.copy_state(self.initial_state)
@@ -106,6 +110,11 @@ class PDDL(object):
 
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
+
+    def get_obscure_copy(self):
+        parser_copy = copy.copy(self)
+        parser_copy.failure_probabilities = None
+        return parser_copy
 
 
 class Action(object):

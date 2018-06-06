@@ -13,16 +13,13 @@ class ValidActions():
     It has a fallback if LAPKT isn't available to the python implementation, note that that implementation neither efficient nor stable
     """
 
-    def __init__(self, parser, perception, problem_generator, goal_tracking):
-        problem = parser.problem_path
+    def __init__(self, parser, pddl, perception):
+        problem = pddl.problem_path
 
         self.provider = None
         if SUPPORTS_LAPKT:
-            if goal_tracking.has_multiple_goals() or parser.failure_probabilities:
-                problem = problem_generator.generate_problem(
-                    goal_tracking.uncompleted_goals[0])
             self.provider = TrackedSuccessorValidActions(
-                parser.domain_path, problem)
+                pddl.domain_path, problem)
         else:
             self.provider = PythonValidActions(parser, perception)
 

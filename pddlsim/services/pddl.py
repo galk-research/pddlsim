@@ -11,6 +11,6 @@ class PDDL():
     @staticmethod
     def create_with_simplified_problem_if_necessary(parser, problem_generator):
         problem_path = parser.problem_path
-        if parser.failure_probabilities or len(parser.goals) > 1:
+        if parser.uses_custom_features:
             problem_path = problem_generator.generate_problem(parser.goals[0])
         return PDDL(parser.domain_path, problem_path)

@@ -21,8 +21,9 @@ class SimulatorServices():
 
         self.pddl = PDDL.create_with_simplified_problem_if_necessary(
             self.parser, self.problem_generator)
+        self.parser.problem_path = self.pddl.problem_path
         self.valid_actions = ValidActions(
-            self.parser, self.perception, self.problem_generator, self.goal_tracking)
+            self.parser, self.pddl, self.perception)
 
         self.on_action_observers = [self.goal_tracking.on_action,
                                     self.valid_actions.on_action, self.perception.on_action]
