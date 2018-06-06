@@ -7,7 +7,7 @@ REACH_GOAL = 'reach-goal'
 
 class PDDL(object):
 
-    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state, failure_probabilities=dict()):
+    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state, failure_conditions=dict()):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -17,7 +17,7 @@ class PDDL(object):
         :param actions: action of type Action
         :param goals: a list of Condition
         :param initial_state: the initial state of the problem
-        :param failure_probabilities the probablity that each action will fail
+        :param failure_conditions the probablity that each action will fail
         """
         self.domain_path = domain_path
         self.domain_name = domain_name
@@ -27,9 +27,9 @@ class PDDL(object):
         self.actions = actions
         self.goals = goals
         self.initial_state = initial_state
-        self.failure_probabilities = failure_probabilities
+        self.failure_conditions = failure_conditions
 
-        self.uses_custom_features = (not self.failure_probabilities is None or len(
+        self.uses_custom_features = (not self.failure_conditions is None or len(
             self.goals) > 1)
 
     def build_first_state(self):
@@ -81,10 +81,11 @@ class PDDL(object):
         param_names = parts[1:]
         return action_name, param_names
 
-    def check_action_failure(self, action_name):
-        if not action_name in self.failure_probabilities:
-            return False
-        return random.random() < self.failure_probabilities[action_name]
+    def check_action_failure(self, state, action_name):
+        for failure in self.failure_conditions:
+            if failure.is_relevant(state, action_name) and random.random() < failure.probablity:
+                return True
+        return False
 
     def apply_action_to_state(self, action_sig, state, check_preconditions=True):
         action_name, param_names = self.parse_action(action_sig)
@@ -113,7 +114,7 @@ class PDDL(object):
 
     def get_obscure_copy(self):
         parser_copy = copy.copy(self)
-        parser_copy.failure_probabilities = None
+        parser_copy.failure_conditions = None
         return parser_copy
 
 
@@ -212,6 +213,32 @@ class Literal(Condition):
         return self.args in mapping[self.predicate]
 
 
+class Truth(Literal):
+
+    def __init__(self):
+        self.predicate = 'true'
+        self.args = ()
+
+    def accept(self, visitor):
+        return visitor.visit_literal(self)
+
+    def test(self, mapping):
+        return True
+
+
+class Falsity(Literal):
+
+    def __init__(self):
+        self.predicate = 'false'
+        self.args = ()
+
+    def accept(self, visitor):
+        return visitor.visit_literal(self)
+
+    def test(self, mapping):
+        return False
+
+
 class Not(Condition):
 
     def __init__(self, content):
@@ -264,6 +291,17 @@ class StripsStringVisitor(ConditionVisitor):
 
     def visit_disjunction(self, condition):
         return "(or {})".format(self.join_parts(condition))
+
+
+class FailureCondition():
+
+    def __init__(self, condition, action_names, probablity):
+        self.condition = condition
+        self.action_names = action_names
+        self.probablity = probablity
+
+    def is_relevant(self, state, action_name):
+        return action_name in self.action_names and self.condition.test(state)
 
 
 class PreconditionFalseError(Exception):

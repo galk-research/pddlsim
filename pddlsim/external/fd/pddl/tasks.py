@@ -174,6 +174,10 @@ def parse_domain(domain_pddl):
     yield the_axioms
 
 
+def parse_fail_condition(a):
+    return (conditions.parse_condition(a[0]), a[1], float(a[2]))
+
+
 def parse_task(task_pddl):
     iterator = iter(task_pddl)
 
@@ -204,7 +208,7 @@ def parse_task(task_pddl):
 
     if fails[0] == ":fails":
 
-        yield {fails[i]: float(fails[i + 1]) for i in range(1, len(fails), 2)}
+        yield [parse_fail_condition(f) for f in fails[1:]]
         init = next(iterator)
     else:
         yield []

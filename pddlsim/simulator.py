@@ -40,7 +40,7 @@ class Simulator(object):
                 return
             try:
                 action_name = self.parser.parse_action(action)[0]
-                if self.parser.check_action_failure(action_name):
+                if self.parser.check_action_failure(self._state, action_name):
                     self.report_card.add_failed_action()
                     self.action_failed = True
                 else:

@@ -160,14 +160,14 @@ def parser_test():
         domain_path, problem_path, AvoidReturn()))
 
 if __name__ == '__main__':
-    # parser_test()
+    parser_test()
     # test_all_ipc2002()
     # profile()
     # with OutputGrabber():
     #     libffbug()
 
     # print('Done')
-    # exit()
+    exit()
 
     # works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'

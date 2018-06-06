@@ -14,9 +14,10 @@ class FDParser(PDDL):
                    for action in self.task.actions}
         goals = [self.convert_condition(subgoal)
                  for subgoal in self.task.goal]
-
+        failure_conditions = [FailureCondition(self.convert_condition(fc[0]), fc[1], fc[2])
+                              for fc in self.task.failure_probabilities]
         super(FDParser, self).__init__(
-            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), self.task.failure_probabilities)
+            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), failure_conditions)
 
     def build_first_state(self):
         initial_state = self.task.init
@@ -29,6 +30,10 @@ class FDParser(PDDL):
 
     @staticmethod
     def convert_condition(condition):
+        if isinstance(condition, pddl.Truth):
+            return Truth()
+        if isinstance(condition, pddl.Falsity):
+            return Falsity()
         if isinstance(condition, pddl.Literal):
             literal = Literal(condition.predicate, condition.args)
             return literal if not condition.negated else Not(literal)
