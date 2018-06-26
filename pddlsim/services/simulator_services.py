@@ -25,8 +25,9 @@ class SimulatorServices():
         self.valid_actions = ValidActions(
             self.parser, self.pddl, self.perception)
 
-        self.on_action_observers = [self.goal_tracking.on_action,
-                                    self.valid_actions.on_action, self.perception.on_action]
+        self.on_action_observers = [self.perception.on_action,
+                                    self.valid_actions.on_action,
+                                    self.goal_tracking.on_action, ]
 
     @staticmethod
     def from_pddls(domain_path, problem_path, perception_func, planner=None):
