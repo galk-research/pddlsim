@@ -11,7 +11,7 @@
 	t4
 	goal_tile
 	)
-(:fails ((at person1 t2) (move-east) 0.9))
+(:fails ((at person1 t2) (move-east) 1))
 (:init
 	(empty start_tile)
 	(empty t0)

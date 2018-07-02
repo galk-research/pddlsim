@@ -160,14 +160,14 @@ def parser_test():
         domain_path, problem_path, AvoidReturn()))
 
 if __name__ == '__main__':
-    parser_test()
+    # parser_test()
     # test_all_ipc2002()
     # profile()
     # with OutputGrabber():
     #     libffbug()
 
     # print('Done')
-    exit()
+    # exit()
 
     # works:
     # domain_path,problem_path = 'domains/Log_dom.pddl','domains/Log_ins.pddl'
@@ -183,8 +183,9 @@ if __name__ == '__main__':
     # 'experiments/domain.pddl','experiments/problems/corridor_5.pddl'
     # domain_path, problem_path = 'experiments/domain.pddl',
     # 'experiments/problems/t_5_5_5.pddl'
-    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
-    domain_path, problem_path = 'domains/attack_domain.pddl', 'domains/attack_problem2.pddl'
+    # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
+    # domain_path, problem_path = 'domains/attack_domain.pddl',
+    # 'domains/attack_problem2.pddl'
     domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/corridor_5_failable.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
@@ -193,7 +194,7 @@ if __name__ == '__main__':
     #               AvoidReturn(), DelayedDispatch()]
 
     # executives = [MultipleGoalPlanDispatcher()]
-    executives = [DelayedDispatch()]
+    executives = [RandomExecutor()]
     results = dict()
 
     for executive in executives:
