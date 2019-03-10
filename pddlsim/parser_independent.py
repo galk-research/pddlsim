@@ -17,7 +17,7 @@ class PDDL(object):
         :param actions: action of type Action
         :param goals: a list of Condition
         :param initial_state: the initial state of the problem
-        :param failure_conditions the probablity that each action will fail
+        :param failure_conditions the probability that each action will fail
         """
         self.domain_path = domain_path
         self.domain_name = domain_name
@@ -101,13 +101,24 @@ class PDDL(object):
                 if not precondition.test(param_mapping, state):
                     raise PreconditionFalseError()
 
-        for (predicate_name, entry) in action.to_delete(param_mapping):
-            predicate_set = state[predicate_name]
-            if entry in predicate_set:
-                predicate_set.remove(entry)
+        if isinstance(action, Action):
+            for (predicate_name, entry) in action.to_delete(param_mapping):
+                predicate_set = state[predicate_name]
+                if entry in predicate_set:
+                    predicate_set.remove(entry)
 
-        for (predicate_name, entry) in action.to_add(param_mapping):
-            state[predicate_name].add(entry)
+            for (predicate_name, entry) in action.to_add(param_mapping):
+                state[predicate_name].add(entry)
+        else:
+            assert isinstance(action, ProbabilisticAction)
+            index = action.choose_random_effect()
+            for (predicate_name, entry) in action.to_delete(param_mapping, index):
+                predicate_set = state[predicate_name]
+                if entry in predicate_set:
+                    predicate_set.remove(entry)
+
+            for (predicate_name, entry) in action.to_add(param_mapping, index):
+                state[predicate_name].add(entry)
 
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
@@ -151,6 +162,52 @@ class Action(object):
         for (name, param_type), obj in zip(self.signature, params):
             param_mapping[name] = obj
         return param_mapping
+
+class ProbabilisticAction(object):
+    def __init__(self, name, signature, addlists, dellists, precondition, prob_list):
+        self.name = name
+        self.signature = signature
+        self.addlists = addlists
+        self.dellists = dellists
+        self.precondition = precondition
+        self.prob_list = prob_list
+
+    def action_string(self, dictionary):
+        params = " ".join([dictionary[var[0]] for var in self.signature])
+        return "(" + self.name + " " + params + ")"
+
+    @staticmethod
+    def get_entry(param_mapping, predicate):
+        names = [x for x in predicate]
+        entry = tuple([param_mapping[name][0] for name in names])
+        return entry
+
+    def entries_from_list(self, preds, param_mapping):
+        return [(pred[0], self.get_entry(param_mapping, pred[1])) for pred in preds]
+
+    def to_delete(self, param_mapping, effect_index):
+        return self.entries_from_list(self.dellists[effect_index], param_mapping)
+
+    def to_add(self, param_mapping, effect_index):
+        return self.entries_from_list(self.addlists[effect_index], param_mapping)
+
+    def get_param_mapping(self, params):
+        param_mapping = dict()
+        for (name, param_type), obj in zip(self.signature, params):
+            param_mapping[name] = obj
+        return param_mapping
+
+    def choose_random_effect(self):
+        """
+        Randomly choose effect index according to the prob_list distribution.
+        """
+        rand = random.uniform(0, 1)
+        cur_probs_sum = 0
+        for index, prob in enumerate(self.prob_list):
+            cur_probs_sum += prob
+            if cur_probs_sum > rand:
+                print("Effect number {} was randomly selected for action {}".format(index, self.name))
+                return index
 
 
 class Predicate(object):

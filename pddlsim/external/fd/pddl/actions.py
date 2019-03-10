@@ -20,6 +20,13 @@ class Action(object):
         self.num_external_parameters = num_external_parameters
         self.precondition = precondition
         self.effects = effects
+        self.probabilistic_effects = None
+        self.effects_probs = None
+        if effects:
+            if isinstance(effects[0], tuple):
+                self.probabilistic_effects = [prob_effect_tuple[1] for prob_effect_tuple in effects]
+                self.effects_probs = [prob_effect_tuple[0] for prob_effect_tuple in effects]
+                self.effects = None
         self.cost = cost
         self.uniquify_variables() # TODO: uniquify variables in cost?
     def __repr__(self):
@@ -60,9 +67,18 @@ class Action(object):
         print("%s(%s)" % (self.name, ", ".join(map(str, self.parameters))))
         print("Precondition:")
         self.precondition.dump()
-        print("Effects:")
-        for eff in self.effects:
-            eff.dump()
+        if self.effects:
+            print("Effects:")
+            for eff in self.effects:
+                eff.dump()
+        if self.probabilistic_effects:
+            print("Probabilistic effects:")
+            for index , effects in enumerate(self.probabilistic_effects):
+                print("Probability: {}".format(self.effects_probs[index]))
+                print ("Effect: ")
+                for eff in effects:
+                    eff.dump()
+
         print("Cost:")
         if(self.cost):
             self.cost.dump()
@@ -71,14 +87,30 @@ class Action(object):
     def uniquify_variables(self):
         self.type_map = dict([(par.name, par.type) for par in self.parameters])
         self.precondition = self.precondition.uniquify_variables(self.type_map)
-        for effect in self.effects:
-            effect.uniquify_variables(self.type_map)
+        if self.effects:
+            for effect in self.effects:
+                effect.uniquify_variables(self.type_map)
+        if self.probabilistic_effects:
+            for effects in self.probabilistic_effects:
+                for effect in effects:
+                    effect.uniquify_variables(self.type_map)
+
     def relaxed(self):
         new_effects = []
-        for eff in self.effects:
-            relaxed_eff = eff.relaxed()
-            if relaxed_eff:
-                new_effects.append(relaxed_eff)
+        if self.effects:
+            for eff in self.effects:
+                relaxed_eff = eff.relaxed()
+                if relaxed_eff:
+                    new_effects.append(relaxed_eff)
+        elif self.probabilistic_effects:
+            for index, effects in enumerate(self.probabilistic_effects):
+                cur_effects_new = []
+                for effect in effects:
+                    relaxed_effect = effect.relaxed()
+                    if relaxed_effect:
+                        cur_effects_new.append(relaxed_effect)
+                new_effects.append((self.effects_probs[index], cur_effects_new))
+
         return Action(self.name, self.parameters, self.num_external_parameters,
                       self.precondition.relaxed().simplified(),
                       new_effects)
@@ -90,14 +122,18 @@ class Action(object):
         parameter_atoms = [par.to_untyped_strips() for par in self.parameters]
         new_precondition = self.precondition.untyped()
         result.precondition = conditions.Conjunction(parameter_atoms + [new_precondition])
-        result.effects = [eff.untyped() for eff in self.effects]
+        if self.effects:
+            result.effects = [eff.untyped() for eff in self.effects]
+        if result.probabilistic_effects:
+            result.probabilistic_effects = [[eff.untyped() for eff in cur_effects] for cur_effects in self.probabilistic_effects]
+
         return result
 
     def instantiate(self, var_mapping, init_facts, fluent_facts, objects_by_type):
         """Return a PropositionalAction which corresponds to the instantiation of
         this action with the arguments in var_mapping. Only fluent parts of the
         conditions (those in fluent_facts) are included. init_facts are evaluated
-        whilte instantiating.
+        while instantiating.
         Precondition and effect conditions must be normalized for this to work.
         Returns None if var_mapping does not correspond to a valid instantiation
         (because it has impossible preconditions or an empty effect list.)"""

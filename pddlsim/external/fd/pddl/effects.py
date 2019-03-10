@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import copy
+
 from . import conditions
 from . import pddl_types
 from . import f_expression
@@ -29,10 +31,17 @@ def add_effect(tmp_effect, result):
     """tmp_effect has the following structure:
        [ConjunctiveEffect] [UniversalEffect] [ConditionalEffect] SimpleEffect."""
 
-    if isinstance(tmp_effect, ConjunctiveEffect):
+    if isinstance(tmp_effect, ProbabilisticEffect):
+        assert result == []
+        original_result = copy.deepcopy(result)
+        for effect_index, cur_effect in enumerate(tmp_effect.effects):
+            cur_result = copy.deepcopy(original_result)
+            if cur_effect:
+                add_effect(cur_effect, cur_result)
+            result.append((tmp_effect.probs[effect_index], cur_result))
+    elif isinstance(tmp_effect, ConjunctiveEffect):
         for effect in tmp_effect.effects:
             add_effect(effect, result)
-        return
     else:
         parameters = []
         condition = conditions.Truth()
@@ -84,6 +93,12 @@ def parse_effect(alist):
         assert alist[1] == ['total-cost']
         assignment = f_expression.parse_assignment(alist)
         return CostEffect(assignment)
+    elif tag == "probabilistic":
+        alist = alist[1:]
+        assert len(alist) %2 == 0
+        probs = [float(alist[2 * i]) for i in range(len(alist) / 2)]
+        effects = [parse_effect(alist[2 * i + 1]) for i in range(len(alist) / 2)]
+        return ProbabilisticEffect(probs, effects)
     else:
         return SimpleEffect(conditions.parse_literal(alist))
 
@@ -252,3 +267,34 @@ class CostEffect(object):
     def extract_cost(self):
         return self, None # this would only happen if
     #an action has no effect apart from the cost effect
+
+class ProbabilisticEffect(object):
+    def __init__(self, probs, effects):
+        probs_sum = sum(probs)
+        assert probs_sum <= 1
+        assert len(probs) == len(effects)
+        self.probs = probs
+        self.effects = effects
+        if probs_sum < 1:
+            self.probs.append(1 - probs_sum)
+            self.effects.append(None)
+
+    def dump(self, indent="  "):
+        print("%sprobabilistic" % (indent))
+        for index, eff in enumerate(self.effects):
+            print("{}probability of {}".format(indent, self.probs[index]))
+            eff.dump(indent + "  ")
+
+    def normalize(self):
+        new_effects = []
+        for effect in self.effects:
+            if None == effect:
+                new_effects.append(None)
+            else:
+                new_effects.append(effect.normalize())
+        return ProbabilisticEffect(self.probs, new_effects)
+
+    def extract_cost(self):
+        # Currently doesn't support cost effects for probabilistic effect.s.
+        return None, self
+

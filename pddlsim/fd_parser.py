@@ -48,14 +48,33 @@ class FDParser(PDDL):
     @staticmethod
     def convert_action(action):
         name = action.name
+        precondition = [Predicate(pred.predicate, pred.args, pred.negated)
+                        for pred in action.precondition.parts]
         signature = [(obj.name, obj.type) for obj in action.parameters]
         addlist = []
         dellist = []
-        for effect in action.effects:
-            if effect.literal.negated:
-                dellist.append(effect.literal.key)
-            else:
-                addlist.append(effect.literal.key)
-        precondition = [Predicate(pred.predicate, pred.args, pred.negated)
-                        for pred in action.precondition.parts]
-        return Action(action.name, signature, addlist, dellist, precondition)
+        if action.effects:
+            for effect in action.effects:
+                if effect.literal.negated:
+                    dellist.append(effect.literal.key)
+                else:
+                    addlist.append(effect.literal.key)
+            return Action(name, signature, addlist, dellist, precondition)
+
+        assert action.probabilistic_effects
+        addlists = []
+        dellists = []
+        for effects in action.probabilistic_effects:
+            addlist = []
+            dellist = []
+            for effect in effects:
+                if effect.literal.negated:
+                    dellist.append(effect.literal.key)
+                else:
+                    addlist.append(effect.literal.key)
+            addlists.append(addlist)
+            dellists.append(dellist)
+
+        return ProbabilisticAction(name, signature, addlists, dellists, precondition, action.effects_probs)
+
+
