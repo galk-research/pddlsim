@@ -202,7 +202,7 @@ if __name__ == '__main__':
         # try:
         #     with OutputGrabber():
         results[executive.__class__.__name__] = LocalSimulator(print_actions=True, planner=None, hide_fails=True,
-                                                               hide_probabilstics=True).run(
+                                                               hide_probabilstics=False).run(
                                                                domain_path, problem_path, executive)
         # except:
         #     pass

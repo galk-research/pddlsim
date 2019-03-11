@@ -26,14 +26,12 @@ class LocalSimulator:
 
         def next_action():
             if self.print_actions and sim.action_failed:
-                print
-                " -failed- "
+                print " -failed- "
             if self.previous_action and not sim.action_failed:
                 mediator.on_action(self.previous_action)
             self.previous_action = executive.next_action()
             if self.print_actions and self.previous_action:
-                print
-                self.previous_action
+                print self.previous_action
 
             return self.previous_action
 

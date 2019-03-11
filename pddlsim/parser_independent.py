@@ -129,19 +129,15 @@ class PDDL(object):
         if hide_fails:
             parser_copy.failure_conditions = None
         if hide_probabilistics:
-            new_actions = []
-            actions_to_remove = []
-            for action in self.actions:
-                if isinstance(action, ProbabilisticAction):
+            for action_name in self.actions.keys():
+                cur_action = self.actions[action_name]
+                if isinstance(cur_action, ProbabilisticAction):
                     max_prob_index = 0
-                    for cur_index, cur_prob in enumerate(action.prob_list):
-                        if cur_prob > action.prob_list[max_prob_index]:
+                    for cur_index, cur_prob in enumerate(cur_action.prob_list):
+                        if cur_prob > cur_action.prob_list[max_prob_index]:
                             max_prob_index = cur_index
-                    actions_to_remove.append(action)
-                    new_actions.append(Action(action.name, action.signature, action.addlists[max_prob_index],
-                                              action.dellists[max_prob_index], action.precondition))
-            self.actions = [action for action in self.actions if action not in actions_to_remove]
-            self.actions.extend(new_actions)
+                    self.actions[action_name] = (Action(cur_action.name, cur_action.signature, cur_action.addlists[max_prob_index],
+                                                        cur_action.dellists[max_prob_index], cur_action.precondition))
 
         return parser_copy
 
