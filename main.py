@@ -25,7 +25,7 @@ def test_all_ipc2002():
         domain_path = os.path.join(domain_dir, 'domain.pddl')
         count, total = 0, 0
         for problem_path in glob.glob(domain_dir + '/prob*.pddl'):
-            print (problem_path)
+            print(problem_path)
             executor = PlanDispatcher()
             rc = LocalSimulator().run(domain_path, problem_path, executor)
             if rc.success:
@@ -47,7 +47,7 @@ def profile():
                   'plan_dispatch': 'PlanDispatcher()',
                   'delayed_dispatch': 'DelayedDispatch()'}
     code = 'LocalSimulator().run(domain_path,problem_path,' + \
-        executives[target] + ')'
+           executives[target] + ')'
 
     # run profiling
     cProfile.run(code, profile_path)
@@ -79,9 +79,9 @@ def libffbug():
         d1 = RandomExecutor()
         LocalSimulator().run(domain_path, problem_path, d1)
 
-    # d2 = RandomExecutor()
-    # sim = Simulator(domain_path,print_actions=False)
-    # sim.simulate(problem_path, d2)
+        # d2 = RandomExecutor()
+        # sim = Simulator(domain_path,print_actions=False)
+        # sim.simulate(problem_path, d2)
 
 
 import os
@@ -90,7 +90,6 @@ import threading
 
 
 class OutputGrabber(object):
-
     """
     Class used to grab standard output or another stream.
     """
@@ -159,6 +158,7 @@ def parser_test():
     print(LocalSimulator(True).run(
         domain_path, problem_path, AvoidReturn()))
 
+
 if __name__ == '__main__':
     # parser_test()
     # test_all_ipc2002()
@@ -201,11 +201,12 @@ if __name__ == '__main__':
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
-        results[executive.__class__.__name__] = LocalSimulator(True, None, True).run(
-            domain_path, problem_path, executive)
+        results[executive.__class__.__name__] = LocalSimulator(print_actions=True, planner=None, hide_fails=True,
+                                                               hide_probabilstics=True).run(
+                                                               domain_path, problem_path, executive)
         # except:
         #     pass
     for ex, rc in results.iteritems():
         # print (ex,'Passed' if rc and rc.success else 'Failed')
-        print (ex, rc)
+        print(ex, rc)
     exit()

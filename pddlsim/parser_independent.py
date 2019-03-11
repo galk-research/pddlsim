@@ -6,8 +6,8 @@ REACH_GOAL = 'reach-goal'
 
 
 class PDDL(object):
-
-    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state, failure_conditions=dict()):
+    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state,
+                 failure_conditions=dict()):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -47,7 +47,8 @@ class PDDL(object):
         return condition.accept(StripsStringVisitor())
 
     def predicates_from_state(self, state):
-        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in state.iteritems() for pred in predicate_set if predicate_name != '=']
+        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in
+                state.iteritems() for pred in predicate_set if predicate_name != '=']
 
     def generate_problem(self, path, state, new_goal):
         predicates = self.predicates_from_state(state)
@@ -123,14 +124,29 @@ class PDDL(object):
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
 
-    def get_obscure_copy(self):
+    def get_obscure_copy(self, hide_fails=False, hide_probabilistics=False):
         parser_copy = copy.copy(self)
-        parser_copy.failure_conditions = None
+        if hide_fails:
+            parser_copy.failure_conditions = None
+        if hide_probabilistics:
+            new_actions = []
+            actions_to_remove = []
+            for action in self.actions:
+                if isinstance(action, ProbabilisticAction):
+                    max_prob_index = 0
+                    for cur_index, cur_prob in enumerate(action.prob_list):
+                        if cur_prob > action.prob_list[max_prob_index]:
+                            max_prob_index = cur_index
+                    actions_to_remove.append(action)
+                    new_actions.append(Action(action.name, action.signature, action.addlists[max_prob_index],
+                                              action.dellists[max_prob_index], action.precondition))
+            self.actions = [action for action in self.actions if action not in actions_to_remove]
+            self.actions.extend(new_actions)
+
         return parser_copy
 
 
 class Action(object):
-
     def __init__(self, name, signature, addlist, dellist, precondition):
         self.name = name
         self.signature = signature
@@ -162,6 +178,7 @@ class Action(object):
         for (name, param_type), obj in zip(self.signature, params):
             param_mapping[name] = obj
         return param_mapping
+
 
 class ProbabilisticAction(object):
     def __init__(self, name, signature, addlists, dellists, precondition, prob_list):
@@ -211,7 +228,6 @@ class ProbabilisticAction(object):
 
 
 class Predicate(object):
-
     def __init__(self, name, signature, negated=False):
         self.name = name
         self.signature = signature
@@ -258,7 +274,6 @@ class Condition():
 
 
 class Literal(Condition):
-
     def __init__(self, predicate, args):
         self.predicate = predicate
         self.args = tuple(args)
@@ -271,7 +286,6 @@ class Literal(Condition):
 
 
 class Truth(Literal):
-
     def __init__(self):
         self.predicate = 'true'
         self.args = ()
@@ -284,7 +298,6 @@ class Truth(Literal):
 
 
 class Falsity(Literal):
-
     def __init__(self):
         self.predicate = 'false'
         self.args = ()
@@ -297,7 +310,6 @@ class Falsity(Literal):
 
 
 class Not(Condition):
-
     def __init__(self, content):
         self.content = content
 
@@ -309,13 +321,11 @@ class Not(Condition):
 
 
 class JunctorCondition(Condition):
-
     def __init__(self, parts):
         self.parts = parts
 
 
 class Conjunction(JunctorCondition):
-
     def accept(self, visitor):
         return visitor.visit_conjunction(self)
 
@@ -324,7 +334,6 @@ class Conjunction(JunctorCondition):
 
 
 class Disjunction(JunctorCondition):
-
     def accept(self, visitor):
         return visitor.visit_disjunction(self)
 
@@ -333,7 +342,6 @@ class Disjunction(JunctorCondition):
 
 
 class StripsStringVisitor(ConditionVisitor):
-
     def visit_literal(self, condition):
         return "({} {})".format(condition.predicate, ' '.join(condition.args))
 
@@ -351,7 +359,6 @@ class StripsStringVisitor(ConditionVisitor):
 
 
 class FailureCondition():
-
     def __init__(self, condition, action_names, probablity):
         self.condition = condition
         self.action_names = action_names
