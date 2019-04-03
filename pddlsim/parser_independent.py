@@ -6,8 +6,8 @@ REACH_GOAL = 'reach-goal'
 
 
 class PDDL(object):
-
-    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state, failure_conditions=dict()):
+    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state,
+                 failure_conditions=dict()):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -17,7 +17,7 @@ class PDDL(object):
         :param actions: action of type Action
         :param goals: a list of Condition
         :param initial_state: the initial state of the problem
-        :param failure_conditions the probablity that each action will fail
+        :param failure_conditions the probability that each action will fail
         """
         self.domain_path = domain_path
         self.domain_name = domain_name
@@ -47,7 +47,8 @@ class PDDL(object):
         return condition.accept(StripsStringVisitor())
 
     def predicates_from_state(self, state):
-        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in state.iteritems() for pred in predicate_set if predicate_name != '=']
+        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in
+                state.iteritems() for pred in predicate_set if predicate_name != '=']
 
     def generate_problem(self, path, state, new_goal):
         predicates = self.predicates_from_state(state)
@@ -101,25 +102,47 @@ class PDDL(object):
                 if not precondition.test(param_mapping, state):
                     raise PreconditionFalseError()
 
-        for (predicate_name, entry) in action.to_delete(param_mapping):
-            predicate_set = state[predicate_name]
-            if entry in predicate_set:
-                predicate_set.remove(entry)
+        if isinstance(action, Action):
+            for (predicate_name, entry) in action.to_delete(param_mapping):
+                predicate_set = state[predicate_name]
+                if entry in predicate_set:
+                    predicate_set.remove(entry)
 
-        for (predicate_name, entry) in action.to_add(param_mapping):
-            state[predicate_name].add(entry)
+            for (predicate_name, entry) in action.to_add(param_mapping):
+                state[predicate_name].add(entry)
+        else:
+            assert isinstance(action, ProbabilisticAction)
+            index = action.choose_random_effect()
+            for (predicate_name, entry) in action.to_delete(param_mapping, index):
+                predicate_set = state[predicate_name]
+                if entry in predicate_set:
+                    predicate_set.remove(entry)
+
+            for (predicate_name, entry) in action.to_add(param_mapping, index):
+                state[predicate_name].add(entry)
 
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
 
-    def get_obscure_copy(self):
+    def get_obscure_copy(self, hide_fails=False, hide_probabilistics=False):
         parser_copy = copy.copy(self)
-        parser_copy.failure_conditions = None
+        if hide_fails:
+            parser_copy.failure_conditions = None
+        if hide_probabilistics:
+            for action_name in self.actions.keys():
+                cur_action = self.actions[action_name]
+                if isinstance(cur_action, ProbabilisticAction):
+                    max_prob_index = 0
+                    for cur_index, cur_prob in enumerate(cur_action.prob_list):
+                        if cur_prob > cur_action.prob_list[max_prob_index]:
+                            max_prob_index = cur_index
+                    self.actions[action_name] = (Action(cur_action.name, cur_action.signature, cur_action.addlists[max_prob_index],
+                                                        cur_action.dellists[max_prob_index], cur_action.precondition))
+
         return parser_copy
 
 
 class Action(object):
-
     def __init__(self, name, signature, addlist, dellist, precondition):
         self.name = name
         self.signature = signature
@@ -153,8 +176,54 @@ class Action(object):
         return param_mapping
 
 
-class Predicate(object):
+class ProbabilisticAction(object):
+    def __init__(self, name, signature, addlists, dellists, precondition, prob_list):
+        self.name = name
+        self.signature = signature
+        self.addlists = addlists
+        self.dellists = dellists
+        self.precondition = precondition
+        self.prob_list = prob_list
 
+    def action_string(self, dictionary):
+        params = " ".join([dictionary[var[0]] for var in self.signature])
+        return "(" + self.name + " " + params + ")"
+
+    @staticmethod
+    def get_entry(param_mapping, predicate):
+        names = [x for x in predicate]
+        entry = tuple([param_mapping[name][0] for name in names])
+        return entry
+
+    def entries_from_list(self, preds, param_mapping):
+        return [(pred[0], self.get_entry(param_mapping, pred[1])) for pred in preds]
+
+    def to_delete(self, param_mapping, effect_index):
+        return self.entries_from_list(self.dellists[effect_index], param_mapping)
+
+    def to_add(self, param_mapping, effect_index):
+        return self.entries_from_list(self.addlists[effect_index], param_mapping)
+
+    def get_param_mapping(self, params):
+        param_mapping = dict()
+        for (name, param_type), obj in zip(self.signature, params):
+            param_mapping[name] = obj
+        return param_mapping
+
+    def choose_random_effect(self):
+        """
+        Randomly choose effect index according to the prob_list distribution.
+        """
+        rand = random.uniform(0, 1)
+        cur_probs_sum = 0
+        for index, prob in enumerate(self.prob_list):
+            cur_probs_sum += prob
+            if cur_probs_sum > rand:
+                print("Effect number {} was randomly selected for action {}".format(index, self.name))
+                return index
+
+
+class Predicate(object):
     def __init__(self, name, signature, negated=False):
         self.name = name
         self.signature = signature
@@ -201,7 +270,6 @@ class Condition():
 
 
 class Literal(Condition):
-
     def __init__(self, predicate, args):
         self.predicate = predicate
         self.args = tuple(args)
@@ -214,7 +282,6 @@ class Literal(Condition):
 
 
 class Truth(Literal):
-
     def __init__(self):
         self.predicate = 'true'
         self.args = ()
@@ -227,7 +294,6 @@ class Truth(Literal):
 
 
 class Falsity(Literal):
-
     def __init__(self):
         self.predicate = 'false'
         self.args = ()
@@ -240,7 +306,6 @@ class Falsity(Literal):
 
 
 class Not(Condition):
-
     def __init__(self, content):
         self.content = content
 
@@ -252,13 +317,11 @@ class Not(Condition):
 
 
 class JunctorCondition(Condition):
-
     def __init__(self, parts):
         self.parts = parts
 
 
 class Conjunction(JunctorCondition):
-
     def accept(self, visitor):
         return visitor.visit_conjunction(self)
 
@@ -267,7 +330,6 @@ class Conjunction(JunctorCondition):
 
 
 class Disjunction(JunctorCondition):
-
     def accept(self, visitor):
         return visitor.visit_disjunction(self)
 
@@ -276,7 +338,6 @@ class Disjunction(JunctorCondition):
 
 
 class StripsStringVisitor(ConditionVisitor):
-
     def visit_literal(self, condition):
         return "({} {})".format(condition.predicate, ' '.join(condition.args))
 
@@ -294,7 +355,6 @@ class StripsStringVisitor(ConditionVisitor):
 
 
 class FailureCondition():
-
     def __init__(self, condition, action_names, probablity):
         self.condition = condition
         self.action_names = action_names
