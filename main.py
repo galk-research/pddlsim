@@ -186,7 +186,7 @@ if __name__ == '__main__':
     # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
     # domain_path, problem_path = 'domains/attack_domain.pddl',
     # 'domains/attack_problem2.pddl'
-    domain_path, problem_path = 'experiments/domain_multi_effect.pddl', 'experiments/problems/corridor_5.pddl'
+    domain_path, problem_path = 'experiments/domain_multi_effect.pddl', 'experiments/problems/corridor_5_revealable.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()

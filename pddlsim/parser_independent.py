@@ -7,7 +7,7 @@ REACH_GOAL = 'reach-goal'
 
 class PDDL(object):
     def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state,
-                 failure_conditions=dict()):
+                 failure_conditions=None, revealable_predicates=None):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -28,6 +28,7 @@ class PDDL(object):
         self.goals = goals
         self.initial_state = initial_state
         self.failure_conditions = failure_conditions
+        self.revealable_predicates = revealable_predicates
 
         self.uses_custom_features = (not self.failure_conditions is None or len(
             self.goals) > 1)
@@ -87,6 +88,18 @@ class PDDL(object):
             if failure.is_relevant(state, action_name) and random.random() < failure.probablity:
                 return True
         return False
+
+    def apply_revealable_predicates(self, state):
+        for revealable_predicate in self.revealable_predicates:
+            if revealable_predicate.is_relevant(state):
+                if (random.random() < revealable_predicate.probability):
+                    for (predicate_name, entry) in revealable_predicate.effects:
+                        state[predicate_name].add(entry)
+            else:
+                for (predicate_name, entry) in revealable_predicate.effects:
+                    predicate_set = state[predicate_name]
+                    if entry in predicate_set:
+                        predicate_set.remove(entry)
 
     def apply_action_to_state(self, action_sig, state, check_preconditions=True):
         action_name, param_names = self.parse_action(action_sig)
@@ -363,6 +376,14 @@ class FailureCondition():
     def is_relevant(self, state, action_name):
         return action_name in self.action_names and self.condition.test(state)
 
+class RevealablePredicate():
+    def __init__(self, condition, effects, probability):
+        self.condition = condition
+        self.effects = [effect.literal.key for effect in effects]
+        self.probability = probability
+
+    def is_relevant(self, state):
+        return self.condition.test(state)
 
 class PreconditionFalseError(Exception):
     pass

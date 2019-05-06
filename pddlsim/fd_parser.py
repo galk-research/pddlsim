@@ -12,12 +12,12 @@ class FDParser(PDDL):
         objects = {obj.name: obj.type for obj in self.task.objects}
         actions = {action.name: self.convert_action(action)
                    for action in self.task.actions}
-        goals = [self.convert_condition(subgoal)
-                 for subgoal in self.task.goal]
+        goals = [self.convert_condition(subgoal) for subgoal in self.task.goal]
         failure_conditions = [FailureCondition(self.convert_condition(fc[0]), fc[1], fc[2])
                               for fc in self.task.failure_probabilities]
+        revealable_predicates = [RevealablePredicate(self.convert_condition(rp[0]), rp[1], rp[2]) for rp in self.task.revealable_predicates]
         super(FDParser, self).__init__(
-            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), failure_conditions)
+            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), failure_conditions, revealable_predicates)
 
     def build_first_state(self):
         initial_state = self.task.init
@@ -38,8 +38,7 @@ class FDParser(PDDL):
             literal = Literal(condition.predicate, condition.args)
             return literal if not condition.negated else Not(literal)
 
-        sub_conditions = [FDParser.convert_condition(sub_condition)
-                          for sub_condition in condition.parts]
+        sub_conditions = [FDParser.convert_condition(sub_condition) for sub_condition in condition.parts]
         if isinstance(condition, pddl.Conjunction):
             return Conjunction(sub_conditions)
         if isinstance(condition, pddl.Disjunction):
