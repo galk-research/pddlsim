@@ -194,7 +194,7 @@ if __name__ == '__main__':
     #               AvoidReturn(), DelayedDispatch()]
 
     # executives = [MultipleGoalPlanDispatcher()]
-    executives = [RandomExecutor()]
+    executives = [AvoidReturn()]
     results = dict()
 
     for executive in executives:
