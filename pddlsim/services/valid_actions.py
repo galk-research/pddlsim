@@ -1,9 +1,9 @@
 SUPPORTS_LAPKT = False
-# try:
-#     from pddlsim.external.liblapkt import Planner
-#     SUPPORTS_LAPKT = True
-# except:
-#     pass
+try:
+    from pddlsim.external.liblapkt import Planner
+    SUPPORTS_LAPKT = True
+except:
+    pass
 
 
 class ValidActions():
