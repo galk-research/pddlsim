@@ -6,14 +6,12 @@ import time
 
 from pddlsim.simulator import Simulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
-from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.avoid_return_random import AvoidReturn
 from experiments.executive_over_planner.delayed_dispatch import DelayedDispatch
 from pddlsim.executors import executor
 from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
 from experiments import reduce_domain, generate_problem
 from experiments.maze_reducer_executor import MazeReducerExecutor
-from pddlsim.local_simulator import LocalSimulator
 import pddlsim.planner
 
 IPC_PATH = 'ipc2002/'
@@ -72,13 +70,6 @@ def profile():
     # simulate(AvoidReturn(use_lapkt_successor=True), domain_path,
     # problem_path)
 
-
-def libffbug():
-    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/simple_problem.pddl'
-    for i in range(2):
-        d1 = RandomExecutor()
-        LocalSimulator().run(domain_path, problem_path, d1)
-
         # d2 = RandomExecutor()
         # sim = Simulator(domain_path,print_actions=False)
         # sim.simulate(problem_path, d2)
@@ -90,6 +81,7 @@ import threading
 
 
 class OutputGrabber(object):
+
     """
     Class used to grab standard output or another stream.
     """
@@ -143,22 +135,6 @@ class OutputGrabber(object):
                 break
 
 
-def parser_test():
-    from pddlsim.fd_parser import FDParser
-    # from pddlsim.services.valid_actions import TrackedSuccessorValidActions
-
-    # domain_path, problem_path = 'domains/complex_football_domain.pddl', 'domains/complex_football_problem.pddl'
-    # domain_path, problem_path = 'domains/attack_domain.pddl',
-    # 'domains/attack_problem2.pddl'
-    domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/corridor_5_failable.pddl'
-    parser = FDParser(domain_path, problem_path)
-    # for _ in range(10):
-    #     print(parser.check_action_failure('move-north'))
-    # print(TrackedSuccessorValidActions(domain_path, problem_path).get())
-    print(LocalSimulator(True).run(
-        domain_path, problem_path, AvoidReturn()))
-
-
 if __name__ == '__main__':
     # parser_test()
     # test_all_ipc2002()
@@ -201,9 +177,10 @@ if __name__ == '__main__':
         results[executive.__class__.__name__] = False
         # try:
         #     with OutputGrabber():
-        results[executive.__class__.__name__] = LocalSimulator(print_actions=True, planner=None, hide_fails=True,
+        results[executive.__class__.__name__] = LocalSimulator(
+            print_actions=True, planner=None, hide_fails=True,
                                                                hide_probabilstics=False).run(
-                                                               domain_path, problem_path, executive)
+            domain_path, problem_path, executive)
         # except:
         #     pass
     for ex, rc in results.iteritems():
