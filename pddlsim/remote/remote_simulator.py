@@ -21,6 +21,7 @@ class RemoteSimulator():
         self.original_socket = None
         self.sock = None
         self.report_card = None
+        self.planner = None
 
     def __enter__(self):
         self.original_socket = socket.socket(

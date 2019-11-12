@@ -35,5 +35,7 @@ class SimulatorServices():
         return SimulatorServices(parser, perception_func, planner)
 
     def on_action(self, action_sig):
+        if action_sig is None:
+            return
         for func in self.on_action_observers:
             func(action_sig)
