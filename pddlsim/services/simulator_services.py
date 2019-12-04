@@ -9,22 +9,19 @@ from pddlsim.planner import make_plan
 
 class SimulatorServices():
 
-    def __init__(self, parser, perception_func, planner=None):
+    def __init__(self, parser, perception_func, planner=None, force_python_valid_actions=False):
 
         self.parser = parser
         self.planner = planner or make_plan
         self.perception = Perception(perception_func)
-
         self.goal_tracking = GoalTracking(self.parser, self.perception)
         self.problem_generator = ProblemGenerator(
             self.perception, self.parser, "tmp_problem_generation")
-
         self.pddl = PDDL.create_with_simplified_problem_if_necessary(
             self.parser, self.problem_generator)
         self.parser.problem_path = self.pddl.problem_path
         self.valid_actions = ValidActions(
-            self.parser, self.pddl, self.perception)
-
+            self.parser, self.pddl, self.perception, force_python_valid_actions)
         self.on_action_observers = [self.perception.on_action,
                                     self.valid_actions.on_action,
                                     self.goal_tracking.on_action, ]

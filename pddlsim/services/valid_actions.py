@@ -13,11 +13,11 @@ class ValidActions():
     It has a fallback if LAPKT isn't available to the python implementation, note that that implementation neither efficient nor stable
     """
 
-    def __init__(self, parser, pddl, perception):
+    def __init__(self, parser, pddl, perception, force_python_version=False):
         problem = pddl.problem_path
 
         self.provider = None
-        if SUPPORTS_LAPKT:
+        if SUPPORTS_LAPKT and not force_python_version:
             self.provider = TrackedSuccessorValidActions(
                 pddl.domain_path, problem)
         else:

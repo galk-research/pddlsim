@@ -5,13 +5,15 @@ import os
 import time
 
 from pddlsim.simulator import Simulator
+from pddlsim.local_simulator import LocalSimulator
 from pddlsim.executors.plan_dispatch import PlanDispatcher
 from pddlsim.executors.avoid_return_random import AvoidReturn
-from experiments.executive_over_planner.delayed_dispatch import DelayedDispatch
+# from experiments.executive_over_planner.delayed_dispatch import
+# DelayedDispatch
 from pddlsim.executors import executor
 from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
-from experiments import reduce_domain, generate_problem
-from experiments.maze_reducer_executor import MazeReducerExecutor
+# from experiments import reduce_domain, generate_problem
+# from experiments.maze_reducer_executor import MazeReducerExecutor
 import pddlsim.planner
 
 IPC_PATH = 'ipc2002/'
@@ -162,7 +164,7 @@ if __name__ == '__main__':
     # domain_path, problem_path = 'experiments/domain.pddl', 'experiments/problems/t_5_5_5_or.pddl'
     # domain_path, problem_path = 'domains/attack_domain.pddl',
     # 'domains/attack_problem2.pddl'
-    domain_path, problem_path = 'experiments/domain_multi_effect.pddl', 'experiments/problems/corridor_5_revealable.pddl'
+    domain_path, problem_path = 'domains/generated/domain_multi_effect.pddl', 'domains/generated/problems/corridor_5_revealable.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01_multigoal.pddl'
     # domain_path, problem_path = 'domains/examples/zeno-travel/domain.pddl', 'domains/examples/zeno-travel/prob01.pddl'
     # exit()
@@ -178,8 +180,8 @@ if __name__ == '__main__':
         # try:
         #     with OutputGrabber():
         results[executive.__class__.__name__] = LocalSimulator(
-            print_actions=True, planner=None, hide_fails=True,
-                                                               hide_probabilstics=False).run(
+            print_actions=True, planner=None, hide_fails=False,
+                                                               hide_probabilstics=True).run(
             domain_path, problem_path, executive)
         # except:
         #     pass
