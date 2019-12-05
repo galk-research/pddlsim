@@ -14,19 +14,19 @@
 	(and (person ?p) (empty ?b) (at ?p ?a)  (south ?a ?b))
  :effect
     (probabilistic  0.75 (and (at ?p ?b) (not (at ?p ?a)))
-                    0.25 (at ?p ?p)))
+                    0.25 (at ?p ?a)))
 (:action move-west
  :parameters ( ?p ?a ?b)
  :precondition
 	(and (person ?p) (empty ?b) (at ?p ?a)  (west ?a ?b))
  :effect
     (probabilistic  0.8 (and (at ?p ?b) (not (at ?p ?a)))
-                    0.2 (at ?p ?p)))
+                    0.2 (at ?p ?a)))
 (:action move-east
  :parameters ( ?p ?a ?b)
  :precondition
 	(and (person ?p) (empty ?b) (at ?p ?a)  (east ?a ?b))
  :effect
     (probabilistic  0.75 (and (at ?p ?b) (not (at ?p ?a)))
-                    0.2 (at ?p ?p)))
+                    0.2 (at ?p ?a)))
 )

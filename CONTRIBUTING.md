@@ -1,23 +1,26 @@
 
-# Structure overview WIP
-
-- domains - a collection of domains used for testing
-- lapkt:
-    - LAPKT-dev - this is a git submodule contains lapkt source code
-    - succ-gen - contains additional source code that is compiled for with LAPKT, this is necessary for successor generation.
+# Structure overview
+- docs/ - auto generated docs
+- domains/ - a collection of domains used for testing
+- lapkt/ - pddlsim uses a modified version of LAPKT for efficent successor generation
+    - LAPKT-dev/ - this is a git submodule contains lapkt source code
+    - succ-gen/ - contains additional source code that is compiled for with LAPKT, this is necessary for successor generation.
     - build_lib.sh - downloads the lapkt source code, build the dependencies for succ_gen and also constructes the liblapkt library
-- pddlsim - this is the primary directory of this library, the files in here are what sould be distributed to users of this library
-    - executors - sample executives
-    - external - code used from other sources:
+- pddlsim/ - this is what you get when you install the package
+    - executors/ - some executives you can use or extend
+    - external/ - code used from other sources:
           - the compiled lapkt library
           - fd parser (also copied from LAPKT)
           - siw-then-bfsf planner (from planning.domains)
-    - simulator.py - manages the state of a simulated enviroment
-    - first_parser.py - handle the specifics of the current pddl parser implementation, current in stages of moving to parser from planning.domains
+    - remote/ - package for using sockets to run a simulator server and executive client, we use this to better profile executive only performance
+    - services/ - api's that the simulator manages and that executive can use, this includes generating sub-problems, perception, tracking goals, and querying for valid actions
+    - fd_parser.py - wrapper around fd_parser to convert to format used in simulator
+    - local_simulator.py - use this to run a non-remote simulator 
+    - parser_independent.py - this is the abstraction used in the simulator, 
     - planner.py - util for planning, supports using a local planner or an API call
-    - executor.py - basic prototype for executors, not really used
-    - plan_dispatch.py - an executor that plans then only executes that plan
-    - random_executor.py - an executor that executes random valid actions
+    - simulator.py - base simulator - used by both local and remote simulators
+- tests/ - a set of test to ensure everything is working, use pytest to run them
+- tools/ - some useful tools for generating problems or running a remote server
 - setup.py - run 'python setup.py bdist_wheel' to create a wheel for this library
 
 # Easy reinstall
