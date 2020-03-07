@@ -7,9 +7,8 @@ from services.perception import Perception
 
 class LocalSimulator:
 
-    def __init__(self, print_actions=True, planner=None, hide_fails=False, hide_probabilstics=False):
+    def __init__(self, print_actions=True, hide_fails=False, hide_probabilstics=False):
         self.print_actions = print_actions
-        self.planner = planner
         self.hide_fails = hide_fails
         self.hide_probabilistics = hide_probabilstics
 
@@ -23,7 +22,7 @@ class LocalSimulator:
         print 'sim services'
 
         mediator = SimulatorServices(
-            service_parser, sim.perceive_state, self.planner, self.hide_probabilistics)
+            service_parser, sim.perceive_state, self.hide_probabilistics)
         executive.initialize(mediator)
         self.previous_action = None
 

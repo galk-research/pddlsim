@@ -74,6 +74,7 @@ class PDDL(object):
         )
     )
     ''')
+        return path
 
     @staticmethod
     def parse_action(action):

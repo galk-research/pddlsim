@@ -4,6 +4,7 @@ import threading
 from pddlsim.local_simulator import LocalSimulator
 from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
+from pddlsim.executors.plan_dispatch import PlanDispatcher
 from pddlsim.executors.avoid_return_random import AvoidReturn
 from pddlsim.fd_parser import FDParser
 from pddlsim.remote.remote_simulator import RemoteSimulator
@@ -39,7 +40,7 @@ def test_multiple_goals():
     domain_path, problem_path = MAZE_DOMAIN, GENERATED_ROOT + \
         'problems/t_5_5_5_multiple.pddl'
     assert LocalSimulator().run(
-        domain_path, problem_path, MultipleGoalPlanDispatcher()).success
+        domain_path, problem_path, MultipleGoalPlanDispatcher(True)).success
 
 
 def test_avoid_return():
@@ -55,7 +56,7 @@ def test_failable():
         'problems/corridor_5_failable.pddl'
     executives = [RandomExecutor()]
     assert LocalSimulator(
-        print_actions=True, planner=None).run(
+        print_actions=True).run(
         domain_path, problem_path, RandomExecutor()).success
 
 
@@ -65,7 +66,7 @@ def test_multi_effect():
         'problems/corridor_5.pddl'
     executives = [RandomExecutor()]
     assert LocalSimulator(
-        print_actions=True, planner=None, hide_fails=False, hide_probabilstics=True).run(
+        print_actions=True, hide_fails=False, hide_probabilstics=True).run(
         domain_path, problem_path, RandomExecutor()).success
 
 
@@ -74,5 +75,5 @@ def test_revealable():
         'domain_multi_effect.pddl', GENERATED_ROOT + \
         'problems/corridor_5_revealable.pddl'
     assert LocalSimulator(
-        print_actions=True, planner=None, hide_fails=True, hide_probabilstics=True).run(
+        print_actions=True, hide_fails=True, hide_probabilstics=True).run(
         domain_path, problem_path, RandomExecutor()).success

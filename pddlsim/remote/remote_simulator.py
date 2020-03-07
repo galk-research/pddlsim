@@ -21,7 +21,6 @@ class RemoteSimulator():
         self.original_socket = None
         self.sock = None
         self.report_card = None
-        self.planner = None
 
     def __enter__(self):
         self.original_socket = socket.socket(
@@ -36,10 +35,6 @@ class RemoteSimulator():
     def use_domain_and_problem(self, domain_path, problem_path):
         self.domain_path = domain_path
         self.problem_path = problem_path
-        return self
-
-    def use_planner(self, planner):
-        self.planner = planner
         return self
 
     def get_state(self):
@@ -65,7 +60,7 @@ class RemoteSimulator():
             return
 
         services = SimulatorServices.from_pddls(
-            self.domain_path, self.problem_path, self.get_state, self.planner)
+            self.domain_path, self.problem_path, self.get_state)
         executive.initialize(services)
         self.sock.send_one_message(INITILIZE_EXECUTIVE)
 

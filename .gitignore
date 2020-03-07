@@ -36,3 +36,4 @@ var/
 .installed.cfg
 *.egg
 .pytest_cache/
+.cache/
