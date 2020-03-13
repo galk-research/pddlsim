@@ -46,7 +46,7 @@ Total perception requests: 7
 # Building your own executor
 Here is an example of an executor, that prefers actions that will immediately reach a goal:
 ```
-!#python
+#!python
 import random
 
 class MyExecutor(object):
@@ -153,7 +153,7 @@ For a more complete example, including profiling see:
 
 # Additional Syntax
 
-## Failiable actions syntax
+## Fail-able actions syntax
 To represent actions that fail, we currently use the following syntax
 in a problem domain file (for example problem.pddl):
 ```
@@ -165,8 +165,8 @@ the agent chooses the action `(move-east)` (with any parameters), then
 the action will fail with probability 0.9, meaning that the state
 will not change.
 
-## Probalistic effects syntax
-Probablistic effects are an expansion on failable effects.
+## Probabilistic effects syntax
+Probabilistic effects are an expansion on failable effects.
 They allow you to specify a different effect instead of just failing:
 ```
 (:action move-south
