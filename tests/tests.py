@@ -13,6 +13,11 @@ from pddlsim.remote.simulator_server import SimulatorForkedTCPServer
 GENERATED_ROOT = 'domains/generated/'
 MAZE_DOMAIN = GENERATED_ROOT + 'domain.pddl'
 
+'''
+This is true by default to avoid using network to run tests.
+However this won't work on platforms that don't support local planners
+'''
+USE_LOCAL_PLANNER_FOR_TESTS = True
 
 def test_parser():
     domain_path, problem_path = MAZE_DOMAIN, GENERATED_ROOT + \
@@ -40,7 +45,7 @@ def test_multiple_goals():
     domain_path, problem_path = MAZE_DOMAIN, GENERATED_ROOT + \
         'problems/t_5_5_5_multiple.pddl'
     assert LocalSimulator().run(
-        domain_path, problem_path, MultipleGoalPlanDispatcher(True)).success
+        domain_path, problem_path, MultipleGoalPlanDispatcher(USE_LOCAL_PLANNER_FOR_TESTS)).success
 
 
 def test_avoid_return():
@@ -54,7 +59,6 @@ def test_failable():
     domain_path, problem_path = GENERATED_ROOT + \
         'domain_failable.pddl', GENERATED_ROOT + \
         'problems/corridor_5_failable.pddl'
-    executives = [RandomExecutor()]
     assert LocalSimulator(
         print_actions=True).run(
         domain_path, problem_path, RandomExecutor()).success
@@ -64,7 +68,6 @@ def test_multi_effect():
     domain_path, problem_path = GENERATED_ROOT + \
         'domain_multi_effect.pddl', GENERATED_ROOT + \
         'problems/corridor_5.pddl'
-    executives = [RandomExecutor()]
     assert LocalSimulator(
         print_actions=True, hide_fails=False, hide_probabilstics=True).run(
         domain_path, problem_path, RandomExecutor()).success

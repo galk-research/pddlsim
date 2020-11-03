@@ -76,7 +76,6 @@ Adding a new syntax will require changes in all 3 stages.
 The state of the environment is represented as a simple dictionary.
 The keys are all the predicates defined by the ```domain.pddl```.
 The value is a set of all true argument to that predicate
-This allows a O(1) operation to check if a predicate is true.
 
 Action are made up of 3 things parameters, preconditions, and effects.
 Parameters are just names for the position of the objects in preconditions and effect.

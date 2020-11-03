@@ -4,14 +4,15 @@ This project allows you to simulate an environment defined with the PDDL syntax.
 The executor won't necessarily be seeing the same PDDL as supplied to the simulator. This allows all sorts of modifications to the environment, for example, some things could be revealed only in certain situations. The executor shouldn't know of this beforehand.
 
 ## Prerequisites:
-Boost Python - install with ```sudo apt-get install libboost-python-dev```
+For basic features:
+- Python 2.7 - should work on all OS that support it (tested on Ubuntu and Windows)
+
+For local planner support and faster successor generation (calculating the next available actions) - a UNIX based OS is required (only tested on Ubuntu)
+  -  This also needs to be installed: Boost Python - install with ```sudo apt-get install libboost-python-dev```
 
 # Installation
 
 run ```pip install pddlsim``` to install the library
-
-using the planner requires a UNIX based operating system.
-this also means that using the planner and planning based executives won't work on Windows
 
 # Running an executive
 For quickly prototyping it is simplest to test things with the LocalSimulator:   
@@ -92,6 +93,95 @@ from pddlsim.local_simulator import LocalSimulator
 print LocalSimulator().run(domain, problem, MyExecutor())
 ```
 
+# Format of state and actions
+The state of the environment is represented as a simple dictionary.
+The keys are all the predicates defined by the ```domain.pddl```.
+The value is a set of all true argument to that predicate
+
+Action are made up of 3 things parameters, preconditions, and effects.
+Parameters are just names for the position of the objects in preconditions and effect.
+Preconditions are predicates that must be true to be able to apply the action.
+They are different from conditions because they support arguments.
+These preconditions should already be decomposed into only one list of predicates (and not nested conditions).
+Effects are the changes to environment due to the action.
+Here we separate the effect into 2; an add list and a delete list.
+The add list is a list of predicates that must be added.
+And the delete list is a list of predicates that must be deleted.
+## Example
+Let's look at a simplified domain:
+```
+(define (domain simple-maze)
+(:predicates
+	 (at ?p ?t) (person ?p) (next-to ?a ?b))
+
+(:action move
+ :parameters ( ?p ?a ?b)
+ :precondition
+	(and (person ?p) (at ?p ?a) (next-to ?a ?b))
+ :effect
+	(and (at ?p ?b) (not (at ?p ?a))))
+```
+And this simplified problem:
+```
+(define (problem simple-maze)
+(:domain simple-maze)
+(:objects
+	person1
+	start_tile
+	goal_tile
+	)
+(:init
+	(next-to start_tile goal_tile)
+    (next-to goal_tile start_tile)
+	(person person1)
+    (at person1 start_tile)   
+        )
+(:goal 
+    (and (at person1 goal_tile))
+	)
+)
+```
+The initial state for this problem would be represented by a dictionary something like:
+```
+initial_state = {
+    "person": [("person1")],
+    "next-to": [("start_tile","goal_tile"), ("goal_tile","start_tile")]
+    "at": [("person1","start_tile")]
+}
+```
+Let see if we can execute the action ```(move person1 start_tile goal_tile)```.
+For that we need to check the precondition. The parameters indicate which of the parameters are used for each predicate check, we can replace them like so:
+```
+(and (person ?p) (at ?p ?a) (next-to ?a ?b))
+=>
+(and (person person1) (at person1 start_tile) (next-to start_tile goal_tile))
+```
+To check each predicate in an ```and``` condition we need for each individual predicate to be true.
+We can check that each predicate is true by check if the arguments to the predicate exist in our initial_state dictionary.
+And indeed "person1" is in initial_state["person"], ("person1,"start_tile") is in initial_state["at"], and ("start_tile","goal_tile") is in initial_state["next-to"].
+
+Now let's look at what executing this action would do.
+The action's effect is: ```(and (at ?p ?b) (not (at ?p ?a)))```
+We'll replace the unnamed parameters with the instances of our actions, then split this into:
+- add-list: (at person1 goal_tile)
+- delete-list: (at person1 start_tile)
+First the items in the delete list are removed, our state would then look like this:
+```
+{
+    "person": [("person1")],
+    "next-to": [("start_tile","goal_tile"), ("goal_tile","start_tile")]
+    "at": []
+}
+```
+Then all the predicates in the add list are added to the state:
+ ```
+{
+    "person": [("person1")],
+    "next-to": [("start_tile","goal_tile"), ("goal_tile","start_tile")]
+    "at": [("person1","goal_tile")]
+}
+```
+This is now our new state. This also match the goal condition, that is checked using the same mechanism used for checking preconditions
 # Services
 ## goal_tracking
 keeps track of which goals were complete and are still incomplete
@@ -103,6 +193,7 @@ holds a copy of the parser used for understanding the pddl format.
 also has methods for modifying state and testing conditions
 - ```test_condition(condition, state)``` - goals are a type of condition
 - ```apply_action_to_state(action, state, check_preconditions)``` - modifies the state with the affect of the action
+To see all available methods, see the source code for the parser independent representation: `pddlsim/parser_independent.py`
 ## pddl
 - ```domain_path``` - path to domain pddl file
 - ```problem_path``` - path to problem pddl file
@@ -112,6 +203,10 @@ also has methods for modifying state and testing conditions
 
 ## valid_action
 - ```get()``` - returns a list of valid actions from the current state. there is a very efficent version of this that requires tracking, but it doesn't work on all system. A slower fallback written in python is provided for those cases
+
+# Planner 
+In ```utils/planner.py``` you can find the implementation for both the local planner and online planner. The online planner uses the internet to send a pddl to a server that will solve it. The local planner expects an complied binary to work, this has only been tested on Ubuntu.
+The planners don't support the additional syntax introduced in this project, so if you want to use a planner you need to create a version of the pddl without this syntax. You can use ```generate_problem``` in the parser for this.
 
 # Client Server separation
 In order to separate between the executor and the environment more clearly. It is possible to run them separately and then have them communicate using sockets. This means that they can also be on separate computer. With this profiling resources used by the executor is simpler.
@@ -177,6 +272,7 @@ They allow you to specify a different effect instead of just failing:
     (probabilistic  0.75 (and (at ?p ?b) (not (at ?p ?a)))
                     0.25 (and (at ?p ?c) (not (at ?p ?a))))
 ```
+If the sum of the probabilities don't add up to 1, then the action will fail with the remaining probability.
 ## Hidden Knowledge Syntax
 
 The syntax is as close as possible to the existing syntax
