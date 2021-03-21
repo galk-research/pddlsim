@@ -1,4 +1,4 @@
- # Intro
+# Intro
 This project allows you to simulate an environment defined with the PDDL syntax. You can then run executors in these environment and attempt to solve their different problems.
 
 The executor won't necessarily be seeing the same PDDL as supplied to the simulator. This allows all sorts of modifications to the environment, for example, some things could be revealed only in certain situations. The executor shouldn't know of this beforehand.
