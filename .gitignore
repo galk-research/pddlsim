@@ -14,7 +14,8 @@ execution.details
 experiments/multiple_goal_temp.pddl
 reusage_log
 experiments/domain_resolution/tmp_problem.pddl
-
+*.o
+pddlsim/external/
 
 # Distribution / packaging
 .Python
