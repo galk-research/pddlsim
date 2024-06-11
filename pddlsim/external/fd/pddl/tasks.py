@@ -2,9 +2,11 @@ from __future__ import print_function
 
 import sys
 
+
 from . import actions
 from . import axioms
 from . import conditions
+from . import effects
 from . import predicates
 from . import pddl_types
 from . import functions
@@ -14,7 +16,7 @@ from . import f_expression
 class Task(object):
 
     def __init__(self, domain_name, task_name, requirements,
-                 types, objects, predicates, functions, failure_probabilities, init, goal, actions, axioms, use_metric):
+                 types, objects, predicates, functions, failure_probabilities, init, revealable_predicates, goal, actions, axioms, use_metric):
         self.domain_name = domain_name
         self.task_name = task_name
         self.requirements = requirements
@@ -22,6 +24,7 @@ class Task(object):
         self.objects = objects
         self.predicates = predicates
         self.functions = functions
+        self.revealable_predicates = revealable_predicates
         self.failure_probabilities = failure_probabilities
         self.init = init
         self.goal = goal
@@ -42,7 +45,7 @@ class Task(object):
     def parse(domain_pddl, task_pddl):
         domain_name, domain_requirements, types, constants, predicates, functions, actions, axioms \
             = parse_domain(domain_pddl)
-        task_name, task_domain_name, task_requirements, objects, failure_probabilities, init, goal, use_metric = parse_task(
+        task_name, task_domain_name, task_requirements, objects, failure_probabilities, init, revealable_predicates, goal, use_metric = parse_task(
             task_pddl)
         assert domain_name == task_domain_name
         requirements = Requirements(sorted(set(
@@ -56,7 +59,7 @@ class Task(object):
         init += [conditions.Atom("=", (obj.name, obj.name)) for obj in objects]
 
         return Task(domain_name, task_name, requirements, types, objects,
-                    predicates, functions, failure_probabilities, init, goal, actions, axioms, use_metric)
+                    predicates, functions, failure_probabilities, init, revealable_predicates, goal, actions, axioms, use_metric)
 
     def dump(self):
         print("Problem %s: %s [%s]" % (
@@ -177,6 +180,10 @@ def parse_domain(domain_pddl):
 def parse_fail_condition(a):
     return (conditions.parse_condition(a[0]), a[1], float(a[2]))
 
+def parse_revealable_predicate(a):
+    parsed_effects = []
+    effects.parse_effects(a[1], parsed_effects)
+    return (conditions.parse_condition(a[0]), parsed_effects, float(a[2]))
 
 def parse_task(task_pddl):
     iterator = iter(task_pddl)
@@ -249,7 +256,14 @@ def parse_task(task_pddl):
     initial.extend(initial_true)
     yield initial
 
-    goal = next(iterator)
+    revealable_predicates = next(iterator)
+    if revealable_predicates [0] == ":reveal":
+        yield [parse_revealable_predicate(f) for f in revealable_predicates [1:]]
+        goal = next(iterator)
+    else:
+        yield []
+        goal = revealable_predicates
+
     key = goal[0]
     if key == ":goal" and len(goal) == 2:
         yield [conditions.parse_condition(goal[1])]

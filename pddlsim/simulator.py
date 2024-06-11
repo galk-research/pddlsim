@@ -48,6 +48,7 @@ class Simulator(object):
                         action, self._state, self.check_preconditions)
                     self.goal_tracking.on_action(action)
                     self.report_card.add_action()
+                self.parser.apply_revealable_predicates(self._state)
             except PreconditionFalseError as e:
                 self.report_card.add_failed_action()
                 self.action_failed = True

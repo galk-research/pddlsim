@@ -1,6 +1,0 @@
-Executive : Simulator_Access
-PlanDispatcher : domain_path and problem_path
-RandomExecutor : TrackedSuccessor, reached_all_goals (for multiple goals, generate_problem)
-AvoidReturn (inherits from RandomExecutor): clone_state, act (used to check if applying an action on a state returns to original state)
-DelayedDispatch (inherits from AvoidReturn): generate_problem
-MultipleGoalPlanDispatcher: uncompleted_goals, generate_problem, domain_path

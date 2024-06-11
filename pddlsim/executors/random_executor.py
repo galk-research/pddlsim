@@ -1,20 +1,16 @@
-# import pddl.parsersimulate
 import random
-# from pddlsim.successors.successor import Successor
 
 
 class RandomExecutor(object):
 
     """ RandomExecutor - pick a random valid action each step
         the trick is finding out the valid actions
-        Most of the code here is a python implementation of that
-        But using the tracked successor is significantly faster
+        Using the tracked successor is significantly faster
     """
 
     def __init__(self, stop_at_goal=True):
         super(RandomExecutor, self).__init__()
         self.stop_at_goal = stop_at_goal
-        self.successor = None
 
     def initialize(self, services):
         self.services = services

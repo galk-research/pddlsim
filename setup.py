@@ -9,7 +9,7 @@ class BinaryDistribution(dist.Distribution):
 
 setup(
     name='pddlsim',
-    version='0.1.12dev',
+    version='0.1.13dev',
     classifiers=['Programming Language :: Python :: 2.7',
                  'Development Status :: 2 - Pre-Alpha',
                  'Intended Audience :: Science/Research',
@@ -18,6 +18,7 @@ setup(
                  ],
     python_requires='~=2.7',
     install_requires=['six'],
+    tests_require=['pytest'],
     package_data={'pddlsim': [
         'external/liblapkt.so', 'external/siw-then-bfsf']},
     include_package_data=True,

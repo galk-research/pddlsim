@@ -64,9 +64,9 @@
 	(south c3 d0)
 	(north d0 c3)
     (person person1)
-    (at person1 start_tile)   
+    (at person1 start_tile)
         )
-(:goal 
+(:goal
     (and (at person1 goal_tile))
 	)
 )

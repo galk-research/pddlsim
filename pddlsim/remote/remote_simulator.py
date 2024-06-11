@@ -37,10 +37,6 @@ class RemoteSimulator():
         self.problem_path = problem_path
         return self
 
-    def use_planner(self, planner):
-        self.planner = planner
-        return self
-
     def get_state(self):
         self.sock.send_one_message(PERCEPTION_REQUEST)
         return pickle.loads(self.sock.recv_one_message())
@@ -64,7 +60,7 @@ class RemoteSimulator():
             return
 
         services = SimulatorServices.from_pddls(
-            self.domain_path, self.problem_path, self.get_state, self.planner)
+            self.domain_path, self.problem_path, self.get_state)
         executive.initialize(services)
         self.sock.send_one_message(INITILIZE_EXECUTIVE)
 
