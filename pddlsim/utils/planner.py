@@ -1,38 +1,34 @@
-
-try:
-    import urllib.request as urllib2
-except Exception:
-    import urllib2
-import os
+from urllib import request
 import json
 import sys
+
+from unified_planning.io import PDDLReader
+from unified_planning.plans import SequentialPlan
+from unified_planning.shortcuts import OneshotPlanner
 
 
 def online(domain_path, problem_path):
     data = {'domain': open(domain_path, 'r').read(),
             'problem': open(problem_path, 'r').read()}
 
-    req = urllib2.Request('http://solver.planning.domains/solve')
+    req = request.Request('http://solver.planning.domains/solve')
     req.add_header('Content-Type', 'application/json')
     resp = json.loads(
-        urllib2.urlopen(req, json.dumps(data).encode('utf-8')).read().decode('utf-8'))
-    
+        request.urlopen(req, json.dumps(data).encode('utf-8')).read().decode('utf-8'))
+
     return [act['name'] for act in resp['result']['plan']]
 
 
-def local(domain_path, problem_path, out_path='tmp.ipc'):
-    planner_path = "\"" + \
-        os.path.join(
-            os.path.dirname(sys.modules[__name__].__file__), 'external/siw-then-bfsf') + "\""
+def local(domain_path, problem_path):
+    reader = PDDLReader()
+    problem = reader.parse_problem(domain_path, problem_path)
 
-    print planner_path
-    os.system(planner_path + ' --domain ' + domain_path +
-              ' --problem ' + problem_path + ' --output ' + out_path)
-    with open(out_path) as f:
-        return [line for line in f.read().split('\n') if line.rstrip()]
+    with OneshotPlanner(problem_kind=problem.kind) as planner:
+        result: SequentialPlan = planner.solve(problem).plan
+        return [f"({action.action.name} {' '.join(map(str, action.actual_parameters))})" for action in result.actions]
+
 
 if __name__ == '__main__':
-    
     use_local = True
 
     if use_local:

@@ -2,9 +2,9 @@
 import copy
 
 import time
-from services.goal_tracking import GoalTracking
-from services.perception import Perception
-from fd_parser import FDParser, PreconditionFalseError
+from pddlsim.services.goal_tracking import GoalTracking
+from pddlsim.services.perception import Perception
+from pddlsim.fd_parser import PreconditionFalseError
 
 
 class Simulator(object):

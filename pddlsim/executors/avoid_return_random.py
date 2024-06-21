@@ -1,7 +1,5 @@
-from random_executor import RandomExecutor
-from pddlsim.simulator import Simulator
+from pddlsim.executors.random_executor import RandomExecutor
 import random
-import copy
 
 
 class AvoidReturn(RandomExecutor):
@@ -36,5 +34,5 @@ class AvoidReturn(RandomExecutor):
         return options
 
     def pick_from_many(self, options):
-        options = self.remove_return_actions(options)
+        options = list(self.remove_return_actions(options))
         return random.choice(options)

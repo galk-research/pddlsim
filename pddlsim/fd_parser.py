@@ -1,9 +1,5 @@
-
-import external.fd.pddl as pddl
-from six import iteritems, print_
-import abc
-from parser_independent import *
-
+from pddlsim.external.fd import pddl
+from pddlsim.parser_independent import *
 
 class FDParser(PDDL):
 

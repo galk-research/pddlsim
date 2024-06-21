@@ -96,8 +96,8 @@ def parse_effect(alist):
     elif tag == "probabilistic":
         alist = alist[1:]
         assert len(alist) %2 == 0
-        probs = [float(alist[2 * i]) for i in range(len(alist) / 2)]
-        effects = [parse_effect(alist[2 * i + 1]) for i in range(len(alist) / 2)]
+        probs = [float(alist[2 * i]) for i in range(len(alist) // 2)]
+        effects = [parse_effect(alist[2 * i + 1]) for i in range(len(alist) // 2)]
         return ProbabilisticEffect(probs, effects)
     else:
         return SimpleEffect(conditions.parse_literal(alist))

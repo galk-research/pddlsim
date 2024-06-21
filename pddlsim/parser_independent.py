@@ -49,7 +49,7 @@ class PDDL(object):
 
     def predicates_from_state(self, state):
         return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in
-                state.iteritems() for pred in predicate_set if predicate_name != '=']
+                state.items() for pred in predicate_set if predicate_name != '=']
 
     def generate_problem(self, path, state, new_goal):
         predicates = self.predicates_from_state(state)
