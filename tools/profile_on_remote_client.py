@@ -1,7 +1,6 @@
 # echo_client.py
 from pddlsim.executors import (plan_dispatch, random_executor,
                                executor_profiler)
-from pddlsim.remote.remote_simulator import *
 
 HOST, PORT = "localhost", 9999
 

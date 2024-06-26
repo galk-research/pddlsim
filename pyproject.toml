@@ -1,0 +1,39 @@
+[project]
+name = "pddlsim"
+version = "0.2.0"
+description = "PDDL-based simulator for the BIU course \"Introduction to Intelligent, Knowledge-Based and Cognitive Systems\""
+authors = [
+    { name = "Gal A. Kaminka", email = "galk@cs.biu.ac.il" },
+    { name = "Micha S. Molko", email = "michamolko@gmail.com" },
+    { name = "Ron Shemesh", email = "ron.shemesh98@gmail.com" },
+    { name = "Eyal Weiss", email = "eyal.weiss@biu.ac.il" },
+    { name = "Mika Barkan", email = "mika.barkan4@gmail.com" },
+    { name = "Yoav Grimland", email = "miestrode@proton.me" },
+]
+dependencies = [
+    "unified-planning==1.1.0",
+    "numpy==1.26.4", # Update this once ConfigSpace works with NumPy 2.x.x
+]
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+test = [
+    "pytest==8.2.2",
+]
+doc = [
+    "sphinx==7.3.7",
+    "pydata-sphinx-theme==0.15.3",
+    "sphinx-design==0.6.0",
+]
+format = [
+    "black==24.4.2",
+]

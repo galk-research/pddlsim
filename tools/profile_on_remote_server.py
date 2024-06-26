@@ -1,5 +1,4 @@
-from pddlsim.remote import simulator_server
-from pddlsim.remote.simulator_server import SimulatorForkedTCPServer
+from pddlsim.remote import SimulatorForkedTCPServer
 import argparse
 
 if __name__ == "__main__":

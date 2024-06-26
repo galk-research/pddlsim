@@ -1,41 +1,6 @@
-# Add any directories, files, or patterns you don't want to be tracked by version control
-__pycache__
-# **/__pycache__
-**.pyc
-tmp/
-test_env
-tmp_delayed_dispatch
-tmp_reduced.pddl
-tmp.ipc
-plan.ipc
-multiple_goal_temp.pddl
-tmp_problem_generation
-execution.details
-experiments/multiple_goal_temp.pddl
-reusage_log
-experiments/domain_resolution/tmp_problem.pddl
-*.o
-pddlsim/external/
-.idea
-.tmp/
-.vscode
-
-# Distribution / packaging
-.Python
-env/
+.pdm-build/
+.venv/
+.pdm-python
+__pycache__/
 build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-.pytest_cache/
-.cache/
+.idea/

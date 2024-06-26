@@ -1,0 +1,4 @@
+Contributor Guide
+=================
+
+Welcome, hello!

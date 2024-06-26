@@ -1,3 +1,0 @@
-unified_planning
-unified-planning[engines]
-numpy==1.26.4
