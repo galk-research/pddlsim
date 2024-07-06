@@ -5,7 +5,7 @@
 groups = ["default", "test", "doc", "format"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.2"
-content_hash = "sha256:9cda1933faee2d9ab2ce0ca91035e4c4f5565b057868576566ac9a7cb33f8d8a"
+content_hash = "sha256:526602a9d40ad0b33d0b4fb3212037e2a7df6eef4dabcb46b75f0dfafb795fa9"
 
 [[package]]
 name = "accessible-pygments"

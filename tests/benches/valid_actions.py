@@ -8,7 +8,6 @@ from pddlsim.local_simulator import LocalSimulator
 random.seed(42)
 
 
-# TODO: Simulate for a fixed number of actions
 def random_executor_run(domain_path, problem_path):
     executor = RandomExecutor()
     LocalSimulator().run(
@@ -39,4 +38,12 @@ def test_maze_50_5_5_valid_actions(benchmark: BenchmarkFixture):
         random_executor_run,
         "domains/generated/domain.pddl",
         "domains/generated/problems/t_10_10_10.pddl",
+    )
+
+
+def test_complex_football_valid_actions(benchmark: BenchmarkFixture):
+    benchmark(
+        random_executor_run,
+        "domains/complex_football_domain.pddl",
+        "domains/complex_football_problem.pddl",
     )

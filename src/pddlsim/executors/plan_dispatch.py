@@ -1,8 +1,8 @@
-from executor import Executor
+from pddlsim.executors.executor import Executor
 from pddlsim.utils import planner
 
-class PlanDispatcher(Executor):
 
+class PlanDispatcher(Executor):
     """docstring for PlanDispatcher."""
 
     def __init__(self, use_local=True):
