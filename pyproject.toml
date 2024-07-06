@@ -11,14 +11,25 @@ authors = [
     { name = "Yoav Grimland", email = "miestrode@proton.me" },
 ]
 dependencies = [
-    "unified-planning==1.1.0",
+    "unified-planning>=1.1.0,<2",
     "unified-planning[fast-downward]",
-    "numpy==1.26.4", # Update this once ConfigSpace works with NumPy 2.x.x
-    "setuptools==70.2.0",
+    "numpy<2", # Update this once ConfigSpace works with NumPy 2.x.x
+    "setuptools>=70.2.0,<71",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "MIT" }
+keywords = ["PDDL", "agent", "simulator"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.urls]
+Repository = "https://bitbucket.org/galk-opensource/executionsimulation/"
+Issues = "https://bitbucket.org/galk-opensource/executionsimulation/issues"
 
 [build-system]
 requires = ["pdm-backend"]
@@ -29,17 +40,17 @@ distribution = true
 
 [tool.pdm.dev-dependencies]
 test = [
-    "pytest==8.2.2",
-    "pytest-benchmark==4.0.0",
+    "pytest>=8.2.2,<9",
+    "pytest-benchmark>=4.0.0,<5",
     "pytest-benchmark[histogram]"
 ]
 doc = [
-    "sphinx==7.3.7",
-    "pydata-sphinx-theme==0.15.3",
-    "sphinx-design==0.6.0",
+    "sphinx>=7.3.7,<8",
+    "pydata-sphinx-theme>=0.15.3,<0.16",
+    "sphinx-design>=0.6.0,<0.7",
 ]
 format = [
-    "black==24.4.2",
+    "black>=24.4.2, <25",
 ]
 
 [tool.pytest.ini_options]
