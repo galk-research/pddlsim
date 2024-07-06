@@ -1,5 +1,4 @@
-import sys, os
+from unified_planning import environment
 
-# add fd parser to path
-sys.path.append(os.path.join(os.getcwd(),'external'))
-
+# Removes credits from planner invocations
+environment.get_environment().credits_stream = None

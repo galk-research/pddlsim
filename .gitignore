@@ -1,6 +1,17 @@
+__pycache__/
+
+# Sphinx specific
+build/
+
+# PDM specific
 .pdm-build/
 .venv/
 .pdm-python
-__pycache__/
-build/
+
+# JetBrains specific
 .idea/
+
+# PDDLSIM specific stuff
+.benchmarks/
+tmp_problem_generation
+multiple_goal_temp.pddl

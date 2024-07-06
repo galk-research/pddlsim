@@ -5,7 +5,7 @@
 groups = ["default", "test", "doc", "format"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.2"
-content_hash = "sha256:a54204be3509a51d8614cc6413b5684f90d2b0d22023191ea017391498b3d551"
+content_hash = "sha256:9cda1933faee2d9ab2ce0ca91035e4c4f5565b057868576566ac9a7cb33f8d8a"
 
 [[package]]
 name = "accessible-pygments"
@@ -193,6 +193,20 @@ files = [
 ]
 
 [[package]]
+name = "importlib-metadata"
+version = "8.0.0"
+requires_python = ">=3.8"
+summary = "Read metadata from Python packages"
+groups = ["test"]
+dependencies = [
+    "zipp>=0.5",
+]
+files = [
+    {file = "importlib_metadata-8.0.0-py3-none-any.whl", hash = "sha256:15584cf2b1bf449d98ff8a6ff1abef57bf20f3ac6454f431736cd3e660921b2f"},
+    {file = "importlib_metadata-8.0.0.tar.gz", hash = "sha256:188bd24e4c346d3f0a933f275c2fec67050326a856b9a359881d7c2a697e8812"},
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 requires_python = ">=3.7"
@@ -336,6 +350,16 @@ files = [
 ]
 
 [[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+summary = "Get CPU info with pure Python"
+groups = ["test"]
+files = [
+    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
+    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
+]
+
+[[package]]
 name = "pydata-sphinx-theme"
 version = "0.15.3"
 requires_python = ">=3.9"
@@ -354,6 +378,30 @@ dependencies = [
 files = [
     {file = "pydata_sphinx_theme-0.15.3-py3-none-any.whl", hash = "sha256:a48ee049dc9b0f7064dbb8f7064b1cf3ae48aa193faafe14abd403a1b7102810"},
     {file = "pydata_sphinx_theme-0.15.3.tar.gz", hash = "sha256:f26ed9b676f61d1b2ae9289f3d7e496e8678dd56f2568b27a66fa4ad1f164efd"},
+]
+
+[[package]]
+name = "pygal"
+version = "3.0.4"
+requires_python = ">=3.8"
+summary = "A Python svg graph plotting library"
+groups = ["test"]
+dependencies = [
+    "importlib-metadata",
+]
+files = [
+    {file = "pygal-3.0.4-py2.py3-none-any.whl", hash = "sha256:e931caf08b4be0e6ec119a4c0e20dbed2d77829c641b7dea0ed21fe6ec81f2ea"},
+    {file = "pygal-3.0.4.tar.gz", hash = "sha256:6c5da33f1041e8b30cbc980f8a34910d9edc584b833240298f6a25df65425289"},
+]
+
+[[package]]
+name = "pygaljs"
+version = "1.0.2"
+summary = "Python package providing assets from https://github.com/Kozea/pygal.js"
+groups = ["test"]
+files = [
+    {file = "pygaljs-1.0.2-py2.py3-none-any.whl", hash = "sha256:d75e18cb21cc2cda40c45c3ee690771e5e3d4652bf57206f20137cf475c0dbe8"},
+    {file = "pygaljs-1.0.2.tar.gz", hash = "sha256:0b71ee32495dcba5fbb4a0476ddbba07658ad65f5675e4ad409baf154dec5111"},
 ]
 
 [[package]]
@@ -396,6 +444,38 @@ files = [
 ]
 
 [[package]]
+name = "pytest-benchmark"
+version = "4.0.0"
+requires_python = ">=3.7"
+summary = "A ``pytest`` fixture for benchmarking code. It will group the tests into rounds that are calibrated to the chosen timer."
+groups = ["test"]
+dependencies = [
+    "py-cpuinfo",
+    "pytest>=3.8",
+]
+files = [
+    {file = "pytest-benchmark-4.0.0.tar.gz", hash = "sha256:fb0785b83efe599a6a956361c0691ae1dbb5318018561af10f3e915caa0048d1"},
+    {file = "pytest_benchmark-4.0.0-py3-none-any.whl", hash = "sha256:fdb7db64e31c8b277dff9850d2a2556d8b60bcb0ea6524e36e28ffd7c87f71d6"},
+]
+
+[[package]]
+name = "pytest-benchmark"
+version = "4.0.0"
+extras = ["histogram"]
+requires_python = ">=3.7"
+summary = "A ``pytest`` fixture for benchmarking code. It will group the tests into rounds that are calibrated to the chosen timer."
+groups = ["test"]
+dependencies = [
+    "pygal",
+    "pygaljs",
+    "pytest-benchmark==4.0.0",
+]
+files = [
+    {file = "pytest-benchmark-4.0.0.tar.gz", hash = "sha256:fb0785b83efe599a6a956361c0691ae1dbb5318018561af10f3e915caa0048d1"},
+    {file = "pytest_benchmark-4.0.0-py3-none-any.whl", hash = "sha256:fdb7db64e31c8b277dff9850d2a2556d8b60bcb0ea6524e36e28ffd7c87f71d6"},
+]
+
+[[package]]
 name = "requests"
 version = "2.32.3"
 requires_python = ">=3.8"
@@ -431,6 +511,17 @@ files = [
     {file = "scipy-1.14.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:65df4da3c12a2bb9ad52b86b4dcf46813e869afb006e58be0f516bc370165159"},
     {file = "scipy-1.14.0-cp312-cp312-win_amd64.whl", hash = "sha256:4c4161597c75043f7154238ef419c29a64ac4a7c889d588ea77690ac4d0d9b20"},
     {file = "scipy-1.14.0.tar.gz", hash = "sha256:b5923f48cb840380f9854339176ef21763118a7300a88203ccd0bdd26e58527b"},
+]
+
+[[package]]
+name = "setuptools"
+version = "70.2.0"
+requires_python = ">=3.8"
+summary = "Easily download, build, install, upgrade, and uninstall Python packages"
+groups = ["default"]
+files = [
+    {file = "setuptools-70.2.0-py3-none-any.whl", hash = "sha256:b8b8060bb426838fbe942479c90296ce976249451118ef566a5a0b7d8b78fb05"},
+    {file = "setuptools-70.2.0.tar.gz", hash = "sha256:bd63e505105011b25c3c11f753f7e3b8465ea739efddaccef8f0efac2137bac1"},
 ]
 
 [[package]]
@@ -591,6 +682,34 @@ files = [
 ]
 
 [[package]]
+name = "unified-planning"
+version = "1.1.0"
+extras = ["fast-downward"]
+requires_python = ">=3.8"
+summary = "Unified Planning Framework"
+groups = ["default"]
+dependencies = [
+    "unified-planning==1.1.0",
+    "up-fast-downward==0.4.1",
+]
+files = [
+    {file = "unified_planning-1.1.0-py3-none-any.whl", hash = "sha256:936bad8676fd5cddd6f0afb148c3084eec72aa78cbff584cc5d000c1f890f790"},
+    {file = "unified_planning-1.1.0.tar.gz", hash = "sha256:43b8b695e2c8f6aa78b7789995b2d9fb728db23852d239612a9062deb65167aa"},
+]
+
+[[package]]
+name = "up-fast-downward"
+version = "0.4.1"
+summary = "Unified Planning Integration of the Fast Downward planning system"
+groups = ["default"]
+files = [
+    {file = "up_fast_downward-0.4.1-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:0edc490834d9b2a5fede5a14b62c4addd4fa503189d9c9334ccaa3eea988836f"},
+    {file = "up_fast_downward-0.4.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:670c29dbd631732546af2469576037edfbc7299043ab187fa518ae33ff9fed80"},
+    {file = "up_fast_downward-0.4.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7b72fb8043608d1454ff31b7ada80cb3a84e8db78e04afa1665d326c5586276"},
+    {file = "up_fast_downward-0.4.1-py3-none-win_amd64.whl", hash = "sha256:0efea97ab8a7f44881a65c0c4abe292228d59d1cf8b62a5080a8d23f03a8c08c"},
+]
+
+[[package]]
 name = "urllib3"
 version = "2.2.2"
 requires_python = ">=3.8"
@@ -599,4 +718,15 @@ groups = ["doc"]
 files = [
     {file = "urllib3-2.2.2-py3-none-any.whl", hash = "sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472"},
     {file = "urllib3-2.2.2.tar.gz", hash = "sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168"},
+]
+
+[[package]]
+name = "zipp"
+version = "3.19.2"
+requires_python = ">=3.8"
+summary = "Backport of pathlib-compatible object wrapper for zip files"
+groups = ["test"]
+files = [
+    {file = "zipp-3.19.2-py3-none-any.whl", hash = "sha256:f091755f667055f2d02b32c53771a7a6c8b47e1fdbc4b72a8b9072b3eef8015c"},
+    {file = "zipp-3.19.2.tar.gz", hash = "sha256:bf1dcf6450f873a13e952a29504887c89e6de7506209e5b1bcc3460135d4de19"},
 ]

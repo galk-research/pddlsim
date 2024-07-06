@@ -1,14 +1,11 @@
-
-import copy
-
 import time
+
+from pddlsim.fd_parser import PreconditionFalseError
 from pddlsim.services.goal_tracking import GoalTracking
 from pddlsim.services.perception import Perception
-from pddlsim.fd_parser import PreconditionFalseError
 
 
 class Simulator(object):
-
     """
     The simulator is in charge of managing the true state of the world
     This means 3 essential things:
@@ -22,8 +19,7 @@ class Simulator(object):
         self.check_preconditions = True
         self.parser = parser
         self._state = self.parser.build_first_state()
-        self.goal_tracking = GoalTracking(
-            self.parser, Perception(lambda: self._state))
+        self.goal_tracking = GoalTracking(self.parser, Perception(lambda: self._state))
         self.report_card = ReportCard()
         self.action_failed = False
 
@@ -36,7 +32,7 @@ class Simulator(object):
         while True:
             action = next_action_func()
             self.action_failed = False
-            if not action or action.lower() == '(reach-goal)':
+            if not action or action.lower() == "(reach-goal)":
                 return
             try:
                 action_name = self.parser.parse_action(action)[0]
@@ -45,7 +41,8 @@ class Simulator(object):
                     self.action_failed = True
                 else:
                     self.parser.apply_action_to_state(
-                        action, self._state, self.check_preconditions)
+                        action, self._state, self.check_preconditions
+                    )
                     self.goal_tracking.on_action(action)
                     self.report_card.add_action()
                 self.parser.apply_revealable_predicates(self._state)
@@ -58,7 +55,7 @@ class Simulator(object):
         return self.parser.copy_state(self._state)
 
 
-class ReportCard():
+class ReportCard:
 
     def __init__(self):
         self.success = False
@@ -116,4 +113,6 @@ Total actions: {0.total_actions}
 Total actions costs: {0.total_action_costs}
 Failed actions: {0.failed_actions}
 Total perception requests: {0.total_perception_requests}
-""".format(self)
+""".format(
+            self
+        )

@@ -1,6 +1,6 @@
-from pddlsim.simulator import Simulator
 from pddlsim.fd_parser import FDParser
 from pddlsim.services.simulator_services import SimulatorServices
+from pddlsim.simulator import Simulator
 
 
 class LocalSimulator:
@@ -16,8 +16,9 @@ class LocalSimulator:
         service_parser = parser
         if self.hide_fails or self.hide_probabilistics:
             service_parser = parser.get_obscure_copy(
-                hide_fails=self.hide_fails, hide_probabilistics=self.hide_probabilistics)
-        print('sim services')
+                hide_fails=self.hide_fails, hide_probabilistics=self.hide_probabilistics
+            )
+        print("sim services")
 
         mediator = SimulatorServices(service_parser, sim.perceive_state)
         executive.initialize(mediator)
@@ -33,4 +34,5 @@ class LocalSimulator:
                 print(self.previous_action)
 
             return self.previous_action
+
         return sim.simulate(next_action)

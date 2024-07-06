@@ -12,7 +12,9 @@ authors = [
 ]
 dependencies = [
     "unified-planning==1.1.0",
+    "unified-planning[fast-downward]",
     "numpy==1.26.4", # Update this once ConfigSpace works with NumPy 2.x.x
+    "setuptools==70.2.0",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
@@ -28,6 +30,8 @@ distribution = true
 [tool.pdm.dev-dependencies]
 test = [
     "pytest==8.2.2",
+    "pytest-benchmark==4.0.0",
+    "pytest-benchmark[histogram]"
 ]
 doc = [
     "sphinx==7.3.7",
@@ -37,3 +41,14 @@ doc = [
 format = [
     "black==24.4.2",
 ]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests/*.py",
+    "tests/benches/*.py"
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+# See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
+addopts = "-ra --benchmark-skip --benchmark-autosave"
