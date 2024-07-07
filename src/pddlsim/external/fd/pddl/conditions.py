@@ -28,17 +28,19 @@ def parse_condition_aux(alist, negated):
         parameters = pddl_types.parse_typed_list(alist[1])
         args = alist[2:]
         assert len(args) == 1
-    elif tag == 'true':
+    elif tag == "true":
         return Truth() if not negated else Falsity()
-    elif tag == 'false':
+    elif tag == "false":
         return Falsity() if not negated else Truth()
     elif negated:
         return NegatedAtom(alist[0], alist[1:])
     else:
         return Atom(alist[0], alist[1:])
     if tag == "imply":
-        parts = [parse_condition_aux(args[0], not negated),
-                 parse_condition_aux(args[1], negated)]
+        parts = [
+            parse_condition_aux(args[0], not negated),
+            parse_condition_aux(args[1], negated),
+        ]
         tag = "or"
     else:
         parts = [parse_condition_aux(part, negated) for part in args]
@@ -60,6 +62,7 @@ def parse_literal(alist):
         return NegatedAtom(alist[0], alist[1:])
     else:
         return Atom(alist[0], alist[1:])
+
 
 # Conditions (of any type) are immutable, because they need to
 # be hashed occasionally. Immutability also allows more efficient comparison
@@ -95,8 +98,9 @@ class Condition(object):
         return self.__class__.__name__
 
     def _postorder_visit(self, method_name, *args):
-        part_results = [part._postorder_visit(method_name, *args)
-                        for part in self.parts]
+        part_results = [
+            part._postorder_visit(method_name, *args) for part in self.parts
+        ]
         method = getattr(self, method_name, self._propagate)
         return method(part_results, *args)
 
@@ -118,12 +122,12 @@ class Condition(object):
         if not self.parts:
             return self
         else:
-            return self.__class__([part.uniquify_variables(type_map, renamings)
-                                   for part in self.parts])
+            return self.__class__(
+                [part.uniquify_variables(type_map, renamings) for part in self.parts]
+            )
 
     def to_untyped_strips(self):
-        raise ValueError("Not a STRIPS condition: %s" %
-                         self.__class__.__name__)
+        raise ValueError("Not a STRIPS condition: %s" % self.__class__.__name__)
 
     def instantiate(self, var_mapping, init_facts, fluent_facts, result):
         raise ValueError("Cannot instantiate condition: not normalized")
@@ -201,9 +205,11 @@ class JunctorCondition(Condition):
 
     def __eq__(self, other):
         # Compare hash first for speed reasons.
-        return (self.hash == other.hash and
-                self.__class__ is other.__class__ and
-                self.parts == other.parts)
+        return (
+            self.hash == other.hash
+            and self.__class__ is other.__class__
+            and self.parts == other.parts
+        )
 
     def change_parts(self, parts):
         return self.__class__(parts)
@@ -277,10 +283,12 @@ class QuantifiedCondition(Condition):
 
     def __eq__(self, other):
         # Compare hash first for speed reasons.
-        return (self.hash == other.hash and
-                self.__class__ is other.__class__ and
-                self.parameters == other.parameters and
-                self.parts == other.parts)
+        return (
+            self.hash == other.hash
+            and self.__class__ is other.__class__
+            and self.parameters == other.parameters
+            and self.parts == other.parts
+        )
 
     def _dump(self, indent="  "):
         arglist = ", ".join(map(str, self.parameters))
@@ -294,15 +302,16 @@ class QuantifiedCondition(Condition):
 
     def uniquify_variables(self, type_map, renamings={}):
         renamings = dict(renamings)  # Create a copy.
-        new_parameters = [par.uniquify_name(type_map, renamings)
-                          for par in self.parameters]
+        new_parameters = [
+            par.uniquify_name(type_map, renamings) for par in self.parameters
+        ]
         new_parts = (self.parts[0].uniquify_variables(type_map, renamings),)
         return self.__class__(new_parameters, new_parts)
 
     def free_variables(self):
         result = Condition.free_variables(self)
         for par in self.parameters:
-            result.discard(par.name)
+            result.discard(par.value)
         return result
 
     def change_parts(self, parts):
@@ -312,10 +321,8 @@ class QuantifiedCondition(Condition):
 class UniversalCondition(QuantifiedCondition):
 
     def _untyped(self, parts):
-        type_literals = [NegatedAtom(par.type, [par.name])
-                         for par in self.parameters]
-        return UniversalCondition(self.parameters,
-                                  [Disjunction(type_literals + parts)])
+        type_literals = [NegatedAtom(par.type, [par.value]) for par in self.parameters]
+        return UniversalCondition(self.parameters, [Disjunction(type_literals + parts)])
 
     def negate(self):
         return ExistentialCondition(self.parameters, [p.negate() for p in self.parts])
@@ -327,17 +334,17 @@ class UniversalCondition(QuantifiedCondition):
 class ExistentialCondition(QuantifiedCondition):
 
     def _untyped(self, parts):
-        type_literals = [Atom(par.type, [par.name]) for par in self.parameters]
-        return ExistentialCondition(self.parameters,
-                                    [Conjunction(type_literals + parts)])
+        type_literals = [Atom(par.type, [par.value]) for par in self.parameters]
+        return ExistentialCondition(
+            self.parameters, [Conjunction(type_literals + parts)]
+        )
 
     def negate(self):
         return UniversalCondition(self.parameters, [p.negate() for p in self.parts])
 
     def instantiate(self, var_mapping, init_facts, fluent_facts, result):
         assert not result, "Condition not simplified"
-        self.parts[0].instantiate(
-            var_mapping, init_facts, fluent_facts, result)
+        self.parts[0].instantiate(var_mapping, init_facts, fluent_facts, result)
 
     def has_existential_part(self):
         return True
@@ -356,10 +363,12 @@ class Literal(Condition):
 
     def __eq__(self, other):
         # Compare hash first for speed reasons.
-        return (self.hash == other.hash and
-                self.__class__ is other.__class__ and
-                self.predicate == other.predicate and
-                self.args == other.args)
+        return (
+            self.hash == other.hash
+            and self.__class__ is other.__class__
+            and self.predicate == other.predicate
+            and self.args == other.args
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -375,11 +384,14 @@ class Literal(Condition):
         return self.key <= other.key
 
     def __str__(self):
-        return "%s %s(%s)" % (self.__class__.__name__, self.predicate,
-                              ", ".join(map(str, self.args)))
+        return "%s %s(%s)" % (
+            self.__class__.__name__,
+            self.predicate,
+            ", ".join(map(str, self.args)),
+        )
 
     def __repr__(self):
-        return '<%s>' % self
+        return "<%s>" % self
 
     def _dump(self):
         return str(self)
@@ -445,4 +457,5 @@ class NegatedAtom(Literal):
 
     def negate(self):
         return Atom(self.predicate, self.args)
+
     positive = negate

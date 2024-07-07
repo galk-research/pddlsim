@@ -3,6 +3,8 @@
 
 from __future__ import print_function
 
+import optparse
+import sys
 from collections import defaultdict
 from copy import deepcopy
 
@@ -10,11 +12,9 @@ import axiom_rules
 import fact_groups
 import instantiate
 import normalize
-import optparse
 import pddl
 import sas_tasks
 import simplify
-import sys
 import timers
 import tools
 
@@ -43,15 +43,16 @@ removed_implied_effect_counter = 0
 simplified_effect_condition_counter = 0
 added_implied_precondition_counter = 0
 
+
 def strips_to_sas_dictionary(groups, assert_partial):
     dictionary = {}
     for var_no, group in enumerate(groups):
         for val_no, atom in enumerate(group):
             dictionary.setdefault(atom, []).append((var_no, val_no))
     if assert_partial:
-        assert all(len(sas_pairs) == 1
-                   for sas_pairs in dictionary.values())
+        assert all(len(sas_pairs) == 1 for sas_pairs in dictionary.values())
     return [len(group) + 1 for group in groups], dictionary
+
 
 def translate_strips_conditions_aux(conditions, dictionary, ranges):
     condition = {}
@@ -71,8 +72,7 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
             # in the same way we deal with operator preconditions etc.,
             # where static facts disappear during grounding. So change
             # this when the goal code is refactored (also below). (**)
-            if (condition.get(var) is not None and
-                val not in condition.get(var)):
+            if condition.get(var) is not None and val not in condition.get(var):
                 # Conflicting conditions on this variable: Operator invalid.
                 return None
             condition[var] = set([val])
@@ -83,22 +83,22 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
 
     for fact in conditions:
         if fact.negated:
-           ## Note  Here we use a different solution than in Sec. 10.6.4
-           ##       of the thesis. Compare the last sentences of the third
-           ##       paragraph of the section.
-           ##       We could do what is written there. As a test case,
-           ##       consider Airport ADL tasks with only one airport, where
-           ##       (occupied ?x) variables are encoded in a single variable,
-           ##       and conditions like (not (occupied ?x)) do occur in
-           ##       preconditions.
-           ##       However, here we avoid introducing new derived predicates
-           ##       by treat the negative precondition as a disjunctive precondition
-           ##       and expanding it by "multiplying out" the possibilities.
-           ##       This can lead to an exponential blow-up so it would be nice
-           ##       to choose the behaviour as an option.
+            ## Note  Here we use a different solution than in Sec. 10.6.4
+            ##       of the thesis. Compare the last sentences of the third
+            ##       paragraph of the section.
+            ##       We could do what is written there. As a test case,
+            ##       consider Airport ADL tasks with only one airport, where
+            ##       (occupied ?x) variables are encoded in a single variable,
+            ##       and conditions like (not (occupied ?x)) do occur in
+            ##       preconditions.
+            ##       However, here we avoid introducing new derived predicates
+            ##       by treat the negative precondition as a disjunctive precondition
+            ##       and expanding it by "multiplying out" the possibilities.
+            ##       This can lead to an exponential blow-up so it would be nice
+            ##       to choose the behaviour as an option.
             done = False
             new_condition = {}
-            atom = pddl.Atom(fact.predicate, fact.args) # force positive
+            atom = pddl.Atom(fact.predicate, fact.args)  # force positive
             for var, val in dictionary.get(atom, ()):
                 # see comment (**) above
                 poss_vals = set(range(ranges[var]))
@@ -127,13 +127,13 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
                 var, vals = candidates[0]
                 condition[var] = vals
 
-        def multiply_out(condition): # destroys the input
+        def multiply_out(condition):  # destroys the input
             sorted_conds = sorted(condition.items(), key=number_of_values)
             flat_conds = [{}]
             for var, vals in sorted_conds:
                 if len(vals) == 1:
                     for cond in flat_conds:
-                        cond[var] = vals.pop() # destroys the input here
+                        cond[var] = vals.pop()  # destroys the input here
                 else:
                     new_conds = []
                     for cond in flat_conds:
@@ -146,33 +146,47 @@ def translate_strips_conditions_aux(conditions, dictionary, ranges):
 
     return multiply_out(condition)
 
-def translate_strips_conditions(conditions, dictionary, ranges,
-                                mutex_dict, mutex_ranges):
+
+def translate_strips_conditions(
+    conditions, dictionary, ranges, mutex_dict, mutex_ranges
+):
     if not conditions:
-        return [{}] # Quick exit for common case.
+        return [{}]  # Quick exit for common case.
 
     # Check if the condition violates any mutexes.
-    if translate_strips_conditions_aux(
-        conditions, mutex_dict, mutex_ranges) is None:
+    if translate_strips_conditions_aux(conditions, mutex_dict, mutex_ranges) is None:
         return None
 
     return translate_strips_conditions_aux(conditions, dictionary, ranges)
 
-def translate_strips_operator(operator, dictionary, ranges, mutex_dict, mutex_ranges, implied_facts):
 
-    conditions = translate_strips_conditions(operator.precondition, dictionary, ranges, mutex_dict, mutex_ranges)
+def translate_strips_operator(
+    operator, dictionary, ranges, mutex_dict, mutex_ranges, implied_facts
+):
+
+    conditions = translate_strips_conditions(
+        operator.precondition, dictionary, ranges, mutex_dict, mutex_ranges
+    )
     if conditions is None:
         return []
     sas_operators = []
     for condition in conditions:
-        op = translate_strips_operator_aux(operator, dictionary, ranges,
-                                           mutex_dict, mutex_ranges,
-                                           implied_facts, condition)
+        op = translate_strips_operator_aux(
+            operator,
+            dictionary,
+            ranges,
+            mutex_dict,
+            mutex_ranges,
+            implied_facts,
+            condition,
+        )
         sas_operators.append(op)
     return sas_operators
 
-def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
-    mutex_ranges, implied_facts, condition):
+
+def translate_strips_operator_aux(
+    operator, dictionary, ranges, mutex_dict, mutex_ranges, implied_facts, condition
+):
     # NOTE: This function does not really deal with the intricacies of properly
     # encoding delete effects for grouped propositions in the presence of
     # conditional effects. It should work ok but will bail out in more
@@ -182,13 +196,12 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
     effect = {}
 
     for conditions, fact in operator.add_effects:
-        eff_condition_list = translate_strips_conditions(conditions, dictionary,
-                                                         ranges, mutex_dict,
-                                                         mutex_ranges)
-        if eff_condition_list is None: # Impossible condition for this effect.
+        eff_condition_list = translate_strips_conditions(
+            conditions, dictionary, ranges, mutex_dict, mutex_ranges
+        )
+        if eff_condition_list is None:  # Impossible condition for this effect.
             continue
-        eff_condition = [sorted(eff_cond.items())
-                         for eff_cond in eff_condition_list]
+        eff_condition = [sorted(eff_cond.items()) for eff_cond in eff_condition_list]
         for var, val in dictionary[fact]:
             if condition.get(var) == val:
                 # Effect implied by precondition.
@@ -208,11 +221,12 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
                 eff_conditions.extend(eff_condition)
 
     for conditions, fact in operator.del_effects:
-        eff_condition_list = translate_strips_conditions(conditions, dictionary, ranges, mutex_dict, mutex_ranges)
+        eff_condition_list = translate_strips_conditions(
+            conditions, dictionary, ranges, mutex_dict, mutex_ranges
+        )
         if eff_condition_list is None:
             continue
-        eff_condition = [sorted(eff_cond.items())
-                         for eff_cond in eff_condition_list]
+        eff_condition = [sorted(eff_cond.items()) for eff_cond in eff_condition_list]
         for var, val in dictionary[fact]:
             none_of_those = ranges[var] - 1
 
@@ -255,8 +269,10 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
                             # decent check that the precondition is indeed inconsistent
                             # (using *all* mutexes), but that seems tough with this
                             # convoluted code, so we just warn and reject the operator.
-                            print("Warning: %s rejected. Cross your fingers." % (
-                                operator.name))
+                            print(
+                                "Warning: %s rejected. Cross your fingers."
+                                % (operator.value)
+                            )
                             if DEBUG:
                                 operator.dump()
                             return None
@@ -265,9 +281,11 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
                         assert eff_conditions == [[]]
                         del effect[var]
                     else:
-                        assert not eff_condition[0] and not eff_conditions[0], "Uncertain conflict"
+                        assert (
+                            not eff_condition[0] and not eff_conditions[0]
+                        ), "Uncertain conflict"
                         return None  # Definite conflict otherwise.
-            else: # no add effect on this variable
+            else:  # no add effect on this variable
                 if condition.get(var) != val:
                     if var in condition:
                         ## HACK HACK HACK! There is a precondition on the variable for
@@ -278,14 +296,14 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
                     for index, cond in enumerate(eff_condition_list):
                         if cond.get(var) != val:
                             # Need a guard for this delete effect.
-                            assert (var not in condition and
-                                    var not in eff_condition[index]), "Oops?"
+                            assert (
+                                var not in condition and var not in eff_condition[index]
+                            ), "Oops?"
                             eff_condition[index].append((var, val))
                 eff_conditions.extend(eff_condition)
 
     if possible_add_conflict:
         operator.dump()
-
 
     assert not possible_add_conflict, "Conflicting add effects?"
 
@@ -305,8 +323,11 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
             if prune_stupid_effect_conditions(var, post, eff_condition_lists):
                 global simplified_effect_condition_counter
                 simplified_effect_condition_counter += 1
-            if (ADD_IMPLIED_PRECONDITIONS and
-                pre == -1 and (var, 1 - post) in implied_precondition):
+            if (
+                ADD_IMPLIED_PRECONDITIONS
+                and pre == -1
+                and (var, 1 - post) in implied_precondition
+            ):
                 global added_implied_precondition_counter
                 added_implied_precondition_counter += 1
                 pre = 1 - post
@@ -316,7 +337,8 @@ def translate_strips_operator_aux(operator, dictionary, ranges, mutex_dict,
             pre_post.append((var, pre, post, eff_condition))
     prevail = list(condition.items())
 
-    return sas_tasks.SASOperator(operator.name, prevail, pre_post, operator.cost)
+    return sas_tasks.SASOperator(operator.value, prevail, pre_post, operator.cost)
+
 
 def prune_stupid_effect_conditions(var, val, conditions):
     ## (IF <conditions> THEN <var> := <val>) is a conditional effect.
@@ -333,7 +355,7 @@ def prune_stupid_effect_conditions(var, val, conditions):
     ##
     ## returns True when anything was changed
     if conditions == [[]]:
-        return False ## Quick exit for common case.
+        return False  ## Quick exit for common case.
     assert val in [0, 1]
     dual_fact = (var, 1 - val)
     simplified = False
@@ -350,8 +372,11 @@ def prune_stupid_effect_conditions(var, val, conditions):
             break
     return simplified
 
+
 def translate_strips_axiom(axiom, dictionary, ranges, mutex_dict, mutex_ranges):
-    conditions = translate_strips_conditions(axiom.condition, dictionary, ranges, mutex_dict, mutex_ranges)
+    conditions = translate_strips_conditions(
+        axiom.condition, dictionary, ranges, mutex_dict, mutex_ranges
+    )
     if conditions is None:
         return []
     if axiom.effect.negated:
@@ -364,19 +389,28 @@ def translate_strips_axiom(axiom, dictionary, ranges, mutex_dict, mutex_ranges):
         axioms.append(sas_tasks.SASAxiom(condition.items(), effect))
     return axioms
 
-def translate_strips_operators(actions, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts):
+
+def translate_strips_operators(
+    actions, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts
+):
     result = []
     for action in actions:
-        sas_ops = translate_strips_operator(action, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts)
+        sas_ops = translate_strips_operator(
+            action, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts
+        )
         result.extend(sas_ops)
     return result
+
 
 def translate_strips_axioms(axioms, strips_to_sas, ranges, mutex_dict, mutex_ranges):
     result = []
     for axiom in axioms:
-        sas_axioms = translate_strips_axiom(axiom, strips_to_sas, ranges, mutex_dict, mutex_ranges)
+        sas_axioms = translate_strips_axiom(
+            axiom, strips_to_sas, ranges, mutex_dict, mutex_ranges
+        )
         result.extend(sas_axioms)
     return result
+
 
 def dump_task(init, goals, actions, axioms, axiom_layer_dict):
     old_stdout = sys.stdout
@@ -403,16 +437,28 @@ def dump_task(init, goals, actions, axioms, axiom_layer_dict):
             print("%s: layer %d" % (atom, layer))
     sys.stdout = old_stdout
 
-def translate_task(strips_to_sas, ranges, translation_key,
-                   mutex_dict, mutex_ranges, mutex_key,
-                   init, goals,
-                   actions, axioms, metric, implied_facts):
+
+def translate_task(
+    strips_to_sas,
+    ranges,
+    translation_key,
+    mutex_dict,
+    mutex_ranges,
+    mutex_key,
+    init,
+    goals,
+    actions,
+    axioms,
+    metric,
+    implied_facts,
+):
     with timers.timing("Processing axioms", block=True):
         axioms, axiom_init, axiom_layer_dict = axiom_rules.handle_axioms(
-            actions, axioms, goals)
+            actions, axioms, goals
+        )
     init = init + axiom_init
-    #axioms.sort(key=lambda axiom: axiom.name)
-    #for axiom in axioms:
+    # axioms.sort(key=lambda axiom: axiom.name)
+    # for axiom in axioms:
     #  axiom.dump()
 
     if DUMP_TASK:
@@ -431,7 +477,9 @@ def translate_task(strips_to_sas, ranges, translation_key,
             init_values[var] = val
     init = sas_tasks.SASInit(init_values)
 
-    goal_dict_list = translate_strips_conditions(goals, strips_to_sas, ranges, mutex_dict, mutex_ranges)
+    goal_dict_list = translate_strips_conditions(
+        goals, strips_to_sas, ranges, mutex_dict, mutex_ranges
+    )
     assert len(goal_dict_list) == 1, "Negative goal not supported"
     ## we could substitute the negative goal literal in
     ## normalize.substitute_complicated_goal, using an axiom. We currently
@@ -442,8 +490,12 @@ def translate_task(strips_to_sas, ranges, translation_key,
     goal_pairs = list(goal_dict_list[0].items())
     goal = sas_tasks.SASGoal(goal_pairs)
 
-    operators = translate_strips_operators(actions, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts)
-    axioms = translate_strips_axioms(axioms, strips_to_sas, ranges, mutex_dict, mutex_ranges)
+    operators = translate_strips_operators(
+        actions, strips_to_sas, ranges, mutex_dict, mutex_ranges, implied_facts
+    )
+    axioms = translate_strips_axioms(
+        axioms, strips_to_sas, ranges, mutex_dict, mutex_ranges
+    )
 
     axiom_layers = [-1] * len(ranges)
     for atom, layer in axiom_layer_dict.items():
@@ -452,13 +504,14 @@ def translate_task(strips_to_sas, ranges, translation_key,
         axiom_layers[var] = layer
     variables = sas_tasks.SASVariables(ranges, axiom_layers, translation_key)
     mutexes = [sas_tasks.SASMutexGroup(group) for group in mutex_key]
-    return sas_tasks.SASTask(variables, mutexes, init, goal,
-                             operators, axioms, metric)
+    return sas_tasks.SASTask(variables, mutexes, init, goal, operators, axioms, metric)
+
 
 def unsolvable_sas_task(msg):
     print("%s! Generating unsolvable task..." % msg)
     variables = sas_tasks.SASVariables(
-        [2], [-1], [["Atom dummy(val1)", "Atom dummy(val2)"]])
+        [2], [-1], [["Atom dummy(val1)", "Atom dummy(val2)"]]
+    )
     # We create no mutexes: the only possible mutex is between
     # dummy(val1) and dummy(val2), but the preprocessor would filter
     # it out anyway since it is trivial (only involves one
@@ -469,13 +522,14 @@ def unsolvable_sas_task(msg):
     operators = []
     axioms = []
     metric = True
-    return sas_tasks.SASTask(variables, mutexes, init, goal,
-                             operators, axioms, metric)
+    return sas_tasks.SASTask(variables, mutexes, init, goal, operators, axioms, metric)
+
 
 def pddl_to_sas(task):
     with timers.timing("Instantiating", block=True):
-        (relaxed_reachable, atoms, actions, axioms,
-         reachable_action_params) = instantiate.explore(task)
+        (relaxed_reachable, atoms, actions, axioms, reachable_action_params) = (
+            instantiate.explore(task)
+        )
 
     if not relaxed_reachable:
         return unsolvable_sas_task("No relaxed solution")
@@ -490,16 +544,18 @@ def pddl_to_sas(task):
 
     with timers.timing("Computing fact groups", block=True):
         groups, mutex_groups, translation_key = fact_groups.compute_groups(
-            task, atoms, reachable_action_params,
-            partial_encoding=USE_PARTIAL_ENCODING)
+            task, atoms, reachable_action_params, partial_encoding=USE_PARTIAL_ENCODING
+        )
 
     with timers.timing("Building STRIPS to SAS dictionary"):
         ranges, strips_to_sas = strips_to_sas_dictionary(
-            groups, assert_partial=USE_PARTIAL_ENCODING)
+            groups, assert_partial=USE_PARTIAL_ENCODING
+        )
 
     with timers.timing("Building dictionary for full mutex groups"):
         mutex_ranges, mutex_dict = strips_to_sas_dictionary(
-            mutex_groups, assert_partial=False)
+            mutex_groups, assert_partial=False
+        )
 
     if ADD_IMPLIED_PRECONDITIONS:
         with timers.timing("Building implied facts dictionary..."):
@@ -512,10 +568,19 @@ def pddl_to_sas(task):
 
     with timers.timing("Translating task", block=True):
         sas_task = translate_task(
-            strips_to_sas, ranges, translation_key,
-            mutex_dict, mutex_ranges, mutex_key,
-            task.init, goal_list, actions, axioms, task.use_min_cost_metric,
-            implied_facts)
+            strips_to_sas,
+            ranges,
+            translation_key,
+            mutex_dict,
+            mutex_ranges,
+            mutex_key,
+            task.init,
+            goal_list,
+            actions,
+            axioms,
+            task.use_min_cost_metric,
+            implied_facts,
+        )
 
     print("%d implied effects removed" % removed_implied_effect_counter)
     print("%d effect conditions simplified" % simplified_effect_condition_counter)
@@ -530,6 +595,7 @@ def pddl_to_sas(task):
 
     return sas_task
 
+
 def build_mutex_key(strips_to_sas, groups):
     group_keys = []
     for group in groups:
@@ -542,6 +608,7 @@ def build_mutex_key(strips_to_sas, groups):
                 print("not in strips_to_sas, left out:", fact)
         group_keys.append(group_key)
     return group_keys
+
 
 def build_implied_facts(strips_to_sas, groups, mutex_groups):
     ## Compute a dictionary mapping facts (FDR pairs) to lists of FDR
@@ -591,12 +658,20 @@ def build_implied_facts(strips_to_sas, groups, mutex_groups):
 
 def dump_statistics(sas_task):
     print("Translator variables: %d" % len(sas_task.variables.ranges))
-    print(("Translator derived variables: %d" %
-           len([layer for layer in sas_task.variables.axiom_layers if layer >= 0])))
+    print(
+        (
+            "Translator derived variables: %d"
+            % len([layer for layer in sas_task.variables.axiom_layers if layer >= 0])
+        )
+    )
     print("Translator facts: %d" % sum(sas_task.variables.ranges))
     print("Translator mutex groups: %d" % len(sas_task.mutexes))
-    print(("Translator total mutex groups size: %d" %
-           sum(mutex.get_encoding_size() for mutex in sas_task.mutexes)))
+    print(
+        (
+            "Translator total mutex groups size: %d"
+            % sum(mutex.get_encoding_size() for mutex in sas_task.mutexes)
+        )
+    )
     print("Translator operators: %d" % len(sas_task.operators))
     print("Translator task size: %d" % sas_task.get_encoding_size())
     try:
@@ -612,21 +687,30 @@ def check_python_version(force_old_python):
         if force_old_python:
             print("Warning: Running with slow Python 2.6", file=sys.stderr)
         else:
-            print("Error: Python 2.6 runs the translator very slowly. You should "
-                  "use Python 2.7 or 3.x instead. If you really need to run it "
-                  "with Python 2.6, you can pass the --force-old-python flag.",
-                  file=sys.stderr)
+            print(
+                "Error: Python 2.6 runs the translator very slowly. You should "
+                "use Python 2.7 or 3.x instead. If you really need to run it "
+                "with Python 2.6, you can pass the --force-old-python flag.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
 
 def parse_options():
-    optparser = optparse.OptionParser(usage="Usage: %prog [options] [<domain.pddl>] <task.pddl>")
+    optparser = optparse.OptionParser(
+        usage="Usage: %prog [options] [<domain.pddl>] <task.pddl>"
+    )
     optparser.add_option(
-        "--relaxed", dest="generate_relaxed_task", action="store_true",
-        help="Output relaxed task (no delete effects)")
+        "--relaxed",
+        dest="generate_relaxed_task",
+        action="store_true",
+        help="Output relaxed task (no delete effects)",
+    )
     optparser.add_option(
-        "--force-old-python", action="store_true",
-        help="Allow running the translator with slow Python 2.6")
+        "--force-old-python",
+        action="store_true",
+        help="Allow running the translator with slow Python 2.6",
+    )
     options, args = optparser.parse_args()
     # Remove the parsed options from sys.argv
     sys.argv = [sys.argv[0]] + args

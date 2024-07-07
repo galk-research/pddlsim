@@ -45,8 +45,7 @@ class DomainTransitionGraph(object):
 def build_dtgs(task):
     init_vals = task.init.values
     sizes = task.variables.ranges
-    dtgs = [DomainTransitionGraph(init, size)
-            for (init, size) in zip(init_vals, sizes)]
+    dtgs = [DomainTransitionGraph(init, size) for (init, size) in zip(init_vals, sizes)]
 
     def add_arc(var_no, pre_spec, post):
         if pre_spec == -1:
@@ -69,17 +68,20 @@ def build_dtgs(task):
 always_false = object()
 always_true = object()
 
+
 class Impossible(Exception):
     pass
+
 
 class DoesNothing(Exception):
     pass
 
+
 class VarValueRenaming(object):
     def __init__(self):
-        self.new_var_nos = []   # indexed by old var_no
-        self.new_values = []    # indexed by old var_no and old value
-        self.new_sizes = []     # indexed by new var_no
+        self.new_var_nos = []  # indexed by old var_no
+        self.new_values = []  # indexed by old var_no and old value
+        self.new_sizes = []  # indexed by new var_no
         self.new_var_count = 0
         self.num_removed_values = 0
 
@@ -150,8 +152,7 @@ class VarValueRenaming(object):
             new_facts = []
             for var, val in mutex.facts:
                 new_var_no, new_value = self.translate_pair((var, val))
-                if (new_value is not always_true and
-                    new_value is not always_false):
+                if new_value is not always_true and new_value is not always_false:
                     new_facts.append((new_var_no, new_value))
             if len(new_facts) >= 2:
                 mutex.facts = new_facts
@@ -184,7 +185,7 @@ class VarValueRenaming(object):
             except (Impossible, DoesNothing):
                 num_removed += 1
                 if DEBUG:
-                    print("Removed operator: %s" % op.name)
+                    print("Removed operator: %s" % op.value)
         print("%d operators removed" % num_removed)
         operators[:] = new_operators
 
@@ -268,6 +269,7 @@ class VarValueRenaming(object):
                 assert new_var_no is not None
                 new_pairs.append((new_var_no, new_value))
         pairs[:] = new_pairs
+
 
 def build_renaming(dtgs):
     renaming = VarValueRenaming()

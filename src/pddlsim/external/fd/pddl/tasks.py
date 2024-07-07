@@ -2,21 +2,35 @@ from __future__ import print_function
 
 import sys
 
-
 from . import actions
 from . import axioms
 from . import conditions
 from . import effects
-from . import predicates
-from . import pddl_types
-from . import functions
 from . import f_expression
+from . import functions
+from . import pddl_types
+from . import predicates
 
 
 class Task(object):
 
-    def __init__(self, domain_name, task_name, requirements,
-                 types, objects, predicates, functions, failure_probabilities, init, revealable_predicates, goal, actions, axioms, use_metric):
+    def __init__(
+        self,
+        domain_name,
+        task_name,
+        requirements,
+        types,
+        objects,
+        predicates,
+        functions,
+        failure_probabilities,
+        init,
+        revealable_predicates,
+        goal,
+        actions,
+        axioms,
+        use_metric,
+    ):
         self.domain_name = domain_name
         self.task_name = task_name
         self.requirements = requirements
@@ -43,27 +57,63 @@ class Task(object):
 
     @staticmethod
     def parse(domain_pddl, task_pddl):
-        domain_name, domain_requirements, types, constants, predicates, functions, actions, axioms \
-            = parse_domain(domain_pddl)
-        task_name, task_domain_name, task_requirements, objects, failure_probabilities, init, revealable_predicates, goal, use_metric = parse_task(
-            task_pddl)
+        (
+            domain_name,
+            domain_requirements,
+            types,
+            constants,
+            predicates,
+            functions,
+            actions,
+            axioms,
+        ) = parse_domain(domain_pddl)
+        (
+            task_name,
+            task_domain_name,
+            task_requirements,
+            objects,
+            failure_probabilities,
+            init,
+            revealable_predicates,
+            goal,
+            use_metric,
+        ) = parse_task(task_pddl)
         assert domain_name == task_domain_name
-        requirements = Requirements(sorted(set(
-            domain_requirements.requirements +
-                    task_requirements.requirements)))
+        requirements = Requirements(
+            sorted(
+                set(domain_requirements.requirements + task_requirements.requirements)
+            )
+        )
         objects = constants + objects
         check_for_duplicates(
-            [o.name for o in objects],
+            [o.value for o in objects],
             errmsg="error: duplicate object %r",
-            finalmsg="please check :constants and :objects definitions")
-        init += [conditions.Atom("=", (obj.name, obj.name)) for obj in objects]
+            finalmsg="please check :constants and :objects definitions",
+        )
+        init += [conditions.Atom("=", (obj.value, obj.value)) for obj in objects]
 
-        return Task(domain_name, task_name, requirements, types, objects,
-                    predicates, functions, failure_probabilities, init, revealable_predicates, goal, actions, axioms, use_metric)
+        return Task(
+            domain_name,
+            task_name,
+            requirements,
+            types,
+            objects,
+            predicates,
+            functions,
+            failure_probabilities,
+            init,
+            revealable_predicates,
+            goal,
+            actions,
+            axioms,
+            use_metric,
+        )
 
     def dump(self):
-        print("Problem %s: %s [%s]" % (
-            self.domain_name, self.task_name, self.requirements))
+        print(
+            "Problem %s: %s [%s]"
+            % (self.domain_name, self.task_name, self.requirements)
+        )
         print("Types:")
         for type in self.types:
             print("  %s" % type)
@@ -96,11 +146,20 @@ class Requirements(object):
         self.requirements = requirements
         for req in requirements:
             assert req in (
-                ":strips", ":adl", ":typing", ":negation", ":equality",
-              ":negative-preconditions", ":disjunctive-preconditions",
-              ":existential-preconditions", ":universal-preconditions",
-              ":quantified-preconditions", ":conditional-effects",
-              ":derived-predicates", ":action-costs"), req
+                ":strips",
+                ":adl",
+                ":typing",
+                ":negation",
+                ":equality",
+                ":negative-preconditions",
+                ":disjunctive-preconditions",
+                ":existential-preconditions",
+                ":universal-preconditions",
+                ":quantified-preconditions",
+                ":conditional-effects",
+                ":derived-predicates",
+                ":action-costs",
+            ), req
 
     def __str__(self):
         return ", ".join(self.requirements)
@@ -121,8 +180,13 @@ def parse_domain(domain_pddl):
     requirements = Requirements([":strips"])
     the_types = [pddl_types.Type("object")]
     constants, the_predicates, the_functions = [], [], []
-    correct_order = [":requirements", ":types", ":constants", ":predicates",
-                     ":functions"]
+    correct_order = [
+        ":requirements",
+        ":types",
+        ":constants",
+        ":predicates",
+        ":functions",
+    ]
     seen_fields = []
     for opt in iterator:
         field = opt[0]
@@ -130,30 +194,37 @@ def parse_domain(domain_pddl):
             first_action = opt
             break
         if field in seen_fields:
-            raise SystemExit("Error in domain specification\n" +
-                             "Reason: two '%s' specifications." % field)
-        if (seen_fields and
-                correct_order.index(seen_fields[-1]) > correct_order.index(field)):
+            raise SystemExit(
+                "Error in domain specification\n"
+                + "Reason: two '%s' specifications." % field
+            )
+        if seen_fields and correct_order.index(seen_fields[-1]) > correct_order.index(
+            field
+        ):
             msg = "\nWarning: %s specification not allowed here (cf. PDDL BNF)" % field
             print(msg, file=sys.stderr)
         seen_fields.append(field)
         if field == ":requirements":
             requirements = Requirements(opt[1:])
         elif field == ":types":
-            the_types.extend(pddl_types.parse_typed_list(opt[1:],
-                                                         constructor=pddl_types.Type))
+            the_types.extend(
+                pddl_types.parse_typed_list(opt[1:], constructor=pddl_types.Type)
+            )
         elif field == ":constants":
             constants = pddl_types.parse_typed_list(opt[1:])
         elif field == ":predicates":
-            the_predicates = [predicates.Predicate.parse(entry)
-                              for entry in opt[1:]]
-            the_predicates += [predicates.Predicate("=",
-                                                    [pddl_types.TypedObject(
-                                                        "?x", "object"),
-                                                     pddl_types.TypedObject("?y", "object")])]
+            the_predicates = [predicates.Predicate.parse(entry) for entry in opt[1:]]
+            the_predicates += [
+                predicates.Predicate(
+                    "=",
+                    [
+                        pddl_types.TypedObject("?x", "object"),
+                        pddl_types.TypedObject("?y", "object"),
+                    ],
+                )
+            ]
         elif field == ":functions":
-            the_functions = [functions.Function.parse(entry)
-                             for entry in opt[1:]]
+            the_functions = [functions.Function.parse(entry) for entry in opt[1:]]
     pddl_types.set_supertypes(the_types)
     # for type in the_types:
     #   print repr(type), type.supertype_names
@@ -180,10 +251,12 @@ def parse_domain(domain_pddl):
 def parse_fail_condition(a):
     return (conditions.parse_condition(a[0]), a[1], float(a[2]))
 
+
 def parse_revealable_predicate(a):
     parsed_effects = []
     effects.parse_effects(a[1], parsed_effects)
     return (conditions.parse_condition(a[0]), parsed_effects, float(a[2]))
+
 
 def parse_task(task_pddl):
     iterator = iter(task_pddl)
@@ -231,17 +304,22 @@ def parse_task(task_pddl):
             try:
                 assignment = f_expression.parse_assignment(fact)
             except ValueError as e:
-                raise SystemExit("Error in initial state specification\n" +
-                                 "Reason: %s." % e)
+                raise SystemExit(
+                    "Error in initial state specification\n" + "Reason: %s." % e
+                )
             if assignment.fluent in initial_assignments:
                 prev = initial_assignments[assignment.fluent]
                 if assignment.expression == prev.expression:
-                    print("Warning: %s is specified twice" % assignment,
-                          "in initial state specification")
+                    print(
+                        "Warning: %s is specified twice" % assignment,
+                        "in initial state specification",
+                    )
                 else:
-                    raise SystemExit("Error in initial state specification\n" +
-                                     "Reason: conflicting assignment for " +
-                                     "%s." % assignment.fluent)
+                    raise SystemExit(
+                        "Error in initial state specification\n"
+                        + "Reason: conflicting assignment for "
+                        + "%s." % assignment.fluent
+                    )
             else:
                 initial_assignments[assignment.fluent] = assignment
                 initial.append(assignment)
@@ -257,8 +335,8 @@ def parse_task(task_pddl):
     yield initial
 
     revealable_predicates = next(iterator)
-    if revealable_predicates [0] == ":reveal":
-        yield [parse_revealable_predicate(f) for f in revealable_predicates [1:]]
+    if revealable_predicates[0] == ":reveal":
+        yield [parse_revealable_predicate(f) for f in revealable_predicates[1:]]
         goal = next(iterator)
     else:
         yield []
@@ -271,7 +349,7 @@ def parse_task(task_pddl):
         assert goal[0] == ":goals" and len(goal) == 2
         # yield multiple_goals.parse_multiple_goals(goal[1])
         goals = goal[1]
-        assert goals[0] == 'all'
+        assert goals[0] == "all"
         yield [conditions.parse_condition(goal) for goal in goals[1:]]
 
     use_metric = False
@@ -287,15 +365,18 @@ def parse_task(task_pddl):
         assert False, entry
 
 
-def check_atom_consistency(atom, same_truth_value, other_truth_value, atom_is_true=True):
+def check_atom_consistency(
+    atom, same_truth_value, other_truth_value, atom_is_true=True
+):
     if atom in other_truth_value:
-        raise SystemExit("Error in initial state specification\n" +
-                         "Reason: %s is true and false." % atom)
+        raise SystemExit(
+            "Error in initial state specification\n"
+            + "Reason: %s is true and false." % atom
+        )
     if atom in same_truth_value:
         if not atom_is_true:
             atom = atom.negate()
-        print("Warning: %s is specified twice in initial state specification" %
-              atom)
+        print("Warning: %s is specified twice in initial state specification" % atom)
 
 
 def check_for_duplicates(elements, errmsg, finalmsg):

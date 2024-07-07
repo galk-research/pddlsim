@@ -15,8 +15,9 @@ dependencies = [
     "unified-planning[fast-downward]",
     "numpy<2", # Update this once ConfigSpace works with NumPy 2.x.x
     "setuptools>=70.2.0,<71",
+    "parsy>=2.1,<3",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4"
 readme = "README.md"
 license = { text = "MIT" }
 keywords = ["PDDL", "agent", "simulator"]

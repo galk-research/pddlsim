@@ -6,9 +6,11 @@ from . import conditions
 from . import effects
 from . import pddl_types
 
+
 class Action(object):
-    def __init__(self, name, parameters, num_external_parameters,
-                 precondition, effects, cost):
+    def __init__(
+        self, name, parameters, num_external_parameters, precondition, effects, cost
+    ):
         assert 0 <= num_external_parameters <= len(parameters)
         self.name = name
         self.parameters = parameters
@@ -24,13 +26,19 @@ class Action(object):
         self.effects_probs = None
         if effects:
             if isinstance(effects[0], tuple):
-                self.probabilistic_effects = [prob_effect_tuple[1] for prob_effect_tuple in effects]
-                self.effects_probs = [prob_effect_tuple[0] for prob_effect_tuple in effects]
+                self.probabilistic_effects = [
+                    prob_effect_tuple[1] for prob_effect_tuple in effects
+                ]
+                self.effects_probs = [
+                    prob_effect_tuple[0] for prob_effect_tuple in effects
+                ]
                 self.effects = None
         self.cost = cost
-        self.uniquify_variables() # TODO: uniquify variables in cost?
+        self.uniquify_variables()  # TODO: uniquify variables in cost?
+
     def __repr__(self):
         return "<Action %r at %#x>" % (self.name, id(self))
+
     def parse(alist):
         iterator = iter(alist)
         action_tag = next(iterator)
@@ -38,8 +46,9 @@ class Action(object):
         name = next(iterator)
         parameters_tag_opt = next(iterator)
         if parameters_tag_opt == ":parameters":
-            parameters = pddl_types.parse_typed_list(next(iterator),
-                                                     only_variables=True)
+            parameters = pddl_types.parse_typed_list(
+                next(iterator), only_variables=True
+            )
             precondition_tag_opt = next(iterator)
         else:
             parameters = []
@@ -60,9 +69,10 @@ class Action(object):
             raise SystemExit("Error in Action %s\nReason: %s." % (name, e))
         for rest in iterator:
             assert False, rest
-        return Action(name, parameters, len(parameters),
-                      precondition, eff, cost)
+        return Action(name, parameters, len(parameters), precondition, eff, cost)
+
     parse = staticmethod(parse)
+
     def dump(self):
         print("%s(%s)" % (self.name, ", ".join(map(str, self.parameters))))
         print("Precondition:")
@@ -73,19 +83,20 @@ class Action(object):
                 eff.dump()
         if self.probabilistic_effects:
             print("Probabilistic effects:")
-            for index , effects in enumerate(self.probabilistic_effects):
+            for index, effects in enumerate(self.probabilistic_effects):
                 print("Probability: {}".format(self.effects_probs[index]))
-                print ("Effect: ")
+                print("Effect: ")
                 for eff in effects:
                     eff.dump()
 
         print("Cost:")
-        if(self.cost):
+        if self.cost:
             self.cost.dump()
         else:
             print("  None")
+
     def uniquify_variables(self):
-        self.type_map = dict([(par.name, par.type) for par in self.parameters])
+        self.type_map = dict([(par.value, par.type) for par in self.parameters])
         self.precondition = self.precondition.uniquify_variables(self.type_map)
         if self.effects:
             for effect in self.effects:
@@ -111,9 +122,14 @@ class Action(object):
                         cur_effects_new.append(relaxed_effect)
                 new_effects.append((self.effects_probs[index], cur_effects_new))
 
-        return Action(self.name, self.parameters, self.num_external_parameters,
-                      self.precondition.relaxed().simplified(),
-                      new_effects)
+        return Action(
+            self.name,
+            self.parameters,
+            self.num_external_parameters,
+            self.precondition.relaxed().simplified(),
+            new_effects,
+        )
+
     def untyped(self):
         # We do not actually remove the types from the parameter lists,
         # just additionally incorporate them into the conditions.
@@ -121,11 +137,16 @@ class Action(object):
         result = copy.copy(self)
         parameter_atoms = [par.to_untyped_strips() for par in self.parameters]
         new_precondition = self.precondition.untyped()
-        result.precondition = conditions.Conjunction(parameter_atoms + [new_precondition])
+        result.precondition = conditions.Conjunction(
+            parameter_atoms + [new_precondition]
+        )
         if self.effects:
             result.effects = [eff.untyped() for eff in self.effects]
         if result.probabilistic_effects:
-            result.probabilistic_effects = [[eff.untyped() for eff in cur_effects] for cur_effects in self.probabilistic_effects]
+            result.probabilistic_effects = [
+                [eff.untyped() for eff in cur_effects]
+                for cur_effects in self.probabilistic_effects
+            ]
 
         return result
 
@@ -137,30 +158,37 @@ class Action(object):
         Precondition and effect conditions must be normalized for this to work.
         Returns None if var_mapping does not correspond to a valid instantiation
         (because it has impossible preconditions or an empty effect list.)"""
-        arg_list = [var_mapping[par.name]
-                    for par in self.parameters[:self.num_external_parameters]]
+        arg_list = [
+            var_mapping[par.value]
+            for par in self.parameters[: self.num_external_parameters]
+        ]
         name = "(%s %s)" % (self.name, " ".join(arg_list))
 
         precondition = []
         try:
-            self.precondition.instantiate(var_mapping, init_facts,
-                                          fluent_facts, precondition)
+            self.precondition.instantiate(
+                var_mapping, init_facts, fluent_facts, precondition
+            )
         except conditions.Impossible:
             return None
         effects = []
         for eff in self.effects:
-            eff.instantiate(var_mapping, init_facts, fluent_facts,
-                            objects_by_type, effects)
+            eff.instantiate(
+                var_mapping, init_facts, fluent_facts, objects_by_type, effects
+            )
         if effects:
             if self.cost is None:
-		# MRJ: If no cost function is mentioned in this action, I reckon
-		# we should assume it to have a cost of 1, rather than zero
+                # MRJ: If no cost function is mentioned in this action, I reckon
+                # we should assume it to have a cost of 1, rather than zero
                 cost = 1
             else:
-                cost = int(self.cost.instantiate(var_mapping, init_facts).expression.value)
+                cost = int(
+                    self.cost.instantiate(var_mapping, init_facts).expression.value
+                )
             return PropositionalAction(name, precondition, effects, cost)
         else:
             return None
+
 
 class PropositionalAction:
     def __init__(self, name, precondition, effects, cost):
@@ -179,8 +207,10 @@ class PropositionalAction:
             if effect.negated and (condition, effect.negate()) not in self.add_effects:
                 self.del_effects.append((condition, effect.negate()))
         self.cost = cost
+
     def __repr__(self):
         return "<PropositionalAction %r at %#x>" % (self.name, id(self))
+
     def dump(self):
         print(self.name)
         for fact in self.precondition:
