@@ -3,6 +3,10 @@ __pycache__/
 # Sphinx specific
 build/
 
+# Pytest specific
+.benchmarks/
+.pytest_cache/
+
 # PDM specific
 .pdm-build/
 .venv/
@@ -12,6 +16,5 @@ build/
 .idea/
 
 # PDDLSIM specific stuff
-.benchmarks/
 tmp_problem_generation
 multiple_goal_temp.pddl

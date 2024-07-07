@@ -1,47 +1,26 @@
-from typing import Callable
+from parsy import string, seq, forward_declaration
 
-from parsy import regex, string, seq, Parser, forward_declaration
-
-_whitespace = regex(r"\s*")
-
-_lexeme: Callable[[Parser], Parser] = lambda parser: _whitespace >> parser
-
-_left_brace = _lexeme(string("("))
-_right_brace = _lexeme(string(")"))
-
-
-def _s_expression(
-    header_parser: Parser,
-    item_parser: Parser,
-    items: int | None = None,
-    ignore_header=False,
-):
-    header_section_parser = _left_brace >> header_parser
-    items_parser = item_parser.many() if items is None else item_parser.times(items)
-    items_section_parser = items_parser << _right_brace
-
-    if ignore_header:
-        return header_section_parser >> items_section_parser
-    else:
-        return seq(header_section_parser, items_section_parser)
-
-
-class Name:
-    parser = _lexeme(regex(r"[a-zA-Z][a-zA-Z0-9_\-]*").map(lambda name: Name(name)))
-
-    def __init__(self, value: str):
-        self.value = value
+from pddlsim.parser.common import (
+    lexeme,
+    s_expression,
+    braced,
+    not_parser,
+    or_parser,
+    and_parser,
+    Name,
+    end_parser,
+)
 
 
 class Variable:
-    parser = (_lexeme(string("?")) >> Name.parser).map(lambda name: Variable(name))
+    parser = (lexeme(string("?")) >> Name.parser).map(lambda name: Variable(name))
 
     def __init__(self, name: str):
         self.name = name
 
 
 class PredicateDefinition:
-    parser = _s_expression(Name.parser, Variable.parser).combine(
+    parser = s_expression(Name.parser, Variable.parser).combine(
         lambda name, parameters: PredicateDefinition(name, parameters)
     )
 
@@ -51,8 +30,8 @@ class PredicateDefinition:
 
 
 class EqualityFormulaAtom:
-    parser = _s_expression(
-        _lexeme(string("=")), Variable.parser, items=2, ignore_header=True
+    parser = braced(
+        seq(lexeme(string("=")) >> Variable.parser, Variable.parser)
     ).combine(lambda a, b: EqualityFormulaAtom(a, b))
 
     def __init__(self, left_hand_side: Variable, right_hand_side: Variable):
@@ -61,7 +40,7 @@ class EqualityFormulaAtom:
 
 
 class PredicateFormulaAtom:
-    parser = _s_expression(Name.parser, Variable.parser).combine(
+    parser = s_expression(Name.parser, Variable.parser).combine(
         lambda name, grounding: PredicateFormulaAtom(name, grounding)
     )
 
@@ -78,27 +57,27 @@ precondition_parser = forward_declaration()
 
 
 class NotPrecondition:
-    parser = _s_expression(
-        _lexeme(string("not")), precondition_parser, items=1, ignore_header=True
-    ).combine(lambda precondition: NotPrecondition(precondition))
+    parser = braced(not_parser >> precondition_parser).combine(
+        lambda precondition: NotPrecondition(precondition)
+    )
 
     def __init__(self, precondition: "Precondition"):
         self.precondition = precondition
 
 
 class OrPrecondition:
-    parser = _s_expression(
-        _lexeme(string("or")), precondition_parser, ignore_header=True
-    ).map(lambda preconditions: OrPrecondition(preconditions))
+    parser = s_expression(or_parser, precondition_parser, ignore_header=True).map(
+        lambda preconditions: OrPrecondition(preconditions)
+    )
 
     def __init__(self, preconditions: list["Precondition"]):
         self.preconditions = preconditions
 
 
 class AndPrecondition:
-    parser = _s_expression(
-        _lexeme(string("and")), precondition_parser, ignore_header=True
-    ).map(lambda preconditions: AndPrecondition(preconditions))
+    parser = s_expression(and_parser, precondition_parser, ignore_header=True).map(
+        lambda preconditions: AndPrecondition(preconditions)
+    )
 
     def __init__(self, preconditions: list["Precondition"]):
         self.preconditions = preconditions
@@ -114,9 +93,9 @@ precondition_parser.become(
 
 
 class NotLiteral:
-    parser = _s_expression(
-        _lexeme(string("not")), PredicateFormulaAtom.parser, items=1, ignore_header=True
-    ).combine(lambda predicate_atom: NotLiteral(predicate_atom))
+    parser = braced(not_parser >> PredicateFormulaAtom.parser).map(
+        lambda predicate_atom: NotLiteral(predicate_atom)
+    )
 
     def __init__(self, predicate_atom: PredicateFormulaAtom):
         self.predicate_atom = predicate_atom
@@ -127,9 +106,9 @@ literal_parser = NotLiteral.parser | PredicateFormulaAtom.parser
 
 
 class AndEffect:
-    parser = _s_expression(
-        _lexeme(string("and")), literal_parser, ignore_header=True
-    ).map(lambda literals: AndEffect(literals))
+    parser = s_expression(and_parser, literal_parser, ignore_header=True).map(
+        lambda literals: AndEffect(literals)
+    )
 
     def __init__(self, literals: list[Literal]):
         self.literals = literals
@@ -140,17 +119,17 @@ effect_parser = AndEffect.parser
 
 
 class Action:
-    parser = seq(
-        _left_brace >> _lexeme(string(":action")) >> Name.parser,
-        _lexeme(string(":parameters"))
-        >> _left_brace
-        >> Variable.parser.many()
-        << _right_brace,
-        _lexeme(string(":precondition")) >> precondition_parser,
-        _lexeme(string(":effect")) >> effect_parser << _right_brace,
-    ).combine(
-        lambda name, parameters, precondition, effect: Action(
-            name, parameters, precondition, effect
+    parser = braced(
+        seq(
+            lexeme(string(":action")) >> Name.parser,
+            lexeme(string(":parameters")),
+            braced(Variable.parser.many()),
+            lexeme(string(":precondition")) >> precondition_parser,
+            lexeme(string(":effect")) >> effect_parser,
+        ).combine(
+            lambda name, parameters, precondition, effect: Action(
+                name, parameters, precondition, effect
+            )
         )
     )
 
@@ -167,31 +146,19 @@ class Action:
         self.effect = effect
 
 
-predicate_definitions_parser = (
-    _left_brace
-    >> _lexeme(string(":predicates"))
-    >> PredicateDefinition.parser.many()
-    << _right_brace
-)
-
-domain_name_parser = (
-    _left_brace >> _lexeme(string("domain")) >> Name.parser << _right_brace
-)
-
-domain_body_parser = seq(
-    domain_name_parser,
-    predicate_definitions_parser,
-    Action.parser.many(),
+predicate_definitions_parser = braced(
+    lexeme(string(":predicates")) >> PredicateDefinition.parser.many()
 )
 
 
 class Domain:
+    _domain_body_parser = seq(
+        braced(lexeme(string("domain")) >> Name.parser),
+        predicate_definitions_parser,
+        Action.parser.many(),
+    )
     parser = (
-        _left_brace
-        >> _lexeme(string("define"))
-        >> domain_body_parser
-        << _right_brace
-        << _whitespace
+        braced(lexeme(string("define")) >> _domain_body_parser) << end_parser
     ).combine(
         lambda name, predicate_definitions, actions: Domain(
             name, predicate_definitions, actions
