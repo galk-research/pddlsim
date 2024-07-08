@@ -62,13 +62,13 @@ class BalanceChecker(object):
         if inequal_params:
             precond_parts = [action.precondition]
             for pos1, pos2 in inequal_params:
-                param1 = action.parameters[pos1].value
-                param2 = action.parameters[pos2].value
+                param1 = action.parameters[pos1].name
+                param2 = action.parameters[pos2].name
                 new_cond = pddl.NegatedAtom("=", (param1, param2))
                 precond_parts.append(new_cond)
             precond = pddl.Conjunction(precond_parts).simplified()
             return pddl.Action(
-                action.value,
+                action.name,
                 action.parameters,
                 action.num_external_parameters,
                 precond,
@@ -84,7 +84,7 @@ def get_fluents(task):
     for action in task.actions:
         for eff in action.effects:
             fluent_names.add(eff.literal.predicate)
-    return [pred for pred in task.predicates if pred.value in fluent_names]
+    return [pred for pred in task.predicates if pred.name in fluent_names]
 
 
 def get_initial_invariants(task):
@@ -92,7 +92,7 @@ def get_initial_invariants(task):
         all_args = list(range(len(predicate.arguments)))
         for omitted_arg in [-1] + all_args:
             order = [i for i in all_args if i != omitted_arg]
-            part = invariants.InvariantPart(predicate.value, order, omitted_arg)
+            part = invariants.InvariantPart(predicate.name, order, omitted_arg)
             yield invariants.Invariant((part,))
 
 

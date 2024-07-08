@@ -96,7 +96,7 @@ class Action(object):
             print("  None")
 
     def uniquify_variables(self):
-        self.type_map = dict([(par.value, par.type) for par in self.parameters])
+        self.type_map = dict([(par.name, par.type) for par in self.parameters])
         self.precondition = self.precondition.uniquify_variables(self.type_map)
         if self.effects:
             for effect in self.effects:
@@ -159,7 +159,7 @@ class Action(object):
         Returns None if var_mapping does not correspond to a valid instantiation
         (because it has impossible preconditions or an empty effect list.)"""
         arg_list = [
-            var_mapping[par.value]
+            var_mapping[par.name]
             for par in self.parameters[: self.num_external_parameters]
         ]
         name = "(%s %s)" % (self.name, " ".join(arg_list))

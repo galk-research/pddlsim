@@ -21,7 +21,7 @@ def expand_group(group, task, reachable_facts):
             #       though.
             for obj in task.objects:
                 newargs = list(fact.args)
-                newargs[pos] = obj.value
+                newargs[pos] = obj.name
                 atom = pddl.Atom(fact.predicate, newargs)
                 if atom in reachable_facts:
                     result.append(atom)

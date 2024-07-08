@@ -34,9 +34,9 @@ def instantiate_factored_mapping(pairs):
 
 def find_unique_variables(action, invariant):
     # find unique names for invariant variables
-    params = set([p.value for p in action.parameters])
+    params = set([p.name for p in action.parameters])
     for eff in action.effects:
-        params.update([p.value for p in eff.parameters])
+        params.update([p.name for p in eff.parameters])
     inv_vars = []
     counter = itertools.count()
     for _ in range(invariant.arity()):
@@ -249,7 +249,7 @@ class Invariant:
         for part in self.parts:
             actions_to_check |= balance_checker.get_threats(part.predicate)
         for action in actions_to_check:
-            heavy_action = balance_checker.get_heavy_action(action.value)
+            heavy_action = balance_checker.get_heavy_action(action.name)
             if self.operator_too_heavy(heavy_action):
                 return False
             if self.operator_unbalanced(action, enqueue_func):
@@ -311,7 +311,7 @@ class Invariant:
 
         # renaming of operator parameters must be minimal
         minimal_renamings = []
-        params = [p.value for p in action.parameters]
+        params = [p.name for p in action.parameters]
         for assignment in assigs:
             system = constraints.ConstraintSystem()
             system.add_assignment(assignment)

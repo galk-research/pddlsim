@@ -174,7 +174,7 @@ def compute_negative_axioms(axioms_by_atom, necessary_literals):
 
 def negate(axioms):
     assert axioms
-    result = [pddl.PropositionalAxiom(axioms[0].value, [], axioms[0].effect.negate())]
+    result = [pddl.PropositionalAxiom(axioms[0].name, [], axioms[0].effect.negate())]
     for axiom in axioms:
         condition = axiom.condition
         assert len(condition) > 0, "Negated axiom impossible; cannot deal with that"

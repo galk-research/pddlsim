@@ -16,7 +16,7 @@ def get_fluent_facts(task, model):
         for effect in action.effects:
             fluent_predicates.add(effect.literal.predicate)
     for axiom in task.axioms:
-        fluent_predicates.add(axiom.value)
+        fluent_predicates.add(axiom.name)
     return set([fact for fact in model if fact.predicate in fluent_predicates])
 
 
@@ -24,11 +24,11 @@ def get_objects_by_type(typed_objects, types):
     result = defaultdict(list)
     supertypes = {}
     for type in types:
-        supertypes[type.value] = type.supertype_names
+        supertypes[type.name] = type.supertype_names
     for obj in typed_objects:
-        result[obj.type].append(obj.value)
+        result[obj.type].append(obj.name)
         for type in supertypes[obj.type]:
-            result[type].append(obj.value)
+            result[type].append(obj.name)
     return result
 
 
@@ -54,7 +54,7 @@ def instantiate(task, model):
             # want to distinguish their instantiations.
             reachable_action_parameters[action].append(inst_parameters)
             variable_mapping = dict(
-                [(par.value, arg) for par, arg in zip(parameters, atom.args)]
+                [(par.name, arg) for par, arg in zip(parameters, atom.args)]
             )
             inst_action = action.instantiate(
                 variable_mapping, init_facts, fluent_facts, type_to_objects
@@ -64,7 +64,7 @@ def instantiate(task, model):
         elif isinstance(atom.predicate, pddl.Axiom):
             axiom = atom.predicate
             variable_mapping = dict(
-                [(par.value, arg) for par, arg in zip(axiom.parameters, atom.args)]
+                [(par.name, arg) for par, arg in zip(axiom.parameters, atom.args)]
             )
             inst_axiom = axiom.instantiate(variable_mapping, init_facts, fluent_facts)
             if inst_axiom:

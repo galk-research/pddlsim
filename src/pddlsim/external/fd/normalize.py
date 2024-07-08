@@ -83,7 +83,7 @@ class AxiomConditionProxy(ConditionProxy):
         app_rule_body = list(condition_to_rule_body(axiom.parameters, self.condition))
         rules.append((app_rule_body, app_rule_head))
         params = axiom.parameters[: axiom.num_external_parameters]
-        eff_rule_head = pddl.Atom(axiom.value, [par.value for par in params])
+        eff_rule_head = pddl.Atom(axiom.name, [par.name for par in params])
         eff_rule_body = [app_rule_head]
         rules.append((eff_rule_body, eff_rule_head))
 
@@ -131,17 +131,17 @@ class GoalConditionProxy(ConditionProxy):
 
 def get_action_predicate(action):
     name = action
-    variables = [par.value for par in action.parameters]
+    variables = [par.name for par in action.parameters]
     if isinstance(action.precondition, pddl.ExistentialCondition):
-        variables += [par.value for par in action.precondition.parameters]
+        variables += [par.name for par in action.precondition.parameters]
     return pddl.Atom(name, variables)
 
 
 def get_axiom_predicate(axiom):
     name = axiom
-    variables = [par.value for par in axiom.parameters]
+    variables = [par.name for par in axiom.parameters]
     if isinstance(axiom.condition, pddl.ExistentialCondition):
-        variables += [par.value for par in axiom.condition.parameters]
+        variables += [par.name for par in axiom.condition.parameters]
     return pddl.Atom(name, variables)
 
 
@@ -359,7 +359,7 @@ def substitute_complicated_goal(task):
         else:
             return
     new_axiom = task.add_axiom([], goal)
-    task.goal = pddl.Atom(new_axiom.value, new_axiom.parameters)
+    task.goal = pddl.Atom(new_axiom.name, new_axiom.parameters)
 
 
 # Combine Steps [1], [2], [3], [4], [5] and do some additional verification
@@ -384,7 +384,7 @@ def verify_axiom_predicates(task):
     # action effects.
     axiom_names = set()
     for axiom in task.axioms:
-        axiom_names.add(axiom.value)
+        axiom_names.add(axiom.name)
 
     for fact in task.init:
         # Note that task.init can contain the assignment to (total-cost)
@@ -400,7 +400,7 @@ def verify_axiom_predicates(task):
             if effect.literal.predicate in axiom_names:
                 raise SystemExit(
                     "error: derived predicate %r appears in effect of action %r"
-                    % (effect.literal.predicate, action.value)
+                    % (effect.literal.predicate, action.name)
                 )
 
 
@@ -414,11 +414,11 @@ def build_exploration_rules(task):
 
 def condition_to_rule_body(parameters, condition):
     for par in parameters:
-        yield pddl.Atom(par.type, [par.value])
+        yield pddl.Atom(par.type, [par.name])
     if not isinstance(condition, pddl.Truth):
         if isinstance(condition, pddl.ExistentialCondition):
             for par in condition.parameters:
-                yield pddl.Atom(par.type, [par.value])
+                yield pddl.Atom(par.type, [par.name])
             condition = condition.parts[0]
         if isinstance(condition, pddl.Conjunction):
             parts = condition.parts

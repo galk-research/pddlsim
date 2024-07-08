@@ -271,7 +271,7 @@ def translate_strips_operator_aux(
                             # convoluted code, so we just warn and reject the operator.
                             print(
                                 "Warning: %s rejected. Cross your fingers."
-                                % (operator.value)
+                                % (operator.name)
                             )
                             if DEBUG:
                                 operator.dump()
@@ -337,7 +337,7 @@ def translate_strips_operator_aux(
             pre_post.append((var, pre, post, eff_condition))
     prevail = list(condition.items())
 
-    return sas_tasks.SASOperator(operator.value, prevail, pre_post, operator.cost)
+    return sas_tasks.SASOperator(operator.name, prevail, pre_post, operator.cost)
 
 
 def prune_stupid_effect_conditions(var, val, conditions):

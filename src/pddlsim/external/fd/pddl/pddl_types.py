@@ -24,9 +24,9 @@ def set_supertypes(type_list):
     child_types = []
     for type in type_list:
         type.supertype_names = []
-        typename_to_type[type.value] = type
+        typename_to_type[type.name] = type
         if type.basetype_name:
-            child_types.append((type.value, type.basetype_name))
+            child_types.append((type.name, type.basetype_name))
     for desc_name, anc_name in graph.transitive_closure(child_types):
         typename_to_type[desc_name].supertype_names.append(anc_name)
 
@@ -40,7 +40,7 @@ class TypedObject(object):
         return hash((self.name, self.type))
 
     def __eq__(self, other):
-        return self.name == other.value and self.type == other.type
+        return self.name == other.name and self.type == other.type
 
     def __ne__(self, other):
         return not self == other

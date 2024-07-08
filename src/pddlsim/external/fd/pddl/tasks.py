@@ -86,11 +86,11 @@ class Task(object):
         )
         objects = constants + objects
         check_for_duplicates(
-            [o.value for o in objects],
+            [o.name for o in objects],
             errmsg="error: duplicate object %r",
             finalmsg="please check :constants and :objects definitions",
         )
-        init += [conditions.Atom("=", (obj.value, obj.value)) for obj in objects]
+        init += [conditions.Atom("=", (obj.name, obj.name)) for obj in objects]
 
         return Task(
             domain_name,

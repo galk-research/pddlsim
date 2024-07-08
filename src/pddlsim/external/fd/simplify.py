@@ -185,7 +185,7 @@ class VarValueRenaming(object):
             except (Impossible, DoesNothing):
                 num_removed += 1
                 if DEBUG:
-                    print("Removed operator: %s" % op.value)
+                    print("Removed operator: %s" % op.name)
         print("%d operators removed" % num_removed)
         operators[:] = new_operators
 

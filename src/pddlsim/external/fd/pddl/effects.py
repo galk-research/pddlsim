@@ -154,7 +154,7 @@ class Effect(object):
             ]
             for object_tuple in cartesian_product(*object_lists):
                 for par, obj in zip(self.parameters, object_tuple):
-                    var_mapping[par.value] = obj
+                    var_mapping[par.name] = obj
                 self._instantiate(var_mapping, init_facts, fluent_facts, result)
         else:
             self._instantiate(var_mapping, init_facts, fluent_facts, result)

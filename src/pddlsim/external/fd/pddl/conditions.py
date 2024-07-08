@@ -311,7 +311,7 @@ class QuantifiedCondition(Condition):
     def free_variables(self):
         result = Condition.free_variables(self)
         for par in self.parameters:
-            result.discard(par.value)
+            result.discard(par.name)
         return result
 
     def change_parts(self, parts):
@@ -321,7 +321,7 @@ class QuantifiedCondition(Condition):
 class UniversalCondition(QuantifiedCondition):
 
     def _untyped(self, parts):
-        type_literals = [NegatedAtom(par.type, [par.value]) for par in self.parameters]
+        type_literals = [NegatedAtom(par.type, [par.name]) for par in self.parameters]
         return UniversalCondition(self.parameters, [Disjunction(type_literals + parts)])
 
     def negate(self):
@@ -334,7 +334,7 @@ class UniversalCondition(QuantifiedCondition):
 class ExistentialCondition(QuantifiedCondition):
 
     def _untyped(self, parts):
-        type_literals = [Atom(par.type, [par.value]) for par in self.parameters]
+        type_literals = [Atom(par.type, [par.name]) for par in self.parameters]
         return ExistentialCondition(
             self.parameters, [Conjunction(type_literals + parts)]
         )

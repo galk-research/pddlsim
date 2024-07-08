@@ -22,7 +22,7 @@ class Axiom(object):
         predicate = predicates.Predicate.parse(alist[1])
         condition = conditions.parse_condition(alist[2])
         return Axiom(
-            predicate.value, predicate.arguments, len(predicate.arguments), condition
+            predicate.name, predicate.arguments, len(predicate.arguments), condition
         )
 
     parse = staticmethod(parse)
@@ -33,13 +33,13 @@ class Axiom(object):
         self.condition.dump()
 
     def uniquify_variables(self):
-        self.type_map = dict([(par.value, par.type) for par in self.parameters])
+        self.type_map = dict([(par.name, par.type) for par in self.parameters])
         self.condition = self.condition.uniquify_variables(self.type_map)
 
     def instantiate(self, var_mapping, init_facts, fluent_facts):
         # The comments for Action.instantiate apply accordingly.
         arg_list = [self.name] + [
-            var_mapping[par.value]
+            var_mapping[par.name]
             for par in self.parameters[: self.num_external_parameters]
         ]
         name = "(%s)" % " ".join(arg_list)
@@ -51,7 +51,7 @@ class Axiom(object):
             return None
 
         effect_args = [
-            var_mapping.get(arg.value, arg.value)
+            var_mapping.get(arg.name, arg.name)
             for arg in self.parameters[: self.num_external_parameters]
         ]
         effect = conditions.Atom(self.name, effect_args)
