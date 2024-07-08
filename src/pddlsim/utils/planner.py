@@ -26,11 +26,11 @@ def local(domain_path, problem_path):
     print(domain_path, problem_path)
     reader = PDDLReader()
     problem = reader.parse_problem(domain_path, problem_path)
-    print(problem)
+
     with OneshotPlanner(problem_kind=problem.kind) as planner:
         result: SequentialPlan = planner.solve(problem).plan
         return [
-            f"({action.action.value} {' '.join(map(str, action.actual_parameters))})"
+            f"({action.action.name} {' '.join(map(str, action.actual_parameters))})"
             for action in result.actions
         ]
 

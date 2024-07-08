@@ -1,42 +1,25 @@
 from pddlsim.external.fd import pddl
 from pddlsim.parser_independent import *
 
-
 class FDParser(PDDL):
 
     def __init__(self, domain_path, problem_path):
         self.task = pddl.pddl_file.open(problem_path, domain_path)
-        objects = {obj.value: obj.type for obj in self.task.objects}
-        actions = {
-            action.value: self.convert_action(action) for action in self.task.actions
-        }
+        objects = {obj.name: obj.type for obj in self.task.objects}
+        actions = {action.name: self.convert_action(action)
+                   for action in self.task.actions}
         goals = [self.convert_condition(subgoal) for subgoal in self.task.goal]
-        failure_conditions = [
-            FailureCondition(self.convert_condition(fc[0]), fc[1], fc[2])
-            for fc in self.task.failure_probabilities
-        ]
-        revealable_predicates = [
-            RevealablePredicate(self.convert_condition(rp[0]), rp[1], rp[2])
-            for rp in self.task.revealable_predicates
-        ]
+        failure_conditions = [FailureCondition(self.convert_condition(fc[0]), fc[1], fc[2])
+                              for fc in self.task.failure_probabilities]
+        revealable_predicates = [RevealablePredicate(self.convert_condition(rp[0]), rp[1], rp[2]) for rp in self.task.revealable_predicates]
         super(FDParser, self).__init__(
-            domain_path,
-            problem_path,
-            self.task.domain_name,
-            self.task.task_name,
-            objects,
-            actions,
-            goals,
-            self.build_first_state(),
-            failure_conditions,
-            revealable_predicates,
-        )
+            domain_path, problem_path, self.task.domain_name, self.task.task_name, objects, actions, goals, self.build_first_state(), failure_conditions, revealable_predicates)
 
     def build_first_state(self):
         initial_state = self.task.init
         current_state = dict()
         for predicate in self.task.predicates:
-            current_state[predicate.value] = set()
+            current_state[predicate.name] = set()
         for atom in initial_state:
             current_state[atom.key[0]].add(atom.key[1])
         return current_state
@@ -51,10 +34,7 @@ class FDParser(PDDL):
             literal = Literal(condition.predicate, condition.args)
             return literal if not condition.negated else Not(literal)
 
-        sub_conditions = [
-            FDParser.convert_condition(sub_condition)
-            for sub_condition in condition.parts
-        ]
+        sub_conditions = [FDParser.convert_condition(sub_condition) for sub_condition in condition.parts]
         if isinstance(condition, pddl.Conjunction):
             return Conjunction(sub_conditions)
         if isinstance(condition, pddl.Disjunction):
@@ -62,12 +42,10 @@ class FDParser(PDDL):
 
     @staticmethod
     def convert_action(action):
-        name = action.value
-        precondition = [
-            Predicate(pred.predicate, pred.args, pred.negated)
-            for pred in action.precondition.parts
-        ]
-        signature = [(obj.value, obj.type) for obj in action.parameters]
+        name = action.name
+        precondition = [Predicate(pred.predicate, pred.args, pred.negated)
+                        for pred in action.precondition.parts]
+        signature = [(obj.name, obj.type) for obj in action.parameters]
         addlist = []
         dellist = []
         if action.effects:
@@ -92,6 +70,6 @@ class FDParser(PDDL):
             addlists.append(addlist)
             dellists.append(dellist)
 
-        return ProbabilisticAction(
-            name, signature, addlists, dellists, precondition, action.effects_probs
-        )
+        return ProbabilisticAction(name, signature, addlists, dellists, precondition, action.effects_probs)
+
+

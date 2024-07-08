@@ -12,34 +12,30 @@ def join_candidates(previous_candidates, new_candidates, p_indexes, n_indexes):
                 result.append(merged)
     return result
 
-
 def indexed_candidate_to_dict(candidate, index_to_name):
     return {name[0]: candidate[idx] for idx, name in index_to_name.items()}
 
-
 def get_valid_candidates_for_action(state, action):
-    """
+    '''
     Get all the valid parameters for a given action for the current state of the simulation
-    """
+    '''
     objects = dict()
     signatures_to_match = {
-        name: (idx, t) for idx, (name, t) in enumerate(action.signature)
-    }
-    index_to_name = {idx: name for idx, name in enumerate(action.signature)}
+        name: (idx, t) for idx, (name, t) in enumerate(action.signature)}
+    index_to_name = {idx: name for idx,
+                        name in enumerate(action.signature)}
     candidate_length = len(signatures_to_match)
     found = set()
     candidates = None
     # copy all preconditions
-    for precondition in sorted(action.precondition, key=lambda x: len(state[x.value])):
-        thruths = state[precondition.value]
+    for precondition in sorted(action.precondition, key=lambda x: len(state[x.name])):
+        thruths = state[precondition.name]
         if len(thruths) == 0:
             return []
         # map from predicate index to candidate index
-        dtypes = [(name, "object") for name in precondition.signature]
-        reverse_map = {
-            idx: signatures_to_match[pred][0]
-            for idx, pred in enumerate(precondition.signature)
-        }
+        dtypes = [(name, 'object') for name in precondition.signature]
+        reverse_map = {idx: signatures_to_match[pred][0] for idx, pred in enumerate(
+            precondition.signature)}
         indexes = reverse_map.values()
         overlap = len(found.intersection(indexes)) > 0
         precondition_candidates = []
@@ -50,8 +46,7 @@ def get_valid_candidates_for_action(state, action):
             precondition_candidates.append(candidate)
 
         candidates = join_candidates(
-            candidates, precondition_candidates, found, indexes
-        )
+            candidates, precondition_candidates, found, indexes)
         # print( candidates)
         found = found.union(indexes)
 
