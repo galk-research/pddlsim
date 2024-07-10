@@ -56,6 +56,11 @@ class Action(object):
         if precondition_tag_opt == ":precondition":
             precondition = conditions.parse_condition(next(iterator))
             precondition = precondition.simplified()
+
+            # NOTE: pddlsim appears to silently "require" this be a conjunction in this stage
+            if not isinstance(precondition, conditions.Conjunction):
+                precondition = conditions.Conjunction([precondition])
+
             effect_tag = next(iterator)
         else:
             precondition = conditions.Conjunction([])

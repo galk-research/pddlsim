@@ -220,7 +220,7 @@ def fodet(domain_file, problem_file, output_task):
         nd_action.add_effect(action.add_effects, action.del_effects, atom_table)
         nd_actions[nd_action.name] = nd_action
 
-    for name, _ in nd_actions.iteritems():
+    for name, _ in nd_actions.items():
         output_task.add_action(name)
 
     index = 0
@@ -230,7 +230,7 @@ def fodet(domain_file, problem_file, output_task):
             output_task.add_effect(index, eff)
         # if len(action.cond_effs) != 0 :
         # 	print action.name, len(action.cond_effs), "has conditional effects"
-        for cond, eff in action.cond_effs.iteritems():
+        for cond, eff in action.cond_effs.items():
             output_task.add_cond_effect(index, list(cond), eff)
         output_task.set_cost(index, action.cost)
         index += 1
@@ -285,7 +285,7 @@ def default(domain_file, problem_file, output_task):
 
     output_task.create_negated_fluents()
 
-    for name, _ in nd_actions.iteritems():
+    for name, _ in nd_actions.items():
         output_task.add_action(name)
 
     index = 0
@@ -295,7 +295,7 @@ def default(domain_file, problem_file, output_task):
             output_task.add_effect(index, eff)
         # if len(action.cond_effs) != 0 :
         # 	print action.name, len(action.cond_effs), "has conditional effects"
-        for cond, eff in action.cond_effs.iteritems():
+        for cond, eff in action.cond_effs.items():
             output_task.add_cond_effect(index, list(cond), eff)
         output_task.set_cost(index, action.cost)
         index += 1

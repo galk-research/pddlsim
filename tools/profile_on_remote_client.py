@@ -28,7 +28,7 @@ if __name__ == '__main__':
     executives = [
         plan_dispatch.PlanDispatcher(), random_executor.RandomExecutor()]
     results = profile(executives, 'reusage_log', domain, problem)
-    for ex, rc in results.iteritems():
-        print ex
-        print str(rc)
-        print
+    for ex, rc in results.items():
+        print(ex)
+        print(str(rc))
+        print()

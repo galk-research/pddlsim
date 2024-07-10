@@ -1,35 +1,34 @@
 #! /usr/bin/env python
 
-try:
-    # Python 3.x
-    import builtins
-except ImportError:
-    # Python 2.x
-    import __builtin__ as builtins
 
-import sys
+import builtins
 import os.path
 import re
+import sys
 
 from . import parser
-
 from . import tasks
+
 
 def parse_pddl_file(type, filename):
     try:
         # The builtin open function is shadowed by this module's open function.
         return parser.parse_nested_list(builtins.open(filename))
     except IOError as e:
-        raise SystemExit("Error: Could not read file: %s\nReason: %s." %
-                         (e.filename, e))
+        raise SystemExit(
+            "Error: Could not read file: %s\nReason: %s." % (e.filename, e)
+        )
     except parser.ParseError as e:
         raise SystemExit("Error: Could not parse %s file: %s\n" % (type, filename))
+
 
 def open(task_filename=None, domain_filename=None):
     if task_filename is None:
         if len(sys.argv) not in (2, 3):
-            raise SystemExit("Error: Need exactly one or two command line arguments.\n"
-                             "Usage: %s [<domain.pddl>] <task.pddl>" % sys.argv[0])
+            raise SystemExit(
+                "Error: Need exactly one or two command line arguments.\n"
+                "Usage: %s [<domain.pddl>] <task.pddl>" % sys.argv[0]
+            )
 
         task_filename = sys.argv[-1]
         if len(sys.argv) == 3:
@@ -47,12 +46,14 @@ def open(task_filename=None, domain_filename=None):
         if not os.path.exists(domain_filename) and basename.endswith("-problem.pddl"):
             domain_filename = os.path.join(dirname, basename[:-13] + "-domain.pddl")
         if not os.path.exists(domain_filename):
-            raise SystemExit("Error: Could not find domain file using "
-                             "automatic naming rules.")
+            raise SystemExit(
+                "Error: Could not find domain file using " "automatic naming rules."
+            )
 
     domain_pddl = parse_pddl_file("domain", domain_filename)
     task_pddl = parse_pddl_file("task", task_filename)
     return tasks.Task.parse(domain_pddl, task_pddl)
+
 
 if __name__ == "__main__":
     open().dump()

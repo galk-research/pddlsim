@@ -228,8 +228,6 @@ class Conjunction(JunctorCondition):
                 result_parts.append(part)
         if not result_parts:
             return Truth()
-        if len(result_parts) == 1:
-            return result_parts[0]
         return Conjunction(result_parts)
 
     def to_untyped_strips(self):
