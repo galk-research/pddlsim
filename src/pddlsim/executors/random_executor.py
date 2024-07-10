@@ -20,6 +20,7 @@ class RandomExecutor(object):
             return None
         options = self.services.valid_actions.get() + (
             [] if self.stop_at_goal else [None])
+
         if len(options) == 0:
             return None
         if len(options) == 1:

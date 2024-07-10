@@ -5,7 +5,7 @@
 groups = ["default", "test", "doc", "format"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.2"
-content_hash = "sha256:a01e1c6aba14bcb5f4598fc29fd310f72026f015891bace50ec25fc5b21d695c"
+content_hash = "sha256:a87dd3aa37839f54e34455776ee5810b85a44a77668ed8772f8d4cbb61e7340f"
 
 [[package]]
 name = "accessible-pygments"
@@ -314,17 +314,6 @@ groups = ["doc", "format", "test"]
 files = [
     {file = "packaging-24.1-py3-none-any.whl", hash = "sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124"},
     {file = "packaging-24.1.tar.gz", hash = "sha256:026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002"},
-]
-
-[[package]]
-name = "parsy"
-version = "2.1"
-requires_python = ">=3.7"
-summary = "Easy-to-use parser combinators, for parsing in pure Python"
-groups = ["default"]
-files = [
-    {file = "parsy-2.1-py3-none-any.whl", hash = "sha256:8f18e7b11985e7802e7e3ecbd8291c6ca243d29820b1186e4c84605db4efffa0"},
-    {file = "parsy-2.1.tar.gz", hash = "sha256:fd5dd18d7b0b61f8275ee88665f430a20c02cf5a82d88557f35330530186d7ac"},
 ]
 
 [[package]]

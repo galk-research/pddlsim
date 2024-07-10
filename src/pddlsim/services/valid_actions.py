@@ -16,6 +16,7 @@ class ValidActions:
         for name, action in self.parser.actions.items():
             for candidate in get_valid_candidates_for_action(current_state, action):
                 possible_actions.append(action.action_string(candidate))
+
         return possible_actions
 
     def on_action(self, action_sig):
