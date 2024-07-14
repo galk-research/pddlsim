@@ -33,7 +33,7 @@
 	(east t4 goal_tile)
 	(west goal_tile t4)
     (person person1)
-    (at person1 start_tile)   
+    (at person1 start_tile)
         )
 (:reveal ((at person1 t0) (empty t5) 0.9))
 (:goal 

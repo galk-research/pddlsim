@@ -6,7 +6,7 @@ A PDDL based simulator for the creation and evaluation of agents. Used in the BI
 User Guide
 ----------
 
-How to setup PDDLSIM, some common and useful parts of the API, info PDDLSIM for some tasks, and more.
+How to setup PDDLSIM, some common and useful parts of the API, info on using PDDLSIM for some tasks, and more.
 
 .. toctree::
     :maxdepth: 2
@@ -16,7 +16,7 @@ How to setup PDDLSIM, some common and useful parts of the API, info PDDLSIM for 
 Contributor Guide
 -----------------
 
-How to contribute changes to PDDLSIM to ensure a smooth path to their inclusion.
+How to contribute changes to PDDLSIM, details on the internals of PDDLSIM, and some specifications and workflows, among other things.
 
 .. toctree::
     :maxdepth: 2
