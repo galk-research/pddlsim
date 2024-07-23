@@ -20,7 +20,7 @@ If you only wish to build PDDLSIM, run instead:
 
 and the build artifacts will be available in ``.pdm-build/``.
 
-Building without PDM
---------------------
+Building and publishing without PDM
+-----------------------------------
 
 To build without PDM, see `this <https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives/>`__. Note that building will still use `PDM-Backend <https://backend.pdm-project.org/>`__, as seen in the project's ``pyproject.toml``. Then, to publish to PyPI, use a tool such as `Twine <https://twine.readthedocs.io/en/>`__, as seen in `here <https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives/>`__.
