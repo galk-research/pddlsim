@@ -1,5 +1,5 @@
-Remote Simulator Protocol
-=========================
+Remote Simulator Protocol v1.0.0 (latest)
+=========================================
 
 While for some applications, no separation between the simulator and the agent is acceptable, for others, a client-server model is essential. In this model, there is absolute separation between the agent and the simulator, so that the agent cannot access any hidden information from the simulator, and a simulator may be used remotely, using the internet. For this, a "remote simulator" is used. Below, is the specification for the communication protocol between the client (henceforth, agent) and the server (henceforth, simulator).
 
@@ -61,16 +61,29 @@ Session setup
     * Should we add explicit support for asking for a specific problem?
     * Should we add support for agent authentication?
 
-Once the communication channel is set up, the agent must send a ``session-setup`` request, with a ``null`` payload. Once received, the simulator should send a ``session-setup`` response, with the following payload:
+Once the communication channel is set up, the agent must send a ``session-setup`` request, with the following payload:
 
 .. code-block:: cddl
+
+    version = { major = uint, minor = uint }
+
+    session-setup = {
+        supported-versions: [* version],
+    }
+
+Once received, the simulator should send a ``session-setup`` response, with the following payload:
+
+.. code-block:: cddl
+
+    version = { major = uint, minor = uint }
 
     session-setup = {
         domain: text,
         problem: text,
+        selected-version: version
     }
 
-where ``domain`` and ``problem`` are both in the PPDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``).
+where ``domain`` and ``problem`` are both in the PPDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``). ``selected-version`` will be the version selected by the simulator, out of ``supported-versions``.
 
 Session operation
 ~~~~~~~~~~~~~~~~~

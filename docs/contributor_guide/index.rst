@@ -21,4 +21,4 @@ Documentation on more specific or esoterics parts of the project, such as the pr
 .. toctree::
     :maxdepth: 2
 
-    remote-simulator-protocol
+    remote-simulator-protocol/latest
