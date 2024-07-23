@@ -1,7 +1,7 @@
 The PDDLSIM simulator
 =====================
 
-A PDDL based simulator for the creation and evaluation of agents. Used in the BIU course `"Introduction to Intelligent, Cognitive, and Knowledge-Based Systems" (89-674) <https://u.cs.biu.ac.il/~kaminkg/teach/current/intsys/>`_.
+A PDDL based simulator for the creation and evaluation of agents. Used in the BIU course `"Introduction to Intelligent, Cognitive, and Knowledge-Based Systems" (89-674) <https://u.cs.biu.ac.il/~kaminkg/teach/current/intsys/>`__.
 
 User Guide
 ----------

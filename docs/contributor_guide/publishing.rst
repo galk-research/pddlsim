@@ -6,7 +6,7 @@ If you do not have a development environment set up, see :ref:`development-setup
 Building and publishing with PDM
 --------------------------------
 
-When using `PDM <https://pdm-project.org>`_, the process is relatively straightforward. *From* the root project directory, meaning the one that contains ``pyproject.toml``, run:
+When using `PDM <https://pdm-project.org>`__, the process is relatively straightforward. *From* the root project directory, meaning the one that contains ``pyproject.toml``, run:
 
 .. code-block:: bash
 
@@ -23,4 +23,4 @@ and the build artifacts will be available in ``.pdm-build/``.
 Building without PDM
 --------------------
 
-To build without PDM, see `this <https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives>`_. Note that building will still use `PDM-Backend <https://backend.pdm-project.org/>`_, as seen in the project's ``pyproject.toml``. Then, to publish to PyPI, use a tool such as `Twine <https://twine.readthedocs.io/en/>`_, as seen in `here <https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives>`_.
+To build without PDM, see `this <https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives/>`__. Note that building will still use `PDM-Backend <https://backend.pdm-project.org/>`__, as seen in the project's ``pyproject.toml``. Then, to publish to PyPI, use a tool such as `Twine <https://twine.readthedocs.io/en/>`__, as seen in `here <https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives/>`__.

@@ -3,11 +3,11 @@
 Development setup
 =================
 
-PDDLSIM uses `PDM <https://pdm-project.org>`_ as its build tool and dependency manager. To work on PDDLSIM, it is recommended, but not strictly required you use it, while developing PDDLSIM. PDM is PDDLSIM's build backend, and is additionally used to specify development dependencies (via ``tool.pdm.dev-dependencies``), that need to be installed for performing various development related tasks, e.g. running tests utilizing ``pytest`` (and some extra plugins), building the documentation using Sphinx (and the required theme and extensions), etc.
+PDDLSIM uses `PDM <https://pdm-project.org>`__ as its build tool and dependency manager. To work on PDDLSIM, it is recommended, but not strictly required you use it, while developing PDDLSIM. PDM is PDDLSIM's build backend, and is additionally used to specify development dependencies (via ``tool.pdm.dev-dependencies``), that need to be installed for performing various development related tasks, e.g. running tests utilizing ``pytest`` (and some extra plugins), building the documentation using Sphinx (and the required theme and extensions), etc.
 
 ### Developing with PDM
 
-To use PDM with the project, first install PDM. See `this <https://pdm-project.org/latest/#installation>`_ for more information on installation. Once you have PDM installed run:
+To use PDM with the project, first install PDM. See `this <https://pdm-project.org/latest/#installation>`__ for more information on installation. Once you have PDM installed run:
 
 .. code-block:: bash
     
@@ -31,9 +31,9 @@ At this stage, you should be able to begin development with no issue. Make sure 
 
 ### Developing without PDM
 
-In this case, you can still use another package manager supporting `PEP 621 <https://peps.python.org/pep-0621/>`_ to install *non development dependecies*, as Python has still not standardized specifying development dependencies, although the pending `PEP 735 <https://peps.python.org/pep-0735/>`_ seeks to change this. Therefore, no matter your alternative package manager, you will have to install the development dependencies manually. Additionally, if your package manager of choice does not support PEP 621, you will also have to install the regular dependencies manually.
+In this case, you can still use another package manager supporting `PEP 621 <https://peps.python.org/pep-0621/>`__ to install *non development dependecies*, as Python has still not standardized specifying development dependencies, although the pending `PEP 735 <https://peps.python.org/pep-0735/>`__ seeks to change this. Therefore, no matter your alternative package manager, you will have to install the development dependencies manually. Additionally, if your package manager of choice does not support PEP 621, you will also have to install the regular dependencies manually.
 
-In the following example, we will use `pip <https://pip.pypa.io/>`_, the de-facto standard for Python package management. We assume a sufficient version of pip, with PEP 621 support, is already installed, and *do not* detail the creation of a Virtual Environment. For creating a Virtual Environment, see `this <https://packaging.python.org/en/latest/tutorials/installing-packages/#optionally-create-a-virtual-environment>`_.
+In the following example, we will use `pip <https://pip.pypa.io/>`__, the de-facto standard for Python package management. We assume a sufficient version of pip, with PEP 621 support, is already installed, and *do not* detail the creation of a Virtual Environment. For creating a Virtual Environment, see `this <https://packaging.python.org/en/latest/tutorials/installing-packages/#optionally-create-a-virtual-environment>`__.
 
 .. danger::
 

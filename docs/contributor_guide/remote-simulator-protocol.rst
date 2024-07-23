@@ -6,7 +6,7 @@ While for some applications, no separation between the simulator and the agent i
 Session phases and messages
 ---------------------------
 
-The "Remote Simulator Protocol" (henceforth, "RSP") facilitates communication over a TCP connection between an agent and a simulator, for running a simulation session. Messages are written in `CBOR <https://cbor.io/>`_ and are unframed, as CBOR is self-delimiting. Throughout the specification, messages will be presented using `CDDL <https://datatracker.ietf.org/doc/rfc8610/>`_.
+The "Remote Simulator Protocol" (henceforth, "RSP") facilitates communication over a TCP connection between an agent and a simulator, for running a simulation session. Messages are written in `CBOR <https://cbor.io/>`__ and are unframed, as CBOR is self-delimiting. Throughout the specification, messages will be presented using `CDDL <https://datatracker.ietf.org/doc/rfc8610/>`__.
 
 All messages sent will be of the form:
 
