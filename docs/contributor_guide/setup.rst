@@ -5,7 +5,8 @@ Development setup
 
 PDDLSIM uses `PDM <https://pdm-project.org>`__ as its build tool and dependency manager. To work on PDDLSIM, it is recommended, but not strictly required you use it, while developing PDDLSIM. PDM is PDDLSIM's build backend, and is additionally used to specify development dependencies (via ``tool.pdm.dev-dependencies``), that need to be installed for performing various development related tasks, e.g. running tests utilizing ``pytest`` (and some extra plugins), building the documentation using Sphinx (and the required theme and extensions), etc.
 
-### Developing with PDM
+Developing with PDM
+-------------------
 
 To use PDM with the project, first install PDM. See `this <https://pdm-project.org/latest/#installation>`__ for more information on installation. Once you have PDM installed run:
 
@@ -25,11 +26,12 @@ And run the command. You will now be inside the Virtual Environment, which is cu
 
     pdm install
 
-To *avoid* installing development dependencies, add the ``--production`` flag. Additionally, you can prevent any local package being installed in editable mode by using the ``--no-editable`` flag. Other options are by using the ``--help`` flag. 
+To *avoid* installing development dependencies, add the ``--production`` flag. Additionally, you can prevent any local package being installed in editable mode by using the ``--no-editable`` flag. Other options are by using the ``--help`` flag. Installation using ``pdm install`` will use the ``pdm.lock`` lockfile included in the project source.
 
 At this stage, you should be able to begin development with no issue. Make sure to the newly created Python interpreter to your code editor. Its path can be found in the ``.pdm-python`` file.
 
-### Developing without PDM
+Developing without PDM
+----------------------
 
 In this case, you can still use another package manager supporting `PEP 621 <https://peps.python.org/pep-0621/>`__ to install *non development dependecies*, as Python has still not standardized specifying development dependencies, although the pending `PEP 735 <https://peps.python.org/pep-0735/>`__ seeks to change this. Therefore, no matter your alternative package manager, you will have to install the development dependencies manually. Additionally, if your package manager of choice does not support PEP 621, you will also have to install the regular dependencies manually.
 
@@ -51,6 +53,6 @@ where ``<PATH-TO-PDDLSIM-DIRECTORY>`` should be replaced by the path to the dire
 
     pip install -e .
 
-Note that the above commands will install PDDLSIM in editable mode. This is generally preferred for development. You can drop the ``-e`` flag install regularly.
+Note that the above commands will install PDDLSIM in editable mode. This is generally preferred for development. You can drop the ``-e`` flag install regularly. Unlike installation with PDM, this will not use a lockfile, naturally. Therefore, without PDM, development is less reproducible.
 
 As a reminder, to also be able to build the documentation, run tests, etc., you will need to install the development dependencies manually. Naturally, they are found in ``pyproject.toml``, under ``[tool.pdm.dev-dependencies]``.
