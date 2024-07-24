@@ -75,7 +75,7 @@ Once the communication channel is set up, the agent must send a ``session-setup`
     supported-major = uint
     minimum-minor = uint
 
-essentially, this is a map from supported major releases, to the minimum minor release this support entails. For example, an agent that can operate using a version compatible with ``v2.3``, or a version compatible with ``v1.2``  (see :ref:`Versioning guarantees`), should send the following grounded payload:
+essentially, this is a map from supported major versions, to the minimum minor version this support entails. For example, an agent that can operate using a version compatible with ``v2.3``, or a version compatible with ``v1.2``  (see :ref:`Versioning guarantees`), should send the following grounded payload:
 
 .. code-block:: cddl
     
@@ -239,7 +239,7 @@ We will first request a session setup, with the following request:
     }
 
 
-Note the payload of this request. We support communication via major release ``1``, requiring at least the ``0`` minor release to be used. The simulator supports this minimum version, and so will then give a ``session-setup`` response accordingly:
+Note the payload of this request. We support communication via major version ``1``, requiring at least the ``0`` minor version to be used. The simulator supports this minimum version, and so will then give a ``session-setup`` response accordingly:
 
 .. code-block:: cddl
     :caption: Sent by the simulator
