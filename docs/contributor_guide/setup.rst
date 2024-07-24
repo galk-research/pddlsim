@@ -1,9 +1,13 @@
-.. _development-setup:
+.. _Development setup:
 
 Development setup
 =================
 
-PDDLSIM uses `PDM <https://pdm-project.org>`__ as its build tool and dependency manager. To work on PDDLSIM, it is recommended, but not strictly required you use it, while developing PDDLSIM. PDM is PDDLSIM's build backend, and is additionally used to specify development dependencies (via ``tool.pdm.dev-dependencies``), that need to be installed for performing various development related tasks, e.g. running tests utilizing ``pytest`` (and some extra plugins), building the documentation using Sphinx (and the required theme and extensions), etc.
+PDDLSIM uses `PDM <https://pdm-project.org>`__ as its primary build tool and dependency manager. To work on PDDLSIM, it is recommended, but not strictly required you use it, while developing PDDLSIM. PDM-Backend is PDDLSIM's build backend, and PDM is also used to specify development dependencies (via ``tool.pdm.dev-dependencies``), that need to be installed for performing various development related tasks, e.g. running tests with ``pytest``, building the documentation using Sphinx, etc.
+
+.. note::
+
+    If you've worked with ``pyproject.toml`` based projects before, you might not need to read this. Simply make sure you look at the ``pyproject.toml`` file, and install using your tool of choice all of the dependencies you need, including possibly manually installing the development dependencies.
 
 Developing with PDM
 -------------------
@@ -39,7 +43,7 @@ In the following example, we will use `pip <https://pip.pypa.io/>`__, the de-fac
 
 .. danger::
 
-    If you continue without creating a Virtual Environment, pip will install the dependencies globally.
+    If you continue without creating a Virtual Environment, you will need either root access, for a global install, or will have to use the ``--user``. Either way, pip will install the dependencies globally. This is likely *not* what you want.
 
 First, we will install the required dependencies in our environment by running:
 

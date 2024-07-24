@@ -6,7 +6,7 @@ The documentation for the project is built using `Sphinx <https://www.sphinx-doc
 Building the documentation
 --------------------------
 
-If you do not have a development environment set up, see :ref:`development-setup`. Once you have a development environment setup, with the ``doc`` development dependency group, run:
+If you do not have a development environment set up, see :ref:`Development setup`. Once you have a development environment setup, with the ``doc`` development dependency group, run:
 
 .. code-block:: bash
 
@@ -25,4 +25,4 @@ Once you finish building the documentation, open ``<BUILD-DIRECTORY>/index.html`
 Extending the documentation
 ---------------------------
 
-Beyond following the usual steps for contributing code to the project, the process is fairly similar to that of another project using Sphinx. The documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`__. Because we use the PyData Sphinx Theme, some documentation files may use extra elements, as described in `here <https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/theme-elements.html>`__. Naturally, you may use these extra elements in contribution.
+Beyond following the usual steps for contributing code to the project, the process is fairly similar to that of another project using Sphinx. The documentation is written in `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`__. Because we use the PyData Sphinx Theme, some documentation files may use extra elements, as described in `here <https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/theme-elements.html>`__. Naturally, you may use these extra elements in your contribution.

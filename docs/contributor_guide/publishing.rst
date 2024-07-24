@@ -1,7 +1,7 @@
 Building and publishing PDDLSIM releases
 ========================================
 
-If you do not have a development environment set up, see :ref:`development-setup`. Once you do have one however, building instructions will vary depending on how you are developing on PDDLSIM.
+If you do not have a development environment set up, see :ref:`Development setup`. Once you do have one however, building instructions will vary depending on how you are developing on PDDLSIM.
 
 Building and publishing with PDM
 --------------------------------
@@ -23,4 +23,4 @@ and the build artifacts will be available in ``.pdm-build/``.
 Building and publishing without PDM
 -----------------------------------
 
-To build without PDM, see `this <https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives/>`__. Note that building will still use `PDM-Backend <https://backend.pdm-project.org/>`__, as seen in the project's ``pyproject.toml``. Then, to publish to PyPI, use a tool such as `Twine <https://twine.readthedocs.io/en/>`__, as seen in `here <https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives/>`__.
+The procedure for building and publishing without PDM is similar to any other project using ``pyproject.toml``. To build without PDM, see `this <https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives/>`__. Note that building will still use `PDM-Backend <https://backend.pdm-project.org/>`__, as seen in the project's ``pyproject.toml``. Then, to publish to PyPI, use a tool such as `Twine <https://twine.readthedocs.io/en/>`__, as seen in `here <https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives/>`__.

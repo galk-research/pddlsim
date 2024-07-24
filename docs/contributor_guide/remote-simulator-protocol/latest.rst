@@ -1,10 +1,13 @@
-Remote Simulator Protocol v1.0.0 (latest)
-=========================================
+Remote Simulator Protocol ``v1.0`` (latest)
+===========================================
 
-While for some applications, no separation between the simulator and the agent is acceptable, for others, a client-server model is essential. In this model, there is absolute separation between the agent and the simulator, so that the agent cannot access any hidden information from the simulator, and a simulator may be used remotely, using the internet. For this, a "remote simulator" is used. Below, is the specification for the communication protocol between the client (henceforth, agent) and the server (henceforth, simulator).
+This is version ``v1.0`` of the RSP protocol. Details on its purpose, versioning, and more, can be found in :ref:`Remote Simulator Protocol`. It is recommended you read what is explained there before continuing here.
 
 Session phases and messages
 ---------------------------
+
+Messages (invariant)
+~~~~~~~~~~~~~~~~~~~~
 
 The "Remote Simulator Protocol" (henceforth, "RSP") facilitates communication over a TCP connection between an agent and a simulator, for running a simulation session. Messages are written in `CBOR <https://cbor.io/>`__ and are unframed, as CBOR is self-delimiting. Throughout the specification, messages will be presented using `CDDL <https://datatracker.ietf.org/doc/rfc8610/>`__.
 
@@ -17,10 +20,10 @@ All messages sent will be of the form:
         payload: any,
     }
 
-When message types will be introduced in the following sections, their ``type`` and their ``payload`` will both be detailed. Almost all messages are either a request, or a response. An agent may only send requests, and a simulator, only responses. Message types are unique among the corresponding kind of message, such that a response and a request may have the same type, but a different schema. The exception to this, are termination messages, which may be sent at any time, so either party must always be available to handle them.
+When different kinds of messages will be introduced in the following sections, their ``type`` and their ``payload`` will both be detailed. Almost all messages are either a request, or a response. An agent may only send requests, and a simulator, only responses. Message types are unique. Types used for requests and responses, will be of the form ``<PREFIX>-request``, or ``<PREFIX>-response`` respectively. ``<prefix>`` is a "common type" for both of the messages, for identifying them. For example, when we want to refer to the ``perception-request`` message type, we will refer to it as the ``perception`` *request*. The only messages without this kind of suffixing, are termination messages, which may be sent at any time, so either party must always be available to handle them. Despite this, for any given message type, the payload will *always* be uniquely determined.
 
-Termination messages
-~~~~~~~~~~~~~~~~~~~~
+Termination messages (invariant)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following messages messages all terminate the session. They are noncontextual, and so may be sent no matter the context, no matter the time.
 
@@ -54,8 +57,8 @@ A message of type ``simulation-termination`` may be sent by the *simulator* to i
 
 .. _Session setup:
 
-Session setup
-~~~~~~~~~~~~~
+Session setup (invariant)
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ..
     * Should we add explicit support for asking for a specific problem?
@@ -65,25 +68,33 @@ Once the communication channel is set up, the agent must send a ``session-setup`
 
 .. code-block:: cddl
 
-    version = { major = uint, minor = uint }
-
-    session-setup = {
-        supported-versions: [* version],
+    session-setup-request = {
+        * supported-major => minimum-minor,
     }
 
-Once received, the simulator should send a ``session-setup`` response, with the following payload:
+    supported-major = uint
+    minimum-minor = uint
+
+essentially, this is a map from supported major releases, to the minimum minor release this support entails. For example, an agent that can operate using a version compatible with ``v2.3``, or a version compatible with ``v1.2``  (see :ref:`Versioning guarantees`), should send the following grounded payload:
+
+.. code-block:: cddl
+    
+    {
+        1 => 2,
+        2 => 3,
+    }
+
+Upon receiving this information, the simulator should then decide, based on their supported protocol versions, which of the given major versions it can accomodate. This should be done according to :ref:`Versioning guarantees`. Assuming it can support a version out of the given, it should send a ``session-setup`` response, with the following payload:
 
 .. code-block:: cddl
 
-    version = { major = uint, minor = uint }
+    session-setup-response = selected-major-version
+    selected-major-version = uint
 
-    session-setup = {
-        domain: text,
-        problem: text,
-        selected-version: version
-    }
 
-where ``domain`` and ``problem`` are both in the PPDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``). ``selected-version`` will be the version selected by the simulator, out of ``supported-versions``.
+essentially, returning the selected major version choosen by the simulator. Communication will then be carried out using the minimum version laid out in the ``session-setup-request`` table. In practice, the simulator may actually be using a higher minor version, but this is opaque to the agent. The protocol is not invariant going forward, but rather is dependent on the given version.
+
+If the simulator cannot support any major version, it should respond with a ``session-termination`` response. If there are no supported major versions provided, it should respond with an external ``error`` response.
 
 Session operation
 ~~~~~~~~~~~~~~~~~
@@ -95,6 +106,22 @@ Services
 
 "Services" is a collective name for requests that do not change the simulators external state. They may provide information on current and previous environment states, provide utilities for agent operation, and more.
 
+.. _Problem setup:
+
+Problem setup
+'''''''''''''
+
+To receive the initial setup of the decision-making problem, alongside its unchanging domain, the agent can use a ``problem-setup`` request, with a ``null`` payload. The ``problem-setup`` response from the simulator will have the following payload:
+
+.. code-block:: cddl
+    
+    problem-setup-response = {
+        domain: text,
+        problem: text,
+    }
+
+where ``domain`` and ``problem`` are both in the PPDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``). If the simulator does not however support said version, a ``session-termination`` message should be sent instead, with the ``reason`` field being undefined.
+
 Perception
 ''''''''''
 
@@ -102,45 +129,46 @@ The ``perception`` request allows an agent to get from the simulator the informa
 
 .. code-block:: cddl
 
-    predicate-name = text
-    object = text
-    predicate-grounding = [* object]
-
-
-    perception = {
+    perception-response = {
         * predicate-name => [* predicate-grounding]
     }
+
+    predicate-grounding = [* object]
+    object = text
+    predicate-name = text
 
 Essentially, the returned information is information on all tuples of objects which satisfy a given predicate, for all predicates. For example, given state ``(west a b), (east b a)``, assuming all information should be known to the agent, the resulting payload would be ``{"west" => [["a", "b"]], "east" => [["b", "a"]]}``.
 
 Get grounded actions
 ''''''''''''''''''''
 
-The ``get-grounded-actions`` request allows the agent to receive the valid grounded actions it can perform in state, assuming the agent should be aware of them. Grounded actions relying on hidden information will not be shown. This request has a ``null`` payload. The response from the simulator is of the same type, and the following payload:
+The ``get-grounded-actions`` request allows the agent to receive the valid grounded actions it can perform in state, assuming the agent should be aware of them. Grounded actions relying on hidden information will not be shown. This request has a ``null`` payload. The ``get-grounded-actions`` response from the simulator has the following payload:
 
 .. code-block:: cddl
+
+    get-grounded-actions-response = [* grounded-action]
 
     grounded-action = {
         name: text,
         grounding: [* object],
     }
-
-    get-grounded-actions = [* grounded-action]
-
+    object = text
 
 Goal tracking
 '''''''''''''
 
-The ``goals`` request allows the agent to receive information on which goals of the problem it has reached, and which, it has yet to reach. This request has a ``null`` payload. The response from the simulator has the same type, and the following payload:
+The ``goals`` request allows the agent to receive information on which goals of the problem it has reached, and which, it has yet to reach. This request has a ``null`` payload. The ``goals`` response from the simulator has the following payload:
 
 .. code-block:: cddl
 
-    goal = text
-
-    goals = {
+    goals-response = {
         reached: [* goal]
         unreached: [* goal],
     }
+
+    goal = text
+
+Every ``goal`` text should be a valid "condition" structure in the PPDDL-like language PDDLSIM uses. A condition is essentially an action precondition, without equality constraints, and is grounded.
 
 .. _Peforming grounded actions:
 
@@ -151,27 +179,28 @@ For the agent to perform a grounded action, it must send a ``perform-grounded-ac
 
 .. code-block:: cddl
 
-    object = text
+    perform-grounded-action-request = grounded-action
+    
     grounded-action = {
         name: text,
         grounding: [* object],
     }
 
-    perform-grounded-action = grounded-action
+    object = text
 
 Then, if the grounded action did not solve the problem after applying the grounded action, if the grounded action is valid, the response from the simulator is of the same type, and with the following payload:
 
 .. code-block:: cddl
 
+    perform-grounded-action-response = effect-index
     effect-index = uint
-    perform-grounded-action = effect-index
 
 where ``effect-index`` is the index of the resulting effect of the action. This is only relevant for probabilistic actions, or fallible ones. If the grounded action received was invalid, it is assumed that the agent is erring, and so an external ``error`` response should be returned by the simulator.
 
-If the grounded action instead *did* solve the problem, a ``simulation-termination`` response will be passed. the ``reason`` field is not constrained by this specification.
+If the grounded action instead *did* solve the problem, a ``simulation-termination`` message will be sent by the simulator. the ``reason`` field is not constrained by this specification.
 
 A simple example
-----------------------
+----------------
 
 Consider an example problem, with the following PDDL domain:
 
@@ -197,25 +226,46 @@ And a PDDL instance for it:
                    (reachable ?b ?c))
             (:goal (at ?c)))
 
-Given a simulator loaded with this problem, let's play the role of an agent, interacting with the simulator using the RSP protocol.
+Given a simulator loaded with this problem, let's play the role of an agent, interacting with the simulator using the RSP protocol. This agent will only support communication via a protocol version agent-compatible with ``v1.0``, and the simulator similarly, only support communication with a version simulator-compatible with ``v1.0``. In this case, this is only version ``v1.0``.
 
-We will first requests a session setup, with the following request:
+We will first request a session setup, with the following request:
 
 .. code-block:: cddl
     :caption: Sent by the agent
 
     {
-        type: "session-setup",
-        payload: null
+        type: "session-setup-request",
+        payload: { 1 => 0 },
     }
 
-The simulator will then respond with a message accordingly, returning the PDDL strings used to simulate the problem. There isn't any hidden information, so the full strings seen above will be returned, like so:
+
+Note the payload of this request. We support communication via major release ``1``, requiring at least the ``0`` minor release to be used. The simulator supports this minimum version, and so will then give a ``session-setup`` response accordingly:
 
 .. code-block:: cddl
     :caption: Sent by the simulator
 
     {
-        type: "session-setup",
+        type: "session-setup-response",
+        payload: 1,
+    }
+
+The simulator, expectedly, chose major version 1. Session operation has now begun. Let's begin by seeing what problem we are actually dealing with (we, the humans, know this, but our hypothetical agent, does not). Thus, we will use the `Problem setup`_ service, by sending a message like so:
+
+.. code-block:: cddl
+    :caption: Sent by the agent
+
+    {
+        type: "problem-setup-request",
+        payload: null,
+    }
+
+The simulator will respond by returning the PDDL strings used to simulate the problem. There isn't any hidden information, so the full strings seen above will be returned, like so:
+
+.. code-block:: cddl
+    :caption: Sent by the simulator
+
+    {
+        type: "problem-setup-response",
         payload: {
             domain: "
                 (define (domain simple-domain)
@@ -238,13 +288,13 @@ The simulator will then respond with a message accordingly, returning the PDDL s
         }
     }
 
-We can now begin to interact with the environment. To better understand our options though, let's first see which grounded actions we may perform, using the ``get-grounded-actions`` message type, sending a message like so:
+We can now begin to interact with the environment. To better understand our options though, let's first see which grounded actions we may perform, using the ``get-grounded-actions-request`` message type, sending a message like so:
 
 .. code-block:: cddl
     :caption: Sent by the agent
 
     {
-        type: "get-grounded-actions",
+        type: "get-grounded-actions-request",
         payload: null
     }
 
@@ -254,7 +304,7 @@ The simulator will then respond as expected:
     :caption: Sent by the simulator
 
     {
-        type: "get-grounded-actions",
+        type: "get-grounded-actions-response",
         payload: [
             {
                 name: "move",
@@ -269,7 +319,7 @@ Note that one cannot do ``(move a a)``, as according to the problem, ``a`` is no
     :caption: Sent by the agent
 
     {
-        type: "perform-grounded-action",
+        type: "perform-grounded-action-request",
         payload: {
             name: "move",
             grounding: ["a", "b"]
@@ -282,7 +332,7 @@ Being a valid grounded action, the simulator will respond with an effect index, 
     :caption: Sent by the simulator
 
     {
-        type: "perform-grounded-action",
+        type: "perform-grounded-action-response",
         payload: 0,
     }
 
@@ -292,18 +342,17 @@ Great! We're one step closer to solving the problem. Let's see what our surround
     :caption: Sent by the agent
 
     {
-        type: "perception",
+        type: "perception-request",
         payload: null,
     }
 
 This is the environment state returned by the simulator:
 
-
 .. code-block:: cddl
     :caption: Sent by the simulator
 
     {
-        type: "perception",
+        type: "perception-response",
         payload: {
             "at" => [["b"]],
             "reachable" => [["a", "b"], ["b", "c"]],
@@ -317,7 +366,7 @@ Wait, what? What's this ``"="`` predicate doing here? While it doesn't appear an
     :caption: Sent by the agent
 
     {
-        type: "perform-grounded-action",
+        type: "perform-grounded-action-request",
         payload: {
             name: "move",
             grounding: ["b", "c"],
@@ -336,4 +385,4 @@ As we have now finished the problem, we simulator will respond with the closing 
         },
     }
 
-We should now disconnect from the server's port.
+We should now close the communication channel.
