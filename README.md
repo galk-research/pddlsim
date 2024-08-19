@@ -11,7 +11,7 @@ PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no 
 
 ## Documentation
 
-The documentation, in RST, is available [here](./docs/) folder. To manually build the documentation, see the "Contriburing - Building the documentation" section below. In the future, the documentation will be available online.
+The documentation, in RST, is available [here](./docs/) folder. To manually build the documentation, see the "Contributing" section below. In the future, the documentation will be available online.
 
 ## Contributing
 
