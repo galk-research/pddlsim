@@ -9,7 +9,7 @@ Session phases and messages
 Messages (invariant)
 ~~~~~~~~~~~~~~~~~~~~
 
-The "Remote Simulator Protocol" (henceforth, "RSP") facilitates communication over a TCP connection between an agent and a simulator, for running a simulation session. Messages are written in `CBOR <https://cbor.io/>`__ and are unframed, as CBOR is self-delimiting. Throughout the specification, messages will be presented using `CDDL <https://datatracker.ietf.org/doc/rfc8610/>`__.
+The "Remote Simulator Protocol" (henceforth, "RSP") facilitates communication over a TCP connection between an agent and the PDDLSIM simulator server, for running a simulation session. Messages are written in `CBOR <https://cbor.io/>`__ and are unframed, as CBOR is self-delimiting. Throughout the specification, messages will be presented using `CDDL <https://datatracker.ietf.org/doc/rfc8610/>`__.
 
 All messages sent will be of the form:
 
@@ -22,8 +22,10 @@ All messages sent will be of the form:
 
 When different kinds of messages will be introduced in the following sections, their ``type`` and their ``payload`` will both be detailed. Almost all messages are either a request, or a response. An agent may only send requests, and a simulator, only responses. Message types are unique. Types used for requests and responses, will be of the form ``<PREFIX>-request``, or ``<PREFIX>-response`` respectively. ``<prefix>`` is a "common type" for both of the messages, for identifying them. For example, when we want to refer to the ``perception-request`` message type, we will refer to it as the ``perception`` *request*. The only messages without this kind of suffixing, are termination messages, which may be sent at any time, so either party must always be available to handle them. Despite this, for any given message type, the payload will *always* be uniquely determined.
 
-Termination messages (invariant)
+Termination messages (invariant)   
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+XXX Yoav, why are we starting with the "termination messages" section? It seems like a weird place to start. I would suggest starting with the "Session setup" section, as that is the first thing that happens in a session.
 
 The following messages messages all terminate the session. They are noncontextual, and so may be sent no matter the context, no matter the time.
 
@@ -99,7 +101,7 @@ If the simulator cannot support any major version, it should respond with a ``se
 Session operation
 ~~~~~~~~~~~~~~~~~
 
-After `Session setup`_, the simulation has officialy begun. Session operation is the final stage of an RSP session, and where the bulk of its time is spent. In this phase, an agent may use a set of provided "services", and advance the simulation by performing grounded actions. All of this, using RSP requests.
+After `Session setup`_, the simulation has officialy begun. Session operation is the final stage of an RSP session, and where the bulk of its time is spent. In this stage, an agent may use a set of provided "services", and advance the simulation by performing grounded actions. All of this, using RSP requests.
 
 Services
 ````````
@@ -111,7 +113,7 @@ Services
 Problem setup
 '''''''''''''
 
-To receive the initial setup of the decision-making problem, alongside its unchanging domain, the agent can use a ``problem-setup`` request, with a ``null`` payload. The ``problem-setup`` response from the simulator will have the following payload:
+To receive the initial setup of the decision-making problem, alongside its  domain, the agent can use a ``problem-setup`` request, with a ``null`` payload. The ``problem-setup`` response from the simulator will have the following payload:
 
 .. code-block:: cddl
     
@@ -120,7 +122,7 @@ To receive the initial setup of the decision-making problem, alongside its uncha
         problem: text,
     }
 
-where ``domain`` and ``problem`` are both in the PPDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``). If the simulator does not however support said version, a ``session-termination`` message should be sent instead, with the ``reason`` field being undefined.
+where ``domain`` and ``problem`` are both in the PDDL-like language PDDLSIM uses, but without any revealable information (``:reveal``). If the simulator does not however support said version, a ``session-termination`` message should be sent instead, with the ``reason`` field being undefined.
 
 Perception
 ''''''''''
