@@ -1,8 +1,5 @@
 __pycache__/
 
-# Sphinx specific
-build/
-
 # Pytest specific
 .benchmarks/
 .pytest_cache/

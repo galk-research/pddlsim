@@ -5,7 +5,7 @@
 groups = ["default", "doc", "format", "test"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:db925436c861854b00a164f3f0c797634edbf3f286cb92c62d4749c3a4311425"
+content_hash = "sha256:ae33911e01869191cd63468d247eb1988ebb4f9b7d816f23547ae3408ed59648"
 
 [[metadata.targets]]
 requires_python = "~=3.12"
@@ -199,6 +199,15 @@ groups = ["doc"]
 files = [
     {file = "imagesize-1.4.1-py2.py3-none-any.whl", hash = "sha256:0d8d18d08f840c19d0ee7ca1fd82490fdc3729b7ac93f49870406ddde8ef8d8b"},
     {file = "imagesize-1.4.1.tar.gz", hash = "sha256:69150444affb9cb0d5cc5a92b3676f0b2fb7cd9ae39e947a5e11a36b4497cd4a"},
+]
+
+[[package]]
+name = "importlib"
+version = "1.0.4"
+summary = "Backport of importlib.import_module() from Python 2.7"
+groups = ["doc"]
+files = [
+    {file = "importlib-1.0.4.zip", hash = "sha256:b6ee7066fea66e35f8d0acee24d98006de1a0a8a94a8ce6efe73a9a23c8d9826"},
 ]
 
 [[package]]
