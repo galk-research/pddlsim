@@ -39,7 +39,6 @@ distribution = true
 
 [tool.pdm.dev-dependencies]
 test = ["pytest~=8.3", "pytest-benchmark~=4.0", "pytest-benchmark[histogram]"]
-doc = ["sphinx~=7.4", "pydata-sphinx-theme~=0.15"]
 format = ["black~=24.4"]
 
 [tool.pytest.ini_options]
