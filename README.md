@@ -6,36 +6,30 @@
     <hr/>
 </div>
 
-PDDLSIM is an execution simulator for a PDDL domain and problem[^1], with a supporting library to define agents and interface with said simulator, locally, or via a remote connection. The goal of PDDLSIM is to allow evaluating sequential action-selection algorithms across a wide variety of tasks and environments.
-PDDLSIM was created for the Bar-Ilan University course ["Introduction to Intelligent, Cognitive, and Knowledge-Based Systems" (89-674)](https://www.cs.biu.ac.il/~galk/teach/current/intsys/), and is used as part of the final project in the course.
+PDDLSIM is an execution simulator for PDDL[^1] domain-problem pairs, with a supporting library to define agents that interface with said simulator. This can happen locally, or via a remote, internet connection.
 
-The simulator reads a domain description and a task described in PDDL. An agent can connect to the simulator, ask for the domain and task, and then attempt to solve the task by selecting actions to send to the simulator for execution. The simulator reports on number of actions taken, whether the goal of the task was achieved, and the world-time taken. Note that the agent may receive a PDDL description that may be redacted. For example, it might not receive information about action success probabilities, nor objects that remain hidden until the agent reaches a specific state.
+PDDLSIM is designed to allow the evaluation of sequential action-selection algorithms across a wide variety of tasks and environments, and was created for the Bar-Ilan University course ["Introduction to Intelligent, Cognitive, and Knowledge-Based Systems" (89-674)](https://www.cs.biu.ac.il/~galk/teach/current/intsys/). In the course, it is used as a part of the final project.
 
-For full documentation [see the project wiki](https://bitbucket.org/galk-opensource/executionsimulation/wiki/Home).
+The simulator is created with a PDDL[^1] domain-problem pair. An agent can then connect to the simulator and interact with it: requesting the domain-problem pair definition, and then attempting to solve the task by selecting actions and sending them to the simulator for execution. The simulator will report the number of actions taken, whether the goal of the task was achieved, the wall-clock time taken, etc. The PDDL description received by the agent may be partially redacted. For example, it might not receive information about action success probabilities, or some objects may remain hidden until the agent reaches a specific state, etc.
 
-For a few example agents, [see the examples folder](./examples) XXX Yoav+Gal discuss
+## Installation
 
-## Installation (Brief)
+PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no external dependencies. Note that PDDLSIM requires on Python 3.12 or later. Earlier, legacy versions of PDDLSIM are also available on PyPI, but are unsupported, as these use Python 2.7.
 
-PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no external dependencies. Note that PDDLSIM requires Python 3.12 or later. Earlier, legacy versions of PDDLSIM are also available on PyPI, but are unsupported.
+To install PDDLSIM using `pip`, run:
 
-To Install, execute: XXX Yoav, fill in command-line
+```bash
+pip install pddlsim
+```
 
-## Documentation
+## Usage
 
-XXX Yoav, note that you are asking the reader to go into the contributor's docs, just so that they can read the user manual. This is not a good idea. I therefore moved everything to a wiki. This section will be deleted after we discuss how to move everything, and why this was a bad idea.
-
-## Documentation for Agent Developers (Agent Builders)
-
-User (agent-builder) documentation is on the [PDDLSIM project wiki](https://bitbucket.org/galk-opensource/executionsimulation/wiki/Home). It includes also brief
-overview of example agents.
+A guide on using PDDLSIM for simulating domain-problem pairs, and creating agents exists in the wiki. To start, see [Getting Started](wiki/Getting-Started).
 
 ## Contributing
 
-XXX Yoav: Is this file still needed? >>> 'Please see the [CONTRIBUTING.md](./CONTRIBUTING.md) file for details.'
+Before you begin contribution, see [Contribution Guidelines](wiki/Contribution-Guidelines). Then, see the [Development Setup](wiki/Development-Setup) page to ready your development environment for contribution.
 
-XXX Yoav: to fix links to wiki, once wiki is fixed.
+## Wiki
 
-Content on contribution is available in the documentation, [here](./docs/contributor_guide/). To setup your development environment, see [this](./docs/contributor_guide/setup.rst), and to build the documentation, which requires a development environment, see [this](./docs/contributor_guide/docs.rst).
-
-[^1]: Some PDDL features (non-classical planning) are unsupported, and some extensions are included (action success probabilities, hidden objects).
+For other information relating to the project, PDDLSIM has an official wiki, on [this page](https://github.com/galk-research/pddlsim/wiki).
