@@ -33,3 +33,5 @@ Before you begin contribution, see [Contribution Guidelines](wiki/Contribution-G
 ## Wiki
 
 For other information relating to the project, PDDLSIM has an official wiki, on [this page](https://github.com/galk-research/pddlsim/wiki).
+
+[^1]: Some PDDL features, like non-classical planning, are unsupported, and some extensions, such as probabilistic actions, or hidden information, are present.
