@@ -1,5 +1,8 @@
 <div align=center>
-    <img alt="PDDLSIM logo" src="./docs/_static/pddlsim-light.svg"/>
+    <picture>
+        <source srcset="/assets/pddlsim-dark.svg" media="(prefers-color-scheme: dark)"/>
+        <img alt="PDDLSIM logo" src="/assets/pddlsim-light.svg"/>
+    </picture>
     <hr/>
 </div>
 
