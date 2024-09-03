@@ -24,11 +24,11 @@ pip install pddlsim
 
 ## Usage
 
-A guide on using PDDLSIM for simulating domain-problem pairs, and creating agents exists in the wiki. To start, see [Getting Started](wiki/Getting-Started).
+A guide on using PDDLSIM for simulating domain-problem pairs, and creating agents exists in the wiki. To start, see [Getting Started](https://github.com/galk-research/pddlsim/wiki/Getting-Started).
 
 ## Contributing
 
-Before you begin contribution, see [Contribution Guidelines](wiki/Contribution-Guidelines). Then, see the [Development Setup](wiki/Development-Setup) page to ready your development environment for contribution.
+Before you begin contribution, see [Contribution Guidelines](https://github.com/galk-research/pddlsim/wiki/Contribution-Guidelines/). Then, see the [Development Setup](wiki/Development-Setup) page to ready your development environment for contribution.
 
 ## Wiki
 
