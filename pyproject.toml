@@ -45,4 +45,4 @@ format = ["black~=24.4"]
 testpaths = ["tests/*.py", "tests/benches/*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
-addopts = "-ra --benchmark-skip --benchmark-autosave"
+addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"

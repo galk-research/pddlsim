@@ -28,7 +28,7 @@ A guide on using PDDLSIM for simulating domain-problem pairs, and creating agent
 
 ## Contributing
 
-Before you begin contribution, see [Contribution Guidelines](https://github.com/galk-research/pddlsim/wiki/Contribution-Guidelines/). Then, see the [Development Setup](wiki/Development-Setup) page to ready your development environment for contribution.
+For a step-by-step guide to contributing to PDDLSIM, see the [Contributing](https://github.com/galk-research/pddlsim/wiki/Contributing/) page.
 
 ## Wiki
 
