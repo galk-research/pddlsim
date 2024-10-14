@@ -26,6 +26,8 @@ To install PDDLSIM using `pip`, run:
 pip install pddlsim
 ```
 
+Check out [`examples/`](/examples/) for some examples of using PDDLSIM, for creating agents that interface with simulators, running simulators that interface with agents, etc.
+
 ## Contributing
 
 For a step-by-step guide to contributing to PDDLSIM, see the [Contributing](https://github.com/galk-research/pddlsim/wiki/Contributing/) page.

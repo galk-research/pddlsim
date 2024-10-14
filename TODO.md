@@ -1,3 +1,0 @@
-- [ ] Clean up auto-generated files. pdm.lock ? pyproject.toml
-- [ ] git modules?
--
