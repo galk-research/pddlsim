@@ -29,7 +29,7 @@ class Simulator(object):
         return self.report_card.done(self.goal_tracking.reached_all_goals())
 
     def action_loop(self, next_action_func):
-        while True:
+        while not self.goal_tracking.reached_all_goals():
             action = next_action_func()
             self.action_failed = False
             if not action or action.lower() == "(reach-goal)":

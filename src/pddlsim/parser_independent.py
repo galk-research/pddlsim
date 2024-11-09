@@ -2,12 +2,23 @@ import abc
 import random
 import copy
 
-REACH_GOAL = 'reach-goal'
+REACH_GOAL = "reach-goal"
 
 
 class PDDL(object):
-    def __init__(self, domain_path, problem_path, domain_name, problem_name, objects, actions, goals, initial_state,
-                 failure_conditions=None, revealable_predicates=None):
+    def __init__(
+        self,
+        domain_path,
+        problem_path,
+        domain_name,
+        problem_name,
+        objects,
+        actions,
+        goals,
+        initial_state,
+        failure_conditions=None,
+        revealable_predicates=None,
+    ):
         """
         :param domain_path: - path of the domain file used
         :param problem_path: - path of the problem file used
@@ -30,14 +41,15 @@ class PDDL(object):
         self.failure_conditions = failure_conditions
         self.revealable_predicates = revealable_predicates
 
-        self.uses_custom_features = (not self.failure_conditions is None or len(
-            self.goals) > 1)
+        self.uses_custom_features = (
+            not self.failure_conditions is None or len(self.goals) > 1
+        )
 
     def build_first_state(self):
         return self.copy_state(self.initial_state)
 
     def get_object(self, name):
-        """ Get a object tuple for a name """
+        """Get a object tuple for a name"""
         if name in self.objects:
             return (name, self.objects[name])
 
@@ -48,56 +60,75 @@ class PDDL(object):
         return condition.accept(StripsStringVisitor())
 
     def predicates_from_state(self, state):
-        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in
-                state.items() for pred in predicate_set if predicate_name != '=']
+        return [
+            ("(%s %s)" % (predicate_name, " ".join(map(str, pred))))
+            for predicate_name, predicate_set in state.items()
+            for pred in predicate_set
+            if predicate_name != "="
+        ]
 
     def generate_problem(self, path, state, new_goal):
         predicates = self.predicates_from_state(state)
         goal = self.pd_to_strips_string(new_goal)
         # goal = self.tuples_to_string(new_goal)
-        with open(path, 'w') as f:
-            f.write('''
-    (define (problem ''' + self.problem_name + ''')
-    (:domain  ''' + self.domain_name + ''')
+        with open(path, "w") as f:
+            f.write(
+                """
+    (define (problem """
+                + self.problem_name
+                + """)
+    (:domain  """
+                + self.domain_name
+                + """)
     (:objects
-        ''')
+        """
+            )
             for t in self.objects.keys():
-                f.write('\n\t' + t)
-            f.write(''')
+                f.write("\n\t" + t)
+            f.write(
+                """)
 (:init
-''')
-            f.write('\t' + '\n\t'.join(predicates))
-            f.write('''
+"""
+            )
+            f.write("\t" + "\n\t".join(predicates))
+            f.write(
+                """
             )
     (:goal
-        ''' + goal + '''
+        """
+                + goal
+                + """
         )
     )
-    ''')
+    """
+            )
         return path
 
     @staticmethod
     def parse_action(action):
-        action_sig = action.strip('()').lower()
-        parts = action_sig.split(' ')
+        action_sig = action.strip("()").lower()
+        parts = action_sig.split(" ")
         action_name = parts[0]
         param_names = parts[1:]
         return action_name, param_names
 
     def check_action_failure(self, state, action_name):
         for failure in self.failure_conditions:
-            if failure.is_relevant(state, action_name) and random.random() < failure.probablity:
+            if (
+                failure.is_relevant(state, action_name)
+                and random.random() < failure.probablity
+            ):
                 return True
         return False
 
     def apply_revealable_predicates(self, state):
         for revealable_predicate in self.revealable_predicates:
             if revealable_predicate.is_relevant(state):
-                if (random.random() < revealable_predicate.probability):
-                    for (predicate_name, entry) in revealable_predicate.effects:
+                if random.random() < revealable_predicate.probability:
+                    for predicate_name, entry in revealable_predicate.effects:
                         state[predicate_name].add(entry)
             else:
-                for (predicate_name, entry) in revealable_predicate.effects:
+                for predicate_name, entry in revealable_predicate.effects:
                     predicate_set = state[predicate_name]
                     if entry in predicate_set:
                         predicate_set.remove(entry)
@@ -117,22 +148,22 @@ class PDDL(object):
                     raise PreconditionFalseError()
 
         if isinstance(action, Action):
-            for (predicate_name, entry) in action.to_delete(param_mapping):
+            for predicate_name, entry in action.to_delete(param_mapping):
                 predicate_set = state[predicate_name]
                 if entry in predicate_set:
                     predicate_set.remove(entry)
 
-            for (predicate_name, entry) in action.to_add(param_mapping):
+            for predicate_name, entry in action.to_add(param_mapping):
                 state[predicate_name].add(entry)
         else:
             assert isinstance(action, ProbabilisticAction)
             index = action.choose_random_effect()
-            for (predicate_name, entry) in action.to_delete(param_mapping, index):
+            for predicate_name, entry in action.to_delete(param_mapping, index):
                 predicate_set = state[predicate_name]
                 if entry in predicate_set:
                     predicate_set.remove(entry)
 
-            for (predicate_name, entry) in action.to_add(param_mapping, index):
+            for predicate_name, entry in action.to_add(param_mapping, index):
                 state[predicate_name].add(entry)
 
     def copy_state(self, state):
@@ -150,8 +181,13 @@ class PDDL(object):
                     for cur_index, cur_prob in enumerate(cur_action.prob_list):
                         if cur_prob > cur_action.prob_list[max_prob_index]:
                             max_prob_index = cur_index
-                    self.actions[action_name] = (Action(cur_action.name, cur_action.signature, cur_action.addlists[max_prob_index],
-                                                        cur_action.dellists[max_prob_index], cur_action.precondition))
+                    self.actions[action_name] = Action(
+                        cur_action.name,
+                        cur_action.signature,
+                        cur_action.addlists[max_prob_index],
+                        cur_action.dellists[max_prob_index],
+                        cur_action.precondition,
+                    )
 
         return parser_copy
 
@@ -233,7 +269,11 @@ class ProbabilisticAction(object):
         for index, prob in enumerate(self.prob_list):
             cur_probs_sum += prob
             if cur_probs_sum > rand:
-                print("Effect number {} was randomly selected for action {}".format(index, self.name))
+                print(
+                    "Effect number {} was randomly selected for action {}".format(
+                        index, self.name
+                    )
+                )
                 return index
 
 
@@ -251,7 +291,7 @@ class Predicate(object):
         return result if not self.negated else not result
 
 
-class ConditionVisitor():
+class ConditionVisitor:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -271,7 +311,7 @@ class ConditionVisitor():
         pass
 
 
-class Condition():
+class Condition:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -297,7 +337,7 @@ class Literal(Condition):
 
 class Truth(Literal):
     def __init__(self):
-        self.predicate = 'true'
+        self.predicate = "true"
         self.args = ()
 
     def accept(self, visitor):
@@ -309,7 +349,7 @@ class Truth(Literal):
 
 class Falsity(Literal):
     def __init__(self):
-        self.predicate = 'false'
+        self.predicate = "false"
         self.args = ()
 
     def accept(self, visitor):
@@ -353,13 +393,13 @@ class Disjunction(JunctorCondition):
 
 class StripsStringVisitor(ConditionVisitor):
     def visit_literal(self, condition):
-        return "({} {})".format(condition.predicate, ' '.join(condition.args))
+        return "({} {})".format(condition.predicate, " ".join(condition.args))
 
     def visit_not(self, condition):
         return "(not {})".format(condition.content.accept(self))
 
     def join_parts(self, condition):
-        return ' '.join([part.accept(self) for part in condition.parts])
+        return " ".join([part.accept(self) for part in condition.parts])
 
     def visit_conjunction(self, condition):
         return "(and {})".format(self.join_parts(condition))
@@ -368,7 +408,7 @@ class StripsStringVisitor(ConditionVisitor):
         return "(or {})".format(self.join_parts(condition))
 
 
-class FailureCondition():
+class FailureCondition:
     def __init__(self, condition, action_names, probablity):
         self.condition = condition
         self.action_names = action_names
@@ -377,7 +417,8 @@ class FailureCondition():
     def is_relevant(self, state, action_name):
         return action_name in self.action_names and self.condition.test(state)
 
-class RevealablePredicate():
+
+class RevealablePredicate:
     def __init__(self, condition, effects, probability):
         self.condition = condition
         self.effects = [effect.literal.key for effect in effects]
@@ -385,6 +426,7 @@ class RevealablePredicate():
 
     def is_relevant(self, state):
         return self.condition.test(state)
+
 
 class PreconditionFalseError(Exception):
     pass

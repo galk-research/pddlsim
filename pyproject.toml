@@ -14,6 +14,8 @@ dependencies = [
     "unified-planning~=1.1",
     "unified-planning[fast-downward]",
     "setuptools~=71.1",                # Required for `unified-planning[fast-downward]` to work, as it uses `pkg_resources`
+    "numpy~=2.1",                      # Needed to support Python 3.13 until Numpy 2.1 will be transiently installed
+    "scipy>=1.14.1,<2",                # Needed to support Python 3.13 until Scipy 1.14.1 will be transiently installed
 ]
 requires-python = "~=3.12"
 readme = "README.md"
@@ -38,11 +40,11 @@ build-backend = "pdm.backend"
 distribution = true
 
 [tool.pdm.dev-dependencies]
-test = ["pytest~=8.3", "pytest-benchmark~=4.0", "pytest-benchmark[histogram]"]
+test = ["pytest~=8.3", "pytest-benchmark~=5.1", "pytest-benchmark[histogram]"]
 format = ["black~=24.4"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/*.py", "tests/benches/*.py"]
+testpaths = ["tests/unit/*.py", "tests/integration/*.py", "tests/benches/*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
 addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"

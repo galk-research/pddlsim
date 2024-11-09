@@ -1,9 +1,127 @@
-from pddlsim.executors.avoid_return_random import AvoidReturn
-from pddlsim.executors.plan_dispatch import PlanDispatcher
-from pddlsim.executors.plan_dispatch_multiple_goals import MultipleGoalPlanDispatcher
-from pddlsim.executors.random_executor import RandomExecutor
 from pddlsim.fd_parser import FDParser
 from pddlsim.local_simulator import LocalSimulator
+
+from pddlsim.executor import Executor
+import random
+from pddlsim.utils import planner
+
+
+class MultipleGoalPlanDispatcher(Executor):
+    def __init__(self, use_local=True):
+        self.steps = []
+        self.services = None
+        self.planner = planner.local if use_local else planner.online
+
+    def initialize(self, services):
+        self.services = services
+
+    def next_action(self):
+        if not self.steps:
+            next_goal = self.services.goal_tracking.uncompleted_goals[-1]
+
+            next_problem = self.services.parser.generate_problem(
+                "multiple_goal_temp.pddl",
+                self.services.perception.get_state(),
+                next_goal,
+            )
+            self.steps = self.planner(self.services.pddl.domain_path, next_problem)
+
+        return self.steps.pop(0).lower()
+
+
+class RandomExecutor(Executor):
+    """
+    RandomExecutor - pick a random valid action each step
+    the trick is finding out the valid actions
+    Using the tracked successor is significantly faster
+    """
+
+    def initialize(self, services):
+        self.services = services
+
+    def pick_action_from_many(self, options):
+        chosen_action = random.choice(options)
+
+        return chosen_action
+
+    def next_action(self):
+        options = self.services.valid_actions.get()
+
+        if len(options) == 0:
+            return None
+        elif len(options) == 1:
+            return options[0]
+
+        return self.pick_action_from_many(options)
+
+
+class AvoidReturn(Executor):
+
+    def __init__(self):
+        pass
+
+    def initialize(self, services):
+        self.services = services
+        self.previous_state = None
+        self.last_different_state = None
+
+    def next_action(self):
+        """
+        save previous state after choosing next action
+        """
+
+        current_state = self.services.perception.get_state()
+
+        if current_state != self.previous_state:
+            self.last_different_state = self.previous_state
+
+        self.previous_state = current_state
+
+        options = self.services.valid_actions.get()
+
+        if len(options) == 0:
+            return None
+        elif len(options) == 1:
+            return options[0]
+
+        return self.pick_from_many(options)
+
+    def is_next_state_same_as_previous(self, option):
+        next_state = self.services.perception.get_state()
+
+        self.services.parser.apply_action_to_state(option, next_state, False)
+
+        return next_state != (
+            self.last_different_state
+            if self.previous_state == self.services.perception.get_state()
+            else self.previous_state
+        )
+
+    def remove_return_actions(self, options):
+        if self.previous_state:
+            return filter(self.is_next_state_same_as_previous, options)
+
+        return options
+
+    def pick_from_many(self, options):
+        options = list(self.remove_return_actions(options))
+        return random.choice(options)
+
+
+class PlanDispatcher(Executor):
+    def __init__(self, use_local=True):
+        self.steps = []
+        self.planner = planner.local if use_local else planner.online
+
+    def initialize(self, services):
+        self.steps = self.planner(services.pddl.domain_path, services.pddl.problem_path)
+
+    def next_action(self):
+        if len(self.steps) > 0:
+            return self.steps.pop(0).lower()
+
+        return None
+
 
 GENERATED_ROOT = "domains/generated/"
 MAZE_DOMAIN = GENERATED_ROOT + "domain.pddl"
