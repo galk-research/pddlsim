@@ -4,14 +4,21 @@ __pycache__/
 .benchmarks/
 .pytest_cache/
 
-# PDM specific
-.pdm-build/
+# UV specific
 .venv/
-.pdm-python
+dist/
+uv.lock
+.python-version
 
 # JetBrains specific
 .idea/
 
-# PDDLSIM specific stuff
+# PDDLSIM specific
 tmp_problem_generation
 multiple_goal_temp.pddl
+
+# Ruff specific
+ruff.toml
+
+# Mypy specific
+.mypy_cache/

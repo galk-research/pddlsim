@@ -1,28 +1,20 @@
 import random
-from pddlsim.executor import Executor
+
+from pddlsim.rsp.client import DeadEndAction, Simulation, SimulationAction
+from pddlsim.rsp.message import GroundedAction
 
 
-class RandomExecutor(Executor):
-    """
-    RandomExecutor - pick a random valid action each step
-    the trick is finding out the valid actions
-    Using the tracked successor is significantly faster
-    """
+def pick_grounded_action(actions: list[GroundedAction]) -> GroundedAction:
+    return random.choice(actions)
 
-    def initialize(self, services):
-        self.services = services
 
-    def pick_action_from_many(self, options):
-        chosen_action = random.choice(options)
+async def get_next_action(simulation: Simulation) -> SimulationAction:
+    options = await simulation.get_grounded_actions()
 
-        return chosen_action
-
-    def next_action(self):
-        options = self.services.valid_actions.get()
-
-        if len(options) == 0:
-            return None
-        elif len(options) == 1:
+    match len(options):
+        case 0:
+            return DeadEndAction()
+        case 1:
             return options[0]
-
-        return self.pick_action_from_many(options)
+        case _:
+            return pick_grounded_action(options)

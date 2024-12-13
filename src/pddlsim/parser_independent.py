@@ -41,9 +41,7 @@ class PDDL(object):
         self.failure_conditions = failure_conditions
         self.revealable_predicates = revealable_predicates
 
-        self.uses_custom_features = (
-            not self.failure_conditions is None or len(self.goals) > 1
-        )
+        self.uses_custom_features = not self.failure_conditions is None or len(self.goals) > 1
 
     def build_first_state(self):
         return self.copy_state(self.initial_state)
@@ -60,12 +58,7 @@ class PDDL(object):
         return condition.accept(StripsStringVisitor())
 
     def predicates_from_state(self, state):
-        return [
-            ("(%s %s)" % (predicate_name, " ".join(map(str, pred))))
-            for predicate_name, predicate_set in state.items()
-            for pred in predicate_set
-            if predicate_name != "="
-        ]
+        return [("(%s %s)" % (predicate_name, " ".join(map(str, pred)))) for predicate_name, predicate_set in state.items() for pred in predicate_set if predicate_name != "="]
 
     def generate_problem(self, path, state, new_goal):
         predicates = self.predicates_from_state(state)
@@ -114,10 +107,7 @@ class PDDL(object):
 
     def check_action_failure(self, state, action_name):
         for failure in self.failure_conditions:
-            if (
-                failure.is_relevant(state, action_name)
-                and random.random() < failure.probablity
-            ):
+            if failure.is_relevant(state, action_name) and random.random() < failure.probablity:
                 return True
         return False
 
@@ -136,7 +126,7 @@ class PDDL(object):
     def apply_action_to_state(self, action_sig, state, check_preconditions=True):
         action_name, param_names = self.parse_action(action_sig)
         if action_name.lower() == REACH_GOAL:
-            return state
+            return 0
         action = self.actions[action_name]
         params = map(self.get_object, param_names)
 
@@ -155,6 +145,8 @@ class PDDL(object):
 
             for predicate_name, entry in action.to_add(param_mapping):
                 state[predicate_name].add(entry)
+
+            return 0
         else:
             assert isinstance(action, ProbabilisticAction)
             index = action.choose_random_effect()
@@ -165,6 +157,8 @@ class PDDL(object):
 
             for predicate_name, entry in action.to_add(param_mapping, index):
                 state[predicate_name].add(entry)
+
+            return index
 
     def copy_state(self, state):
         return {name: set(entries) for name, entries in state.items()}
@@ -269,11 +263,7 @@ class ProbabilisticAction(object):
         for index, prob in enumerate(self.prob_list):
             cur_probs_sum += prob
             if cur_probs_sum > rand:
-                print(
-                    "Effect number {} was randomly selected for action {}".format(
-                        index, self.name
-                    )
-                )
+                print("Effect number {} was randomly selected for action {}".format(index, self.name))
                 return index
 
 

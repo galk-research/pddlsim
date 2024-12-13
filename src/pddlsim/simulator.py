@@ -28,6 +28,21 @@ class Simulator(object):
         self.action_loop(next_action_func)
         return self.report_card.done(self.goal_tracking.reached_all_goals())
 
+    def apply_action(self, action: str):
+        action_name = self.parser.parse_action(action)[0]
+        index = 0
+        if self.parser.check_action_failure(self._state, action_name):
+            self.report_card.add_failed_action()
+            self.action_failed = True
+            raise NotImplementedError
+        else:
+            index = self.parser.apply_action_to_state(action, self._state, self.check_preconditions)
+            self.goal_tracking.on_action(action)
+            self.report_card.add_action()
+        self.parser.apply_revealable_predicates(self._state)
+
+        return index
+
     def action_loop(self, next_action_func):
         while not self.goal_tracking.reached_all_goals():
             action = next_action_func()
@@ -35,17 +50,7 @@ class Simulator(object):
             if not action or action.lower() == "(reach-goal)":
                 return
             try:
-                action_name = self.parser.parse_action(action)[0]
-                if self.parser.check_action_failure(self._state, action_name):
-                    self.report_card.add_failed_action()
-                    self.action_failed = True
-                else:
-                    self.parser.apply_action_to_state(
-                        action, self._state, self.check_preconditions
-                    )
-                    self.goal_tracking.on_action(action)
-                    self.report_card.add_action()
-                self.parser.apply_revealable_predicates(self._state)
+                self.apply_action(action)
             except PreconditionFalseError as e:
                 self.report_card.add_failed_action()
                 self.action_failed = True
@@ -56,7 +61,6 @@ class Simulator(object):
 
 
 class ReportCard:
-
     def __init__(self):
         self.success = False
         self.failed_actions = 0
@@ -113,6 +117,4 @@ Total actions: {0.total_actions}
 Total actions costs: {0.total_action_costs}
 Failed actions: {0.failed_actions}
 Total perception requests: {0.total_perception_requests}
-""".format(
-            self
-        )
+""".format(self)

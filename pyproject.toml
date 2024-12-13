@@ -6,18 +6,20 @@ authors = [
     { name = "Gal A. Kaminka", email = "galk@cs.biu.ac.il" },
     { name = "Micha S. Molko", email = "michamolko@gmail.com" },
     { name = "Ron Shemesh", email = "ron.shemesh98@gmail.com" },
-    { name = "Eyal Weiss", email = "eyal.weiss@biu.ac.il" },
+    { name = "Eyal Weiss", email = "eweiss@campus.technion.ac.il" },
     { name = "Mika Barkan", email = "mika.barkan4@gmail.com" },
     { name = "Yoav Grimland", email = "miestrode@proton.me" },
 ]
 dependencies = [
-    "unified-planning~=1.1",
-    "unified-planning[fast-downward]",
-    "setuptools~=71.1",                # Required for `unified-planning[fast-downward]` to work, as it uses `pkg_resources`
-    "numpy~=2.1",                      # Needed to support Python 3.13 until Numpy 2.1 will be transiently installed
-    "scipy>=1.14.1,<2",                # Needed to support Python 3.13 until Scipy 1.14.1 will be transiently installed
+    "unified-planning>=1.1.0",
+    "unified-planning[fast-downward]>=1.1.0",
+    "numpy>=2.2.0",
+    "scipy>=1.14.1",
+    "cbor2>=5.6.5",
+    "schema>=0.7.7",
+    "async-property>=0.2.2",
 ]
-requires-python = "~=3.12"
+requires-python = ">=3.13"
 readme = "README.md"
 license = { text = "MIT" }
 keywords = ["PDDL", "agent", "simulator"]
@@ -28,23 +30,24 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 
-[project.urls]
-Repository = "https://bitbucket.org/galk-opensource/executionsimulation/"
-Issues = "https://bitbucket.org/galk-opensource/executionsimulation/issues"
-
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
-test = ["pytest~=8.3", "pytest-benchmark~=5.1", "pytest-benchmark[histogram]"]
-format = ["black~=24.4"]
+[project.urls]
+Repository = "https://github.com/galk-research/pddlsim"
+Issues = "https://github.com/galk-research/pddlsim/issues"
+Documentation = "https://github.com/galk-research/pddlsim/wiki"
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit/*.py", "tests/integration/*.py", "tests/benches/*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
 addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-benchmark>=5.1.0",
+    "pytest-benchmark[histogram]>=5.1.0",
+]
