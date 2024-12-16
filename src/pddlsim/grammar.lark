@@ -1,0 +1,58 @@
+IDENTIFIER: /[a-zA-Z][a-zA-Z0-9\-_]*/
+
+VARIABLE: "?" IDENTIFIER
+
+requirement: ":strips"                    -> strips_requirement
+           | ":typing"                    -> typing_requirement
+           | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
+requirements_section: "(" ":requirements" requirement+ ")"
+
+_domain_name: "(" "domain" IDENTIFIER ")"
+
+variables: VARIABLE*
+
+constants_section: "(" ":constants" IDENTIFIER+ ")"
+
+predicate_definition: "(" IDENTIFIER variables ")"
+predicates_section: "(" ":predicates" predicate_definition+ ")"
+
+assignment{argument}: argument*
+predicate{argument}: "(" IDENTIFIER assignment{argument} ")"
+
+?condition{argument}: "(" "and" condition{argument}* ")" -> and_condition
+                    | "(" "or" condition{argument}* ")"  -> or_condition
+                    | "(" "not" condition{argument} ")"  -> not_condition
+                    | predicate{argument}
+
+not_predicate{argument}: "(" "not" predicate{argument} ")"
+_atom{argument}: predicate{argument}
+               | not_predicate{argument}
+
+effect{argument}: "(" "and" _atom{argument}* ")" -> and_effect
+                | _atom{argument}                -> atom_effect
+
+_argument: VARIABLE
+         | IDENTIFIER
+
+action_definition: "(" ":action" IDENTIFIER ":parameters" "(" variables ")" [":precondition" condition{_argument}] [":effect" effect{_argument}] ")"
+actions_section: action_definition*
+
+domain: "(" "define" _domain_name [requirements_section] [constants_section] [predicates_section] actions_section ")"
+
+_problem_name: "(" "problem" IDENTIFIER ")"
+
+_used_domain_name: "(" ":domain" IDENTIFIER ")"
+
+objects_section: "(" ":objects" IDENTIFIER* ")"
+
+initialization_section: "(" ":init" predicate{IDENTIFIER}* ")"
+
+_goal_section: "(" ":goal" condition{IDENTIFIER} ")"
+
+problem: "(" "define" _problem_name _used_domain_name [requirements_section] [objects_section] initialization_section _goal_section ")"
+
+COMMENT: /;.*/
+
+%import common.WS
+%ignore COMMENT
+%ignore WS

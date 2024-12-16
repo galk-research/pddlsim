@@ -37,7 +37,7 @@ class Simulation:
 
         self._domain_problem_pair: tuple[str, str] | None = None
         self._percepts: dict[str, list[list[str]]] | None = None
-        self._grounded_actions: list[tuple[str, list[str]]] | None = None
+        self._grounded_actions: list[GroundedAction] | None = None
         self._reached_unreached_goals_pair: tuple[list[str], list[str]] | None = None
 
         self._termination: SessionTermination | None = None
