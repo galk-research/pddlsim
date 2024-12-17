@@ -2,18 +2,33 @@ IDENTIFIER: /[a-zA-Z][a-zA-Z0-9\-_]*/
 
 VARIABLE: "?" IDENTIFIER
 
+_domain_name: "(" "domain" IDENTIFIER ")"
+
 requirement: ":strips"                    -> strips_requirement
            | ":typing"                    -> typing_requirement
            | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
+           | ":equality"                  -> equality_requirement
 requirements_section: "(" ":requirements" requirement+ ")"
 
-_domain_name: "(" "domain" IDENTIFIER ")"
+nonempty_list{item}: item+
 
-variables: VARIABLE*
+custom_type: IDENTIFIER
 
-constants_section: "(" ":constants" IDENTIFIER+ ")"
+object_type: "object"
 
-predicate_definition: "(" IDENTIFIER variables ")"
+_type_name: object_type | custom_type
+
+typed_list_part{item}: nonempty_list{item} "-" _type_name
+typed_list{item}: typed_list_part{item} [typed_list{item}]
+                | nonempty_list{item}                      -> object_typed_list
+
+types_section: "(" ":types" typed_list{custom_type} ")"
+
+object_name: IDENTIFIER
+
+constants_section: "(" ":constants" typed_list{object_name} ")"
+
+predicate_definition: "(" IDENTIFIER typed_list{VARIABLE} ")"
 predicates_section: "(" ":predicates" predicate_definition+ ")"
 
 assignment{argument}: argument*
@@ -22,6 +37,7 @@ predicate{argument}: "(" IDENTIFIER assignment{argument} ")"
 ?condition{argument}: "(" "and" condition{argument}* ")" -> and_condition
                     | "(" "or" condition{argument}* ")"  -> or_condition
                     | "(" "not" condition{argument} ")"  -> not_condition
+                    | "(" "=" argument argument ")"      -> equality_condition
                     | predicate{argument}
 
 not_predicate{argument}: "(" "not" predicate{argument} ")"
@@ -32,22 +48,22 @@ effect{argument}: "(" "and" _atom{argument}* ")" -> and_effect
                 | _atom{argument}                -> atom_effect
 
 _argument: VARIABLE
-         | IDENTIFIER
+         | object_name
 
-action_definition: "(" ":action" IDENTIFIER ":parameters" "(" variables ")" [":precondition" condition{_argument}] [":effect" effect{_argument}] ")"
+action_definition: "(" ":action" IDENTIFIER ":parameters" "(" typed_list{VARIABLE} ")" [":precondition" condition{_argument}] [":effect" effect{_argument}] ")"
 actions_section: action_definition*
 
-domain: "(" "define" _domain_name [requirements_section] [constants_section] [predicates_section] actions_section ")"
+domain: "(" "define" _domain_name [requirements_section] [types_section] [constants_section] [predicates_section] actions_section ")"
 
 _problem_name: "(" "problem" IDENTIFIER ")"
 
 _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
-objects_section: "(" ":objects" IDENTIFIER* ")"
+objects_section: "(" ":objects" typed_list{object_name} ")"
 
-initialization_section: "(" ":init" predicate{IDENTIFIER}* ")"
+initialization_section: "(" ":init" predicate{object_name}* ")"
 
-_goal_section: "(" ":goal" condition{IDENTIFIER} ")"
+_goal_section: "(" ":goal" condition{object_name} ")"
 
 problem: "(" "define" _problem_name _used_domain_name [requirements_section] [objects_section] initialization_section _goal_section ")"
 

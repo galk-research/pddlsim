@@ -28,8 +28,10 @@ from pddlsim.rsp.message import (
 )
 
 
-class Simulation:
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+class SimulationClient:
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         self._bridge = RSPMessageBridge(
             reader,
             writer,
@@ -38,16 +40,27 @@ class Simulation:
         self._domain_problem_pair: tuple[str, str] | None = None
         self._percepts: dict[str, list[list[str]]] | None = None
         self._grounded_actions: list[GroundedAction] | None = None
-        self._reached_unreached_goals_pair: tuple[list[str], list[str]] | None = None
+        self._reached_unreached_goals_pair: (
+            tuple[list[str], list[str]] | None
+        ) = None
 
         self._termination: SessionTermination | None = None
 
-    async def _receive_message[T: Message](self, expected_message_type: type[T]) -> T:
+    async def _receive_message[T: Message](
+        self, expected_message_type: type[T]
+    ) -> T:
         try:
             message = await self._bridge.receive_message()
 
             if not isinstance(message, expected_message_type):
-                await self._terminate_session(SessionTermination(MessageTypeMismatchError(expected_message_type, type(message)), TerminationSource.INTERNAL))
+                await self._terminate_session(
+                    SessionTermination(
+                        MessageTypeMismatchError(
+                            expected_message_type, type(message)
+                        ),
+                        TerminationSource.INTERNAL,
+                    )
+                )
 
             return message
         except SessionTermination as termination:
@@ -59,7 +72,9 @@ class Simulation:
         except SessionTermination as termination:
             await self._terminate_session(termination.with_traceback(None))
 
-    async def _terminate_session(self, termination: SessionTermination) -> NoReturn:
+    async def _terminate_session(
+        self, termination: SessionTermination
+    ) -> NoReturn:
         if termination.source is TerminationSource.INTERNAL:
             await self._send_message(termination.message)
 
@@ -131,7 +146,10 @@ class Simulation:
 
             message = await self._receive_message(GoalTrackingResponse)
 
-            self._reached_unreached_goals_pair = (message.reached_goals, message.unreached_goals)
+            self._reached_unreached_goals_pair = (
+                message.reached_goals,
+                message.unreached_goals,
+            )
 
         return self._reached_unreached_goals_pair
 
@@ -143,7 +161,9 @@ class Simulation:
         # This is not wasteful thanks to caching
         return (await self._goal_tracking())[1]
 
-    async def _perform_grounded_action(self, grounded_action: GroundedAction) -> int:
+    async def _perform_grounded_action(
+        self, grounded_action: GroundedAction
+    ) -> int:
         self._assert_unterminated()
 
         self._percepts = None
@@ -159,7 +179,9 @@ class Simulation:
     async def _give_up(self, reason: str | None) -> None:
         self._assert_unterminated()
 
-        await self._terminate_session(SessionTermination(GiveUp(reason), TerminationSource.INTERNAL))
+        await self._terminate_session(
+            SessionTermination(GiveUp(reason), TerminationSource.INTERNAL)
+        )
 
 
 class GiveUpAction:
@@ -175,10 +197,14 @@ class DeadEndAction(GiveUpAction):
 type SimulationAction = GiveUpAction | GroundedAction
 
 
-async def act_in_simulation(host: str, port: int, get_next_action: Callable[[Simulation], Awaitable[SimulationAction]]) -> SessionTermination:
+async def act_in_simulation(
+    host: str,
+    port: int,
+    get_next_action: Callable[[SimulationClient], Awaitable[SimulationAction]],
+) -> SessionTermination:
     reader, writer = await asyncio.open_connection(host, port)
 
-    simulation = Simulation(reader, writer)
+    simulation = SimulationClient(reader, writer)
 
     try:
         await simulation._start_session()
