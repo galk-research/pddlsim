@@ -18,7 +18,7 @@ The documentation is maintained in the [PDDLSIM wiki](https://github.com/galk-re
 
 ## Installation
 
-PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no external dependencies. Note that PDDLSIM requires on Python 3.12 or later. Earlier, legacy versions of PDDLSIM are also available on PyPI, but are unsupported, as these use Python 2.7.
+PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no external dependencies. Note that PDDLSIM requires Python 3.12 or later. Earlier, legacy versions of PDDLSIM are also available on PyPI, but are unsupported, as these use Python 2.7.
 
 To install PDDLSIM using `pip`, run:
 
