@@ -2,7 +2,6 @@ import bisect
 import itertools
 import operator
 import os
-import pathlib
 from collections.abc import Iterable, Iterator, Mapping, Set
 from dataclasses import dataclass
 from decimal import Decimal
@@ -13,6 +12,7 @@ from typing import cast
 
 from lark import Lark, Token, Transformer, v_args
 
+from pddlsim import _RESOURCES
 from pddlsim.asp import ID, IDAllocator, IDKind
 
 
@@ -28,7 +28,7 @@ class Requirement(StrEnum):
 class Identifier:
     value: str
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.value
 
 
@@ -36,7 +36,7 @@ class Identifier:
 class Variable:
     value: str
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"?{self.value}"
 
 
@@ -54,7 +54,7 @@ type TypeName = CustomType | ObjectType
 
 @dataclass(eq=True, frozen=True)
 class ObjectName(Identifier):
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.value
 
 
@@ -93,8 +93,8 @@ class EqualityCondition[A: Argument]:
     left_side: A
     right_side: A
 
-    def __repr__(self) -> str:
-        return f"(= {repr(self.left_side)} {repr(self.right_side)})"
+    def __str__(self) -> str:
+        return f"(= {self.left_side} {self.right_side})"
 
 
 @dataclass(frozen=True)
@@ -102,22 +102,23 @@ class Predicate[A: Argument]:
     name: Identifier
     assignment: list[A]
 
-    def __repr__(self) -> str:
-        result = f"({repr(self.name)}"
+    def __str__(self) -> str:
+        result = f"({self.name}"
 
         for argument in self.assignment:
-            result += f" {repr(argument)}"
+            result += f" {argument}"
 
         result += ")"
 
         return result
 
 
-type Primitive[A: Argument] = Predicate[A] | EqualityCondition[A]
-
-
 type Condition[A: Argument] = (
-    AndCondition[A] | OrCondition[A] | NotCondition[A] | Primitive[A]
+    AndCondition[A]
+    | OrCondition[A]
+    | NotCondition[A]
+    | Predicate[A]
+    | EqualityCondition[A]
 )
 
 
@@ -164,7 +165,7 @@ class ProbabilisticEffect[A: Argument]:
         index = bisect.bisect(self._cummulative_probabilities, rng.random())
 
         if index == len(self._possible_effects):
-            return AndEffect([])
+            return AndEffect([])  # Empty effect
 
         return self._possible_effects[index]
 
@@ -307,24 +308,29 @@ class ActionDefinition:
         return f"{parameters_part}\n{precondition_part}"
 
 
+@dataclass(frozen=True)
 class TypeHierarchy:
-    def __init__(self, custom_types: Iterable[Typed[CustomType]]) -> None:
-        self._hierarchy = {
-            custom_type.value: custom_type.type_name
-            for custom_type in custom_types
-        }
+    _supertypes: Mapping[CustomType, TypeName]
+
+    @classmethod
+    def from_custom_types(
+        cls, custom_types: Iterable[Typed[CustomType]]
+    ) -> "TypeHierarchy":
+        return TypeHierarchy(
+            {
+                custom_type.value: custom_type.type_name
+                for custom_type in custom_types
+            }
+        )
 
     def __iter__(self) -> Iterator[Typed[CustomType]]:
         return (
             Typed(subtype, supertype)
-            for subtype, supertype in self._hierarchy.items()
+            for subtype, supertype in self._supertypes.items()
         )
 
     def supertype(self, custom_type: CustomType) -> TypeName:
-        return self._hierarchy[custom_type]
-
-    def __repr__(self) -> str:
-        return repr(self._hierarchy)
+        return self._supertypes[custom_type]
 
 
 @dataclass(frozen=True)
@@ -403,7 +409,7 @@ class PDDLTransformer(Transformer):
         return chain(head, tail) if tail else head
 
     def types_section(self, types: list[Typed[CustomType]]) -> TypeHierarchy:
-        return TypeHierarchy(types)
+        return TypeHierarchy.from_custom_types(types)
 
     def object_name(self, identifier: Identifier) -> ObjectName:
         return ObjectName(identifier.value)
@@ -521,7 +527,9 @@ class PDDLTransformer(Transformer):
         return Domain(
             name,
             requirements if requirements else frozenset(),
-            type_hierarchy if type_hierarchy else TypeHierarchy(iter(())),
+            type_hierarchy
+            if type_hierarchy
+            else TypeHierarchy.from_custom_types([]),
             constants if constants else frozenset(),
             predicate_definitions if predicate_definitions else {},
             action_definitions if action_definitions else {},
@@ -557,14 +565,14 @@ class PDDLTransformer(Transformer):
         )
 
 
-with open(pathlib.Path(__file__).parent / "grammar.lark") as grammar_file:
-    _PDDL_PARSER = Lark(
-        grammar_file.read(),
-        parser="lalr",
-        cache=True,
-        transformer=PDDLTransformer(),
-        start=["domain", "problem"],
-    )
+# Cache the parser for each invocation, and persist it
+_PDDL_PARSER = Lark(
+    _RESOURCES.joinpath("grammar.lark").read_text(),
+    parser="lalr",
+    cache=True,
+    transformer=PDDLTransformer(),
+    start=["domain", "problem"],
+)
 
 
 def parse_domain(text: str) -> Domain:
