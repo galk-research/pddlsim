@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import NoReturn
 
 from pddlsim.rsp import (
@@ -8,11 +8,10 @@ from pddlsim.rsp import (
     SessionTermination,
 )
 from pddlsim.rsp.message import (
+    Error,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
-    GoalTrackingRequest,
-    GoalTrackingResponse,
     GroundedAction,
     Message,
     MessageTypeMismatchError,
@@ -39,10 +38,7 @@ class SimulationClient:
 
         self._domain_problem_pair: tuple[str, str] | None = None
         self._percepts: dict[str, list[list[str]]] | None = None
-        self._grounded_actions: list[GroundedAction] | None = None
-        self._reached_unreached_goals_pair: (
-            tuple[list[str], list[str]] | None
-        ) = None
+        self._grounded_actions: Sequence[GroundedAction] | None = None
 
         self._termination: SessionTermination | None = None
 
@@ -122,11 +118,11 @@ class SimulationClient:
 
             message = await self._receive_message(PerceptionResponse)
 
-            self._percepts = message.percepts
+            self._percepts = message.simulation_state.percepts()
 
         return self._percepts
 
-    async def get_grounded_actions(self) -> list[GroundedAction]:
+    async def get_grounded_actions(self) -> Sequence[GroundedAction]:
         self._assert_unterminated()
 
         if not self._grounded_actions:
@@ -138,43 +134,14 @@ class SimulationClient:
 
         return self._grounded_actions
 
-    async def _goal_tracking(self) -> tuple[list[str], list[str]]:
-        self._assert_unterminated()
-
-        if not self._reached_unreached_goals_pair:
-            await self._send_message(GoalTrackingRequest())
-
-            message = await self._receive_message(GoalTrackingResponse)
-
-            self._reached_unreached_goals_pair = (
-                message.reached_goals,
-                message.unreached_goals,
-            )
-
-        return self._reached_unreached_goals_pair
-
-    async def reached_goals(self) -> list[str]:
-        # This is not wasteful thanks to caching
-        return (await self._goal_tracking())[0]
-
-    async def unreached_goals(self) -> list[str]:
-        # This is not wasteful thanks to caching
-        return (await self._goal_tracking())[1]
-
-    async def _perform_grounded_action(
-        self, grounded_action: GroundedAction
-    ) -> int:
+    async def _perform_grounded_action(self, grounded_action: GroundedAction):
         self._assert_unterminated()
 
         self._percepts = None
         self._grounded_actions = None
-        self._reached_unreached_goals_pair = None
 
         await self._send_message(PerformGroundedActionRequest(grounded_action))
-
-        message = await self._receive_message(PerformGroundedActionResponse)
-
-        return message.effect_index
+        await self._receive_message(PerformGroundedActionResponse)
 
     async def _give_up(self, reason: str | None) -> None:
         self._assert_unterminated()
@@ -219,5 +186,19 @@ async def act_in_simulation(
                     await simulation._perform_grounded_action(action)
     except SessionTermination:
         pass
+    except Exception as exception:
+        reason = str(exception)
 
-    return simulation._termination  # type: ignore
+        await simulation._bridge.send_message(
+            Error(
+                TerminationSource.INTERNAL,
+                reason if reason else type(exception).__name__,
+            )
+        )
+
+        raise exception
+
+    if not simulation._termination:
+        raise AssertionError("simulation cannot end without termination")
+
+    return simulation._termination

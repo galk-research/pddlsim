@@ -18,7 +18,12 @@ MAXIMUM_VALUE_BITS_BYTES = 4
 
 
 class SessionTermination(Exception):
-    def __init__(self, termination_message: TerminationMessage, source: TerminationSource, *args: object) -> None:
+    def __init__(
+        self,
+        termination_message: TerminationMessage,
+        source: TerminationSource,
+        *args: object,
+    ) -> None:
         super().__init__(termination_message, *args)
 
         self.message = termination_message
@@ -30,12 +35,12 @@ class SessionTermination(Exception):
                 return f"session terminated internally: {self.message.description()}"
             case TerminationSource.EXTERNAL:
                 return f"session terminated externally: {self.message.description()}"
-            case _:
-                raise NotImplementedError
 
 
 class RSPMessageBridge:
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         self.reader = reader
         self.writer = writer
 
@@ -50,14 +55,20 @@ class RSPMessageBridge:
             self.writer.write(data)
             await self.writer.drain()
         except ConnectionResetError as exception:
-            raise SessionTermination(CommunicationChannelClosed(), TerminationSource.EXTERNAL) from exception
+            raise SessionTermination(
+                CommunicationChannelClosed(), TerminationSource.EXTERNAL
+            ) from exception
 
     async def receive_message(self) -> Message:
         try:
-            byte_size = int.from_bytes(await self.reader.readexactly(MAXIMUM_VALUE_BITS_BYTES))
+            byte_size = int.from_bytes(
+                await self.reader.readexactly(MAXIMUM_VALUE_BITS_BYTES)
+            )
             value_bytes: bytes = await self.reader.readexactly(byte_size)
         except (asyncio.IncompleteReadError, ConnectionResetError) as exception:
-            raise SessionTermination(CommunicationChannelClosed(), TerminationSource.EXTERNAL) from exception
+            raise SessionTermination(
+                CommunicationChannelClosed(), TerminationSource.EXTERNAL
+            ) from exception
 
         serialized_message = cbor2.loads(value_bytes)
         logging.info(f"receiving: {serialized_message}")
@@ -69,7 +80,9 @@ class RSPMessageBridge:
 
         return message
 
-    async def error(self, source: TerminationSource, reason: str | None) -> SessionTermination:
+    async def error(
+        self, source: TerminationSource, reason: str | None
+    ) -> SessionTermination:
         error_message = Error(source, reason)
 
         await self.send_message(error_message)

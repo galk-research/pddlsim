@@ -3,8 +3,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import NoReturn
 
-from pddlsim.fd_parser import FDParser
-from pddlsim.parser_independent import PDDL
+from pddlsim.parser import Domain, Problem
 from pddlsim.rsp import (
     RSP_VERSION,
     RSPMessageBridge,
@@ -15,8 +14,6 @@ from pddlsim.rsp.message import (
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GoalReached,
-    GoalTrackingRequest,
-    GoalTrackingResponse,
     GroundedAction,
     Message,
     MessageTypeMismatchError,
@@ -25,14 +22,12 @@ from pddlsim.rsp.message import (
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     ProblemSetupRequest,
-    ProblemSetupResponse,
     SessionSetupRequest,
     SessionSetupResponse,
     SessionUnsupported,
     TerminationSource,
 )
-from pddlsim.services.simulator_services import SimulatorServices
-from pddlsim.simulator import Simulator
+from pddlsim.simulation import Simulation
 
 
 async def _receive_message[T: Message](
@@ -65,76 +60,52 @@ async def _start_session(bridge: RSPMessageBridge) -> None:
 
 
 async def _problem_setup(
-    domain: str, problem: str, bridge: RSPMessageBridge
+    simulation: Simulation, bridge: RSPMessageBridge
 ) -> None:
-    await bridge.send_message(ProblemSetupResponse(domain, problem))
+    # TODO: Figure out exactly how this is going to be done
+    raise NotImplementedError
 
 
-async def _perception(simulation: Simulator, bridge: RSPMessageBridge) -> None:
-    await bridge.send_message(PerceptionResponse(simulation.perceive_state()))
+async def _perception(simulation: Simulation, bridge: RSPMessageBridge) -> None:
+    await bridge.send_message(PerceptionResponse(simulation.state))
 
 
 async def _get_grounded_actions(
-    services: SimulatorServices, bridge: RSPMessageBridge
+    simulation: Simulation, bridge: RSPMessageBridge
 ) -> None:
     await bridge.send_message(
-        GetGroundedActionsResponse(
-            [
-                PDDL.parse_action(valid_action)
-                for valid_action in services.valid_actions.get()
-            ]
-        )
-    )
-
-
-async def _goal_tracking(
-    services: SimulatorServices, bridge: RSPMessageBridge
-) -> None:
-    await bridge.send_message(
-        GoalTrackingResponse(
-            services.goal_tracking.completed_goals,
-            services.goal_tracking.uncompleted_goals,
-        )
+        GetGroundedActionsResponse(simulation.get_grounded_actions())
     )
 
 
 async def _perform_grounded_action(
     grounded_action: GroundedAction,
-    simulation: Simulator,
-    services: SimulatorServices,
+    simulation: Simulation,
     bridge: RSPMessageBridge,
 ) -> None:
-    grounded_action_string = f"({grounded_action._action_name} {" ".join(grounded_action._grounding)})"
+    simulation.apply_grounded_action(grounded_action)
 
-    effect_index = simulation.apply_action(grounded_action_string)
-    services.on_action(grounded_action_string)
-
-    if not simulation.goal_tracking.reached_all_goals():
-        await bridge.send_message(PerformGroundedActionResponse(effect_index))
+    if not simulation.is_solved():
+        await bridge.send_message(PerformGroundedActionResponse())
 
 
 async def _handle_requests(
-    domain: str,
-    problem: str,
-    simulation: Simulator,
-    services: SimulatorServices,
+    simulation: Simulation,
     bridge: RSPMessageBridge,
 ) -> NoReturn:
-    while not simulation.goal_tracking.reached_all_goals():
+    while not simulation.is_solved():
         request = await bridge.receive_message()
 
         match request:
             case ProblemSetupRequest():
-                await _problem_setup(domain, problem, bridge)
+                await _problem_setup(simulation, bridge)
             case PerceptionRequest():
                 await _perception(simulation, bridge)
             case GetGroundedActionsRequest():
-                await _get_grounded_actions(services, bridge)
-            case GoalTrackingRequest():
-                await _goal_tracking(services, bridge)
+                await _get_grounded_actions(simulation, bridge)
             case PerformGroundedActionRequest(grounded_action=grounded_action):
                 await _perform_grounded_action(
-                    grounded_action, simulation, services, bridge
+                    grounded_action, simulation, bridge
                 )
             case _:
                 raise SessionTermination(
@@ -149,29 +120,18 @@ async def _handle_requests(
 
 
 async def _operate_session(
-    domain_path: str,
-    problem_path: str,
+    domain: Domain,
+    problem: Problem,
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> SessionTermination:
     bridge = RSPMessageBridge(reader, writer)
 
     try:
-        simulation = Simulator(FDParser(domain_path, problem_path))
-        services = SimulatorServices(
-            simulation.parser,
-            simulation.perceive_state,
-        )
-
-        with (
-            open(domain_path) as domain_file,
-            open(problem_path) as problem_file,
-        ):
-            domain = domain_file.read()
-            problem = problem_file.read()
+        simulation = Simulation(domain, problem)
 
         await _start_session(bridge)
-        await _handle_requests(domain, problem, simulation, services, bridge)
+        await _handle_requests(simulation, bridge)
     except SessionTermination as termination:
         logging.info(str(termination))
 
@@ -179,26 +139,34 @@ async def _operate_session(
             await bridge.send_message(termination.message)
 
         return termination
-    except Exception as termination:
-        raise termination
+    except Exception as exception:
+        reason = str(exception)
+        await bridge.send_message(
+            Error(
+                TerminationSource.INTERNAL,
+                reason if reason else str(type(exception).__name__),
+            )
+        )
+
+        raise exception
 
 
 def _server_constructor(
-    domain_path: str, problem_path: str
+    domain: Domain, problem: Problem
 ) -> Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]:
     async def _serve(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        await _operate_session(domain_path, problem_path, reader, writer)
+        await _operate_session(domain, problem, reader, writer)
 
     return _serve
 
 
 async def start_simulation_server(
-    domain_path: str, problem_path: str, host: str, port: int | None = None
+    domain: Domain, problem: Problem, host: str, port: int | None = None
 ) -> None:
     server = await asyncio.start_server(
-        _server_constructor(domain_path, problem_path), host, port
+        _server_constructor(domain, problem), host, port
     )
 
     async with server:

@@ -1,18 +1,14 @@
-import copy
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from enum import StrEnum
 from typing import Self
 
 import cbor2
-import schema
+import schema  # type: ignore
 from schema import Schema
 
-
-class GroundedAction:
-    def __init__(self, action_name: str, grounding: Iterable[str]):
-        self._action_name = action_name
-        self._grounding = list(grounding)
+from pddlsim.parser import Identifier, ObjectName
+from pddlsim.simulation import GroundedAction, SimulationState
 
 
 class Message(ABC):
@@ -26,7 +22,10 @@ class Message(ABC):
         raise NotImplementedError
 
     def serialize(self) -> cbor2.Any:
-        return {"type": type(self).message_type(), "payload": self.serialize_payload()}
+        return {
+            "type": type(self).message_type(),
+            "payload": self.serialize_payload(),
+        }
 
     @classmethod
     @abstractmethod
@@ -158,17 +157,17 @@ class PerceptionRequest(Message):
 
 
 class PerceptionResponse(Message):
-    def __init__(self, percepts: dict[str, list[list[str]]]) -> None:
+    def __init__(self, simulation_state: SimulationState) -> None:
         super().__init__()
 
-        self.percepts = percepts
+        self.simulation_state = simulation_state
 
     @classmethod
     def message_type(cls) -> str:
         return "perception-response"
 
     def serialize_payload(self) -> cbor2.Any:
-        return copy.deepcopy(self.percepts)
+        return self.simulation_state.percepts()
 
     @classmethod
     def schema(cls) -> Schema:
@@ -207,14 +206,23 @@ class GetGroundedActionsResponse(Message):
     def __init__(self, grounded_actions: Iterable[GroundedAction]) -> None:
         super().__init__()
 
-        self.grounded_actions = list(grounded_actions)
+        self.grounded_actions = tuple(grounded_actions)
 
     @classmethod
     def message_type(cls) -> str:
         return "get-grounded-actions-response"
 
     def serialize_payload(self) -> cbor2.Any:
-        return [{"name": grounded_action._action_name, "grounding": grounded_action._grounding} for grounded_action in self.grounded_actions]
+        return [
+            {
+                "name": grounded_action.name.value,
+                "grounding": [
+                    object_name.value
+                    for object_name in grounded_action.grounding
+                ],
+            }
+            for grounded_action in self.grounded_actions
+        ]
 
     @classmethod
     def schema(cls) -> Schema:
@@ -222,50 +230,12 @@ class GetGroundedActionsResponse(Message):
 
     @classmethod
     def _deserialize(cls, value: cbor2.Any) -> "GetGroundedActionsResponse":
-        return GetGroundedActionsResponse([GroundedAction(grounded_action["name"], grounded_action["grounding"]) for grounded_action in value])
-
-
-class GoalTrackingRequest(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "goal-tracking-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GoalTrackingRequest":
-        return GoalTrackingRequest()
-
-
-class GoalTrackingResponse(Message):
-    def __init__(self, goals_reached: list[str], goals_unreached: list[str]) -> None:
-        super().__init__()
-
-        self.reached_goals = goals_reached
-        self.unreached_goals = goals_unreached
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "goal-tracking-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return {"reached": self.reached_goals, "unreached": self.unreached_goals}
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema({"reached": [str], "unreached": [str]})
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GoalTrackingResponse":
-        return GoalTrackingResponse(value["reached"], value["unreached"])
+        return GetGroundedActionsResponse(
+            GroundedAction(
+                grounded_action["name"], grounded_action["grounding"]
+            )
+            for grounded_action in value
+        )
 
 
 class PerformGroundedActionRequest(Message):
@@ -279,7 +249,10 @@ class PerformGroundedActionRequest(Message):
         return "perform-grounded-action-request"
 
     def serialize_payload(self) -> cbor2.Any:
-        return {"name": self.grounded_action._action_name, "grounding": self.grounded_action._grounding}
+        return {
+            "name": self.grounded_action.name,
+            "grounding": self.grounded_action.grounding,
+        }
 
     @classmethod
     def schema(cls) -> Schema:
@@ -287,29 +260,35 @@ class PerformGroundedActionRequest(Message):
 
     @classmethod
     def _deserialize(cls, value: cbor2.Any) -> "PerformGroundedActionRequest":
-        return PerformGroundedActionRequest(GroundedAction(value["name"], value["grounding"]))
+        return PerformGroundedActionRequest(
+            GroundedAction(
+                Identifier(value["name"]),
+                tuple(
+                    ObjectName(object_name)
+                    for object_name in value["grounding"]
+                ),
+            )
+        )
 
 
 class PerformGroundedActionResponse(Message):
-    def __init__(self, effect_index: int) -> None:
+    def __init__(self) -> None:
         super().__init__()
-
-        self.effect_index = effect_index
 
     @classmethod
     def message_type(cls) -> str:
         return "perform-grounded-action-response"
 
     def serialize_payload(self) -> cbor2.Any:
-        return self.effect_index
+        return None
 
     @classmethod
     def schema(cls) -> Schema:
-        return Schema(schema.And(int, lambda index: index >= 0))
+        return Schema(None)
 
     @classmethod
     def _deserialize(cls, value: cbor2.Any) -> "PerformGroundedActionResponse":
-        return PerformGroundedActionResponse(value)
+        return PerformGroundedActionResponse()
 
 
 class TerminationMessage(Message):
@@ -362,19 +341,36 @@ class Error(TerminationMessage):
 
     @classmethod
     def schema(cls) -> Schema:
-        return Schema({"source": schema.Use(TerminationSource), "reason": str})
+        return Schema(
+            {
+                "source": schema.Use(TerminationSource),
+                "reason": schema.Or(str, None),
+            }
+        )
 
     @classmethod
     def _deserialize(cls, value: cbor2.Any) -> "Error":
         return Error(value["source"], value["reason"])
 
     def description(self) -> str:
-        return f"{self.reason} ({self.source} error)" if self.reason else f"{self.source} error"
+        return (
+            f"{self.reason} ({self.source} error)"
+            if self.reason
+            else f"{self.source} error"
+        )
 
 
 class MessageTypeMismatchError(Error):
-    def __init__(self, expected_message_type: type[Message], received_message_type: type[Message]):
-        super().__init__(TerminationSource.EXTERNAL, f"expected {expected_message_type.message_type()}, got {received_message_type.message_type()}")
+    def __init__(
+        self,
+        expected_message_type: type[Message],
+        received_message_type: type[Message],
+    ):
+        super().__init__(
+            TerminationSource.EXTERNAL,
+            f"expected {expected_message_type.message_type()}, "
+            f"got {received_message_type.message_type()}",
+        )
 
 
 class SessionUnsupported(TerminationMessage):
@@ -445,7 +441,11 @@ class GiveUp(TerminationMessage):
         return GiveUp(value)
 
     def description(self):
-        return f"session given up ({self.reason})" if self.reason else "session given up"
+        return (
+            f"session given up ({self.reason})"
+            if self.reason
+            else "session given up"
+        )
 
 
 class Custom(TerminationMessage):
@@ -487,8 +487,6 @@ MESSAGE_TYPES: list[type[Message]] = [
     PerceptionResponse,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
-    GoalTrackingRequest,
-    GoalTrackingResponse,
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     GoalReached,

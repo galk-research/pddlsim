@@ -1,3 +1,11 @@
+%import common.WS
+%import common.NUMBER
+
+COMMENT: /;.*/
+
+%ignore COMMENT
+%ignore WS
+
 IDENTIFIER: /[a-zA-Z][a-zA-Z0-9\-_]*/
 
 VARIABLE: "?" IDENTIFIER
@@ -8,6 +16,7 @@ requirement: ":strips"                    -> strips_requirement
            | ":typing"                    -> typing_requirement
            | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
            | ":equality"                  -> equality_requirement
+           | ":probabilistic-effects"     -> probabilistic_effects_requirement
 requirements_section: "(" ":requirements" requirement+ ")"
 
 nonempty_list{item}: item+
@@ -44,8 +53,11 @@ not_predicate{argument}: "(" "not" predicate{argument} ")"
 _atom{argument}: predicate{argument}
                | not_predicate{argument}
 
-effect{argument}: "(" "and" _atom{argument}* ")" -> and_effect
-                | _atom{argument}                -> atom_effect
+probabilistic_effect_pair{argument}: NUMBER effect{argument}
+?effect{argument}: "(" "and" effect{argument}* ")"                              -> and_effect
+                // This is intentional: `(probabilistic)` implies no effect
+                | "(" "probabilistic" probabilistic_effect_pair{argument}* ")" -> probabilistic_effect
+                | _atom{argument}
 
 _argument: VARIABLE
          | object_name
@@ -66,9 +78,3 @@ initialization_section: "(" ":init" predicate{object_name}* ")"
 _goal_section: "(" ":goal" condition{object_name} ")"
 
 problem: "(" "define" _problem_name _used_domain_name [requirements_section] [objects_section] initialization_section _goal_section ")"
-
-COMMENT: /;.*/
-
-%import common.WS
-%ignore COMMENT
-%ignore WS
