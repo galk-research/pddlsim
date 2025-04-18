@@ -3,7 +3,7 @@ import itertools
 import operator
 import os
 import pathlib
-from collections.abc import Iterable, Iterator, Mapping, Sequence, Set
+from collections.abc import Iterable, Iterator, Mapping, Set
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
@@ -67,7 +67,7 @@ class Typed[T]:
 @dataclass(frozen=True)
 class PredicateDefinition:
     name: Identifier
-    parameters: Sequence[Typed[Variable]]
+    parameters: list[Typed[Variable]]
 
 
 type Argument = Variable | ObjectName
@@ -75,12 +75,12 @@ type Argument = Variable | ObjectName
 
 @dataclass(frozen=True)
 class AndCondition[A: Argument]:
-    subconditions: Sequence["Condition[A]"]
+    subconditions: list["Condition[A]"]
 
 
 @dataclass(frozen=True)
 class OrCondition[A: Argument]:
-    subconditions: Sequence["Condition[A]"]
+    subconditions: list["Condition[A]"]
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ class EqualityCondition[A: Argument]:
 @dataclass(frozen=True)
 class Predicate[A: Argument]:
     name: Identifier
-    assignment: Sequence[A]
+    assignment: list[A]
 
     def __repr__(self) -> str:
         result = f"({repr(self.name)}"
@@ -131,21 +131,17 @@ type Atom[A: Argument] = Predicate[A] | NotPredicate[A]
 
 @dataclass(frozen=True)
 class AndEffect[A: Argument]:
-    subeffects: Sequence["Effect[A]"]
+    subeffects: list["Effect[A]"]
 
 
+@dataclass(frozen=True)
 class ProbabilisticEffect[A: Argument]:
-    def __init__(
-        self,
-        possible_effects: Sequence["Effect[A]"],
-        cummulative_probabilities: Sequence[float],
-    ):
-        self._possible_effects = possible_effects
-        self._cummulative_probabilities = cummulative_probabilities
+    _possible_effects: list["Effect[A]"]
+    _cummulative_probabilities: list[float]
 
     @classmethod
     def from_possibilities(
-        cls, possibilities: Sequence[tuple[float, "Effect[A]"]]
+        cls, possibilities: list[tuple[float, "Effect[A]"]]
     ) -> "ProbabilisticEffect":
         possible_effects = [possibility for _, possibility in possibilities]
         cummulative_probabilities = list(
@@ -179,7 +175,7 @@ type Effect[A: Argument] = AndEffect[A] | ProbabilisticEffect[A] | Atom[A]
 @dataclass(frozen=True)
 class ActionDefinition:
     name: Identifier
-    parameters: Sequence[Typed[Variable]]
+    parameters: list[Typed[Variable]]
     precondition: Condition[Argument]
     effect: Effect[Argument]
 
@@ -379,7 +375,7 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def requirements_section(
-        self, requirements: Iterable[Requirement]
+        self, requirements: list[Requirement]
     ) -> Set[Requirement]:
         return frozenset(requirements)
 
@@ -390,7 +386,7 @@ class PDDLTransformer(Transformer):
         return CustomType(identifier.value)
 
     @v_args(inline=False)
-    def nonempty_list[T](self, items: Iterable[T]) -> Iterable[T]:
+    def nonempty_list[T](self, items: list[T]) -> Iterable[T]:
         return items
 
     def typed_list_part[T](
@@ -406,9 +402,7 @@ class PDDLTransformer(Transformer):
     ) -> Iterable[Typed[T]]:
         return chain(head, tail) if tail else head
 
-    def types_section(
-        self, types: Iterable[Typed[CustomType]]
-    ) -> TypeHierarchy:
+    def types_section(self, types: list[Typed[CustomType]]) -> TypeHierarchy:
         return TypeHierarchy(types)
 
     def object_name(self, identifier: Identifier) -> ObjectName:
@@ -416,18 +410,18 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def constants_section(
-        self, objects: Iterable[Typed[ObjectName]]
+        self, objects: list[Typed[ObjectName]]
     ) -> Set[Typed[ObjectName]]:
         return frozenset(objects)
 
     def predicate_definition(
         self, name: Identifier, parameters: Iterable[Typed[Variable]]
     ) -> PredicateDefinition:
-        return PredicateDefinition(name, tuple(parameters))
+        return PredicateDefinition(name, list(parameters))
 
     @v_args(inline=False)
     def predicates_section(
-        self, predicate_definitions: Iterable[PredicateDefinition]
+        self, predicate_definitions: list[PredicateDefinition]
     ) -> Mapping[Identifier, PredicateDefinition]:
         return {
             predicate_definition.name: predicate_definition
@@ -435,25 +429,25 @@ class PDDLTransformer(Transformer):
         }
 
     @v_args(inline=False)
-    def assignment[A: Argument](self, assignment: Iterable[A]) -> Iterable[A]:
-        return tuple(assignment)
+    def assignment[A: Argument](self, assignment: list[A]) -> list[A]:
+        return assignment
 
     def predicate[A: Argument](
-        self, name: Identifier, assignment: Sequence[A]
+        self, name: Identifier, assignment: list[A]
     ) -> Predicate[A]:
         return Predicate(name, assignment)
 
     @v_args(inline=False)
     def and_condition[A: Argument](
-        self, operands: Iterable[Condition[A]]
+        self, operands: list[Condition[A]]
     ) -> AndCondition[A]:
-        return AndCondition(tuple(operands))
+        return AndCondition(operands)
 
     @v_args(inline=False)
     def or_condition[A: Argument](
-        self, operands: Iterable[Condition[A]]
+        self, operands: list[Condition[A]]
     ) -> OrCondition[A]:
-        return OrCondition(tuple(operands))
+        return OrCondition(operands)
 
     def not_condition[A: Argument](
         self, operand: Condition[A]
@@ -472,9 +466,9 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def and_effect[A: Argument](
-        self, subeffects: Iterable[Effect[A]]
+        self, subeffects: list[Effect[A]]
     ) -> AndEffect[A]:
-        return AndEffect(tuple(subeffects))
+        return AndEffect(subeffects)
 
     def probabilistic_effect_pair[A: Argument](
         self, probability: float, effect: Effect[A]
@@ -488,9 +482,9 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def probabilistic_effect[A: Argument](
-        self, possibilities: Iterable[tuple[float, Effect[A]]]
+        self, possibilities: list[tuple[float, Effect[A]]]
     ) -> ProbabilisticEffect:
-        return ProbabilisticEffect.from_possibilities(tuple(possibilities))
+        return ProbabilisticEffect.from_possibilities(possibilities)
 
     def action_definition(
         self,
@@ -501,14 +495,14 @@ class PDDLTransformer(Transformer):
     ) -> ActionDefinition:
         return ActionDefinition(
             name,
-            tuple(parameters),
+            list(parameters),
             precondition if precondition else AndCondition([]),
             effect if effect else AndEffect([]),
         )
 
     @v_args(inline=False)
     def actions_section(
-        self, action_definitions: Iterable[ActionDefinition]
+        self, action_definitions: list[ActionDefinition]
     ) -> Mapping[Identifier, ActionDefinition]:
         return {
             action_definition.name: action_definition
@@ -540,7 +534,7 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def initialization_section(
-        self, predicates: Iterable[Predicate[ObjectName]]
+        self, predicates: list[Predicate[ObjectName]]
     ) -> Set[Predicate[ObjectName]]:
         return frozenset(predicates)
 

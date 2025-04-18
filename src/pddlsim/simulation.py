@@ -1,11 +1,11 @@
 import os
+from collections import defaultdict
 from collections.abc import (
     Generator,
     Iterable,
     Mapping,
     MutableMapping,
     MutableSet,
-    Sequence,
 )
 from dataclasses import dataclass
 from random import Random
@@ -47,10 +47,10 @@ def _ground_predicate(
 ) -> Predicate[ObjectName]:
     return Predicate(
         predicate.name,
-        tuple(
+        [
             _ground_argument(argument, grounding)
             for argument in predicate.assignment
-        ),
+        ],
     )
 
 
@@ -60,17 +60,17 @@ def _ground_condition(
     match condition:
         case AndCondition(subconditions):
             return AndCondition(
-                tuple(
+                [
                     _ground_condition(subcondition, grounding)
                     for subcondition in subconditions
-                )
+                ]
             )
         case OrCondition(subconditions):
             return OrCondition(
-                tuple(
+                [
                     _ground_condition(subcondition, grounding)
                     for subcondition in subconditions
-                )
+                ]
             )
         case NotCondition(base_condition):
             return NotCondition(_ground_condition(base_condition, grounding))
@@ -89,17 +89,17 @@ def _ground_effect(
     match effect:
         case AndEffect(subeffects):
             return AndEffect(
-                tuple(
+                [
                     _ground_effect(subeffect, grounding)
                     for subeffect in subeffects
-                )
+                ]
             )
         case ProbabilisticEffect():
             return ProbabilisticEffect(
-                tuple(
+                [
                     _ground_effect(possible_effect, grounding)
                     for possible_effect in effect._possible_effects
-                ),
+                ],
                 effect._cummulative_probabilities,
             )
         case Predicate():
@@ -114,34 +114,21 @@ class SimulationState:
     Therefore, a state is a set of true predicates.
     """
 
-    def __init__(self, percepts: Mapping[str, Sequence[Sequence[str]]]) -> None:
-        self._true_predicates: MutableMapping[
-            Identifier,
-            MutableSet[Sequence[ObjectName]],
-        ] = {
-            Identifier(percept): {
-                tuple(map(ObjectName, assignment)) for assignment in assignments
-            }
-            for percept, assignments in percepts.items()
-        }
+    _true_predicates: MutableSet[Predicate[ObjectName]] = set()
 
     def does_atom_hold(self, atom: Atom[ObjectName]) -> bool:
         match atom:
             case Predicate():
-                return atom.assignment in self._true_predicates[atom.name]
-            case NotPredicate(
-                base_predicate=Predicate(name=name, assignment=assignment)
-            ):
-                return assignment not in self._true_predicates.get(name, set())
+                return atom in self._true_predicates
+            case NotPredicate(base_predicate):
+                return base_predicate not in self._true_predicates
 
     def _make_atom_hold(self, atom: Atom[ObjectName]) -> None:
         match atom:
-            case Predicate(name=name, assignment=assignment):
-                self._true_predicates.setdefault(name, set()).add(assignment)
-            case NotPredicate(
-                base_predicate=Predicate(name=name, assignment=assignment)
-            ):
-                self._true_predicates.get(name, set()).remove(assignment)
+            case Predicate():
+                self._true_predicates.add(atom)
+            case NotPredicate(base_predicate):
+                self._true_predicates.remove(base_predicate)
 
     def does_condition_hold(self, condition: Condition[ObjectName]) -> bool:
         match condition:
@@ -174,19 +161,15 @@ class SimulationState:
             case Predicate() | NotPredicate():
                 self._make_atom_hold(effect)
 
-    def assignments(
-        self, predicate_name: Identifier
-    ) -> Iterable[Sequence[ObjectName]]:
-        return self._true_predicates.get(predicate_name, set())
-
     def percepts(self) -> dict[str, list[list[str]]]:
-        return {
-            name.value: [
-                [object_name.value for object_name in assignment]
-                for assignment in assignments
-            ]
-            for name, assignments in self._true_predicates.items()
-        }
+        percepts = defaultdict(list)
+
+        for predicate in self._true_predicates:
+            percepts[predicate.name.value].append(
+                [object_name.value for object_name in predicate.assignment]
+            )
+
+        return percepts
 
     def _as_asp_part(
         self,
@@ -195,17 +178,16 @@ class SimulationState:
     ) -> str:
         result = []
 
-        for predicate_name, assignments in self._true_predicates.items():
-            for assignment in assignments:
-                arguments = (
-                    str(object_name_id_allocator.get_id_or_insert(object_name))
-                    for object_name in assignment
-                )
-                predicate_id = predicate_id_allocator.get_id_or_insert(
-                    predicate_name
-                )
+        for predicate in self._true_predicates:
+            arguments = (
+                str(object_name_id_allocator.get_id_or_insert(object_name))
+                for object_name in predicate.assignment
+            )
+            predicate_id = predicate_id_allocator.get_id_or_insert(
+                predicate.name
+            )
 
-                result.append(f"{predicate_id}({', '.join(arguments)}).")
+            result.append(f"{predicate_id}({', '.join(arguments)}).")
 
         return "\n".join(result)
 
@@ -213,7 +195,7 @@ class SimulationState:
 @dataclass(eq=True, frozen=True)
 class GroundedAction:
     name: Identifier
-    grounding: Sequence[ObjectName]
+    grounding: tuple[ObjectName, ...]
 
 
 class SimulationCompletedError(Exception):
@@ -227,7 +209,7 @@ class Simulation:
         self._domain = domain
         self._problem = problem
         self._rng = Random(seed)
-        self._state = SimulationState({})
+        self._state = SimulationState()
         self._action_definition_asp_parts: MutableMapping[
             Identifier, tuple[str, IDAllocator[Variable]]
         ] = {}
