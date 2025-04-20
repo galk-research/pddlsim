@@ -1,322 +1,115 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from enum import StrEnum
-from typing import Self
+from typing import Annotated, Any
 
 import cbor2
-import schema  # type: ignore
-from schema import Schema
+from pydantic import (
+    Field,
+    PositiveInt,
+    TypeAdapter,
+    field_validator,
+)
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from pddlsim.parser import Identifier, ObjectName
-from pddlsim.simulation import GroundedAction, SimulationState
+from pddlsim.parser import SerializablePredicate
+from pddlsim.simulation import SerializableGroundedAction
 
 
+@pydantic_dataclass
 class Message(ABC):
+    payload: Any
+    type: str
+
+    @field_validator("type", mode="after")
     @classmethod
-    @abstractmethod
-    def message_type(cls) -> str:
-        raise NotImplementedError
+    def matches_type(cls, value: str) -> str:
+        if value != cls.type:
+            raise ValueError(
+                f"expected message type '{cls.type}', got '{value}'"
+            )
 
-    @abstractmethod
-    def serialize_payload(self) -> cbor2.Any:
-        raise NotImplementedError
-
-    def serialize(self) -> cbor2.Any:
-        return {
-            "type": type(self).message_type(),
-            "payload": self.serialize_payload(),
-        }
-
-    @classmethod
-    @abstractmethod
-    def schema(cls) -> Schema:
-        raise NotImplementedError
-
-    @classmethod
-    def validate(cls, value: cbor2.Any):
-        cls.schema().validate(value)
-
-    @classmethod
-    @abstractmethod
-    def _deserialize(cls, value: cbor2.Any) -> Self:
-        raise NotImplementedError
-
-    @classmethod
-    def deserialize(cls, value: cbor2.Any) -> Self:
-        cls.validate(value)
-
-        return cls._deserialize(value)
+        return value
 
 
+@pydantic_dataclass
 class SessionSetupRequest(Message):
-    def __init__(self, supported_protocol_version: int) -> None:
-        super().__init__()
-
-        if supported_protocol_version <= 0:
-            raise ValueError("protocol version must be greater than 0")
-
-        self.supported_protocol_version = supported_protocol_version
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "session-setup-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return self.supported_protocol_version
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(schema.And(int, lambda version: version > 0))
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "SessionSetupRequest":
-        return SessionSetupRequest(value)
+    payload: PositiveInt
+    type: str = "session-setup-request"
 
 
+@pydantic_dataclass
 class SessionSetupResponse(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "session-setup-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "SessionSetupResponse":
-        return SessionSetupResponse()
+    payload: None = None
+    type: str = "session-setup-response"
 
 
+@pydantic_dataclass
 class ProblemSetupRequest(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "problem-setup-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "ProblemSetupRequest":
-        return ProblemSetupRequest()
+    payload: None = None
+    type: str = "problem-setup-request"
 
 
+@pydantic_dataclass
+class DomainProblemPair:
+    domain: str
+    problem: str
+
+
+@pydantic_dataclass
 class ProblemSetupResponse(Message):
-    def __init__(self, domain: str, problem: str) -> None:
-        super().__init__()
-
-        self.domain = domain
-        self.problem = problem
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "problem-setup-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return {"domain": self.domain, "problem": self.problem}
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema({"domain": str, "problem": str})
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "ProblemSetupResponse":
-        return ProblemSetupResponse(value["domain"], value["problem"])
+    payload: DomainProblemPair
+    type: str = "problem-setup-response"
 
 
+@pydantic_dataclass
 class PerceptionRequest(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "perception-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "PerceptionRequest":
-        return PerceptionRequest()
+    payload: None = None
+    type: str = "perception-request"
 
 
+@pydantic_dataclass
 class PerceptionResponse(Message):
-    def __init__(self, simulation_state: SimulationState) -> None:
-        super().__init__()
-
-        self.simulation_state = simulation_state
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "perception-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return self.simulation_state.percepts()
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(
-            {
-                str: [[str]],
-            }
-        )
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "PerceptionResponse":
-        return PerceptionResponse(value)
+    payload: list[SerializablePredicate]
+    type: str = "perception-response"
 
 
+@pydantic_dataclass
 class GetGroundedActionsRequest(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "get-grounded-actions-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GetGroundedActionsRequest":
-        return GetGroundedActionsRequest()
+    payload: None = None
+    type: str = "get-grounded-actions-request"
 
 
+@pydantic_dataclass
 class GetGroundedActionsResponse(Message):
-    def __init__(self, grounded_actions: Iterable[GroundedAction]) -> None:
-        super().__init__()
-
-        self.grounded_actions = tuple(grounded_actions)
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "get-grounded-actions-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return [
-            {
-                "name": grounded_action.name.value,
-                "grounding": [
-                    object_name.value
-                    for object_name in grounded_action.grounding
-                ],
-            }
-            for grounded_action in self.grounded_actions
-        ]
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema([{"name": str, "grounding": [str]}])
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GetGroundedActionsResponse":
-        return GetGroundedActionsResponse(
-            GroundedAction(
-                grounded_action["name"], grounded_action["grounding"]
-            )
-            for grounded_action in value
-        )
+    payload: list[SerializableGroundedAction]
+    type: str = "get-grounded-actions-response"
 
 
+@pydantic_dataclass
 class PerformGroundedActionRequest(Message):
-    def __init__(self, grounded_action: GroundedAction) -> None:
-        super().__init__()
-
-        self.grounded_action = grounded_action
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "perform-grounded-action-request"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return {
-            "name": self.grounded_action.name,
-            "grounding": self.grounded_action.grounding,
-        }
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema({"name": str, "grounding": [str]})
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "PerformGroundedActionRequest":
-        return PerformGroundedActionRequest(
-            GroundedAction(
-                Identifier(value["name"]),
-                tuple(
-                    ObjectName(object_name)
-                    for object_name in value["grounding"]
-                ),
-            )
-        )
+    payload: SerializableGroundedAction
+    type: str = "perform-grounded-action-request"
 
 
+@pydantic_dataclass
 class PerformGroundedActionResponse(Message):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "perform-grounded-action-response"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "PerformGroundedActionResponse":
-        return PerformGroundedActionResponse()
+    payload: None = None
+    type: str = "perform-grounded-action-response"
 
 
+@pydantic_dataclass
 class TerminationMessage(Message):
     @abstractmethod
     def description(self) -> str:
         raise NotImplementedError
 
 
+@pydantic_dataclass
 class GoalReached(TerminationMessage):
-    def __init__(self) -> None:
-        super().__init__()
+    payload: None = None
+    type: str = "goal-reached"
 
-    @classmethod
-    def message_type(cls) -> str:
-        return "goal-reached"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GoalReached":
-        return GoalReached()
-
-    def description(self):
+    def description(self) -> str:
         return "goal reached"
 
 
@@ -325,187 +118,113 @@ class TerminationSource(StrEnum):
     EXTERNAL = "external"
 
 
+@pydantic_dataclass
+class ErrorReason:
+    source: TerminationSource
+    reason: str | None
+
+
+@pydantic_dataclass
 class Error(TerminationMessage):
-    def __init__(self, source: TerminationSource, reason: str | None) -> None:
-        super().__init__()
-
-        self.source = source
-        self.reason = reason
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "error"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return {"source": self.source, "reason": self.reason}
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(
-            {
-                "source": schema.Use(TerminationSource),
-                "reason": schema.Or(str, None),
-            }
-        )
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "Error":
-        return Error(value["source"], value["reason"])
+    payload: ErrorReason
+    type: str = "error"
 
     def description(self) -> str:
         return (
-            f"{self.reason} ({self.source} error)"
-            if self.reason
-            else f"{self.source} error"
+            f"{self.payload.reason} ({self.payload.source} error)"
+            if self.payload.reason
+            else f"{self.payload.source} error"
         )
 
 
+@pydantic_dataclass
 class MessageTypeMismatchError(Error):
     def __init__(
         self,
         expected_message_type: type[Message],
         received_message_type: type[Message],
-    ):
+    ) -> None:
         super().__init__(
-            TerminationSource.EXTERNAL,
-            f"expected {expected_message_type.message_type()}, "
-            f"got {received_message_type.message_type()}",
+            ErrorReason(
+                source=TerminationSource.EXTERNAL,
+                reason=f"expected {expected_message_type.type}, "
+                f"got {received_message_type.type}",
+            )
         )
 
 
+@pydantic_dataclass
 class SessionUnsupported(TerminationMessage):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "session-unsupported"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "SessionUnsupported":
-        return SessionUnsupported()
+    payload: None = None
+    type: str = "session-unsupported"
 
     def description(self) -> str:
         return "session unsupported"
 
 
+@pydantic_dataclass
 class Timeout(TerminationMessage):
-    def __init__(self) -> None:
-        super().__init__()
+    payload: None = None
+    type: str = "timeout"
 
-    @classmethod
-    def message_type(cls) -> str:
-        return "timeout"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return None
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(None)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "Timeout":
-        return Timeout()
-
-    def description(self):
+    def description(self) -> str:
         return "timeout"
 
 
+@pydantic_dataclass
 class GiveUp(TerminationMessage):
-    def __init__(self, reason: str | None) -> None:
-        super().__init__()
-
-        self.reason = reason
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "give-up"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return self.reason
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(schema.Or(str, None))
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "GiveUp":
-        return GiveUp(value)
+    payload: str | None
+    type: str = "give-up"
 
     def description(self):
         return (
-            f"session given up ({self.reason})"
-            if self.reason
+            f"session given up ({self.payload})"
+            if self.payload
             else "session given up"
         )
 
 
+@pydantic_dataclass
 class Custom(TerminationMessage):
-    def __init__(self, reason: str | None) -> None:
-        super().__init__()
+    payload: str | None
+    type: str = "custom"
 
-        self.reason = reason
-
-    @classmethod
-    def message_type(cls) -> str:
-        return "custom"
-
-    def serialize_payload(self) -> cbor2.Any:
-        return self.reason
-
-    @classmethod
-    def schema(cls) -> Schema:
-        return Schema(str)
-
-    @classmethod
-    def _deserialize(cls, value: cbor2.Any) -> "Custom":
-        return Custom(value)
-
-    def description(self):
-        return self.reason if self.reason else "unknown"
+    def description(self) -> str:
+        return self.payload if self.payload else "unknown"
 
 
 class CommunicationChannelClosed(Custom):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("communication channel closed")
 
 
-MESSAGE_TYPES: list[type[Message]] = [
-    SessionSetupRequest,
-    SessionSetupResponse,
-    ProblemSetupRequest,
-    ProblemSetupResponse,
-    PerceptionRequest,
-    PerceptionResponse,
-    GetGroundedActionsRequest,
-    GetGroundedActionsResponse,
-    PerformGroundedActionRequest,
-    PerformGroundedActionResponse,
-    GoalReached,
-    Error,
-    SessionUnsupported,
-    Timeout,
-    GiveUp,
-    Custom,
-]
+ValidMessage = (
+    SessionSetupRequest
+    | SessionSetupResponse
+    | ProblemSetupRequest
+    | ProblemSetupResponse
+    | PerceptionRequest
+    | PerceptionResponse
+    | GetGroundedActionsRequest
+    | GetGroundedActionsResponse
+    | PerformGroundedActionRequest
+    | PerformGroundedActionResponse
+    | GoalReached
+    | Error
+    | SessionUnsupported
+    | Timeout
+    | GiveUp
+    | Custom
+)
+
+
+_ADAPTER = TypeAdapter[ValidMessage](
+    Annotated[
+        ValidMessage,
+        Field(union_mode="left_to_right"),
+    ]
+)
 
 
 def deserialize_message(message: cbor2.Any) -> Message:
-    Schema({"type": object, "payload": object}).validate(message)
-
-    message_type_string = message["type"]
-    payload = message["payload"]
-
-    for candidate_message_type in MESSAGE_TYPES:
-        if candidate_message_type.message_type() == message_type_string:
-            return candidate_message_type.deserialize(payload)
-
-    raise ValueError(f"unsupported message type {message_type_string}")
+    return _ADAPTER.validate_python(message, strict=True)

@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from typing import NoReturn
 
+from pddlsim.parser import Identifier, ObjectName, Predicate
 from pddlsim.rsp import (
     RSP_VERSION,
     RSPMessageBridge,
@@ -9,10 +10,10 @@ from pddlsim.rsp import (
 )
 from pddlsim.rsp.message import (
     Error,
+    ErrorReason,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
-    GroundedAction,
     Message,
     MessageTypeMismatchError,
     PerceptionRequest,
@@ -21,10 +22,12 @@ from pddlsim.rsp.message import (
     PerformGroundedActionResponse,
     ProblemSetupRequest,
     ProblemSetupResponse,
+    SerializableGroundedAction,
     SessionSetupRequest,
     SessionSetupResponse,
     TerminationSource,
 )
+from pddlsim.simulation import GroundedAction, SimulationState
 
 
 class SimulationClient:
@@ -37,8 +40,8 @@ class SimulationClient:
         )
 
         self._domain_problem_pair: tuple[str, str] | None = None
-        self._percepts: dict[str, list[list[str]]] | None = None
-        self._grounded_actions: Sequence[GroundedAction] | None = None
+        self._state: SimulationState | None = None
+        self._grounded_actions: list[GroundedAction] | None = None
 
         self._termination: SessionTermination | None = None
 
@@ -98,7 +101,10 @@ class SimulationClient:
 
             message = await self._receive_message(ProblemSetupResponse)
 
-            self._domain_problem_pair = (message.domain, message.problem)
+            self._domain_problem_pair = (
+                message.payload.domain,
+                message.payload.problem,
+            )
 
         return self._domain_problem_pair
 
@@ -110,17 +116,28 @@ class SimulationClient:
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[1]
 
-    async def get_percepts(self) -> dict[str, list[list[str]]]:
+    async def get_simulation_state(self) -> SimulationState:
         self._assert_unterminated()
 
-        if not self._percepts:
+        if not self._state:
             await self._send_message(PerceptionRequest())
 
             message = await self._receive_message(PerceptionResponse)
 
-            self._percepts = message.simulation_state.percepts()
+            self._state = SimulationState(
+                {
+                    Predicate(
+                        Identifier(predicate.name),
+                        [
+                            ObjectName(object_name)
+                            for object_name in predicate.assignment
+                        ],
+                    )
+                    for predicate in message.payload
+                }
+            )
 
-        return self._percepts
+        return self._state
 
     async def get_grounded_actions(self) -> Sequence[GroundedAction]:
         self._assert_unterminated()
@@ -130,17 +147,28 @@ class SimulationClient:
 
             message = await self._receive_message(GetGroundedActionsResponse)
 
-            self._grounded_actions = message.grounded_actions
+            self._grounded_actions = [
+                GroundedAction.from_serializable_grounded_action(
+                    serialized_grounded_action
+                )
+                for serialized_grounded_action in message.payload
+            ]
 
         return self._grounded_actions
 
-    async def _perform_grounded_action(self, grounded_action: GroundedAction):
+    async def _perform_grounded_action(
+        self, grounded_action: GroundedAction
+    ) -> None:
         self._assert_unterminated()
 
-        self._percepts = None
+        self._state = None
         self._grounded_actions = None
 
-        await self._send_message(PerformGroundedActionRequest(grounded_action))
+        await self._send_message(
+            PerformGroundedActionRequest(
+                SerializableGroundedAction.from_grounded_action(grounded_action)
+            )
+        )
         await self._receive_message(PerformGroundedActionResponse)
 
     async def _give_up(self, reason: str | None) -> None:
@@ -191,8 +219,10 @@ async def act_in_simulation(
 
         await simulation._bridge.send_message(
             Error(
-                TerminationSource.INTERNAL,
-                reason if reason else type(exception).__name__,
+                ErrorReason(
+                    TerminationSource.INTERNAL,
+                    reason if reason else type(exception).__name__,
+                ),
             )
         )
 

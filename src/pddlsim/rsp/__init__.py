@@ -1,11 +1,13 @@
 import asyncio
 import logging
+from dataclasses import asdict
 
 import cbor2
 
 from pddlsim.rsp.message import (
     CommunicationChannelClosed,
     Error,
+    ErrorReason,
     Message,
     TerminationMessage,
     TerminationSource,
@@ -30,11 +32,13 @@ class SessionTermination(Exception):
         self.source = source
 
     def __str__(self):
+        description = self.message.description()
+
         match self.source:
             case TerminationSource.INTERNAL:
-                return f"session terminated internally: {self.message.description()}"
+                return f"session terminated internally: {description}"
             case TerminationSource.EXTERNAL:
-                return f"session terminated externally: {self.message.description()}"
+                return f"session terminated externally: {description}"
 
 
 class RSPMessageBridge:
@@ -45,7 +49,7 @@ class RSPMessageBridge:
         self.writer = writer
 
     async def send_message(self, message: Message) -> None:
-        serialized_message = message.serialize()
+        serialized_message = asdict(message)
         logging.info(f"sending: {serialized_message}")
 
         data = cbor2.dumps(serialized_message)
@@ -83,7 +87,7 @@ class RSPMessageBridge:
     async def error(
         self, source: TerminationSource, reason: str | None
     ) -> SessionTermination:
-        error_message = Error(source, reason)
+        error_message = Error(ErrorReason(source, reason))
 
         await self.send_message(error_message)
 

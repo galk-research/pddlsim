@@ -11,9 +11,9 @@ from random import Random
 from typing import cast
 
 from lark import Lark, Token, Transformer, v_args
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from pddlsim import _RESOURCES
-from pddlsim.asp import ID, IDAllocator, IDKind
 
 
 class Requirement(StrEnum):
@@ -100,7 +100,7 @@ class EqualityCondition[A: Argument]:
 @dataclass(frozen=True)
 class Predicate[A: Argument]:
     name: Identifier
-    assignment: list[A]
+    assignment: tuple[A, ...]
 
     def __str__(self) -> str:
         result = f"({self.name}"
@@ -111,6 +111,33 @@ class Predicate[A: Argument]:
         result += ")"
 
         return result
+
+    @classmethod
+    def from_serializable_predicate(
+        cls, serializable_predicate: "SerializablePredicate"
+    ) -> "Predicate[ObjectName]":
+        return Predicate(
+            Identifier(serializable_predicate.name),
+            tuple(
+                ObjectName(object_name)
+                for object_name in serializable_predicate.assignment
+            ),
+        )
+
+
+@pydantic_dataclass
+class SerializablePredicate:
+    name: str
+    assignment: list[str]
+
+    @classmethod
+    def from_predicate(
+        cls, predicate: Predicate[ObjectName]
+    ) -> "SerializablePredicate":
+        return SerializablePredicate(
+            predicate.name.value,
+            [object_name.value for object_name in predicate.assignment],
+        )
 
 
 type Condition[A: Argument] = (
@@ -179,133 +206,6 @@ class ActionDefinition:
     parameters: list[Typed[Variable]]
     precondition: Condition[Argument]
     effect: Effect[Argument]
-
-    def _parameters_as_asp_part(
-        self,
-        variable_id_allocator: IDAllocator[Variable],
-        type_name_id_allocator: IDAllocator[TypeName],
-    ) -> str:
-        result = []
-
-        for parameter in self.parameters:
-            variable = parameter.value
-            type_name = parameter.type_name
-
-            variable_id = variable_id_allocator.get_id_or_insert(variable)
-            type_name_id = type_name_id_allocator.get_id_or_insert(type_name)
-
-            result.append(f"1 {{ {variable_id}(O) : {type_name_id}(O) }} 1.")
-
-        return "\n".join(result)
-
-    def _precondition_as_asp_part(
-        self,
-        variable_id_allocator: IDAllocator[Variable],
-        object_name_id_allocator: IDAllocator[ObjectName],
-        predicate_id_allocator: IDAllocator[Identifier],
-    ) -> str:
-        result = []
-
-        rule_id_allocator = IDAllocator[None](IDKind.RULE)
-
-        def condition_to_asp_part(condition: Condition) -> ID:
-            temporary_id_allocator = IDAllocator[Variable](IDKind.TEMPORARY)
-
-            def argument_to_id(argument: Argument) -> ID:
-                match argument:
-                    case Variable():
-                        temporary_id = temporary_id_allocator.get_id_or_insert(
-                            argument
-                        )
-                        return temporary_id
-                    case ObjectName():
-                        return object_name_id_allocator.get_id_or_insert(
-                            argument
-                        )
-
-            rule_id = rule_id_allocator.next_id()
-
-            match condition:
-                case AndCondition(subconditions):
-                    subcondition_ids = (
-                        condition_to_asp_part(subcondition)
-                        for subcondition in subconditions
-                    )
-
-                    result.append(
-                        f"{rule_id} :- {
-                            ', '.join(
-                                f'{subcondition_id}'
-                                for subcondition_id in subcondition_ids
-                            )
-                        }."
-                    )
-                case OrCondition(subconditions):
-                    for subcondition in subconditions:
-                        subcondition_id = condition_to_asp_part(subcondition)
-
-                        result.append(f"{rule_id} :- {subcondition_id}.")
-                case NotCondition(base_condition):
-                    base_condition_id = condition_to_asp_part(base_condition)
-
-                    result.append(f"{rule_id} :- not {base_condition_id}.")
-                case Predicate(name=name, assignment=assignment):
-                    predicate_id = predicate_id_allocator.get_id_or_insert(name)
-                    arguments = (
-                        str(argument_to_id(argument)) for argument in assignment
-                    )
-
-                    body = [f"{predicate_id}({', '.join(arguments)})"]
-
-                    for variable, temporary_id in temporary_id_allocator:
-                        variable_id = variable_id_allocator.get_id_or_insert(
-                            variable
-                        )
-                        body.append(f"{variable_id}({temporary_id})")
-
-                    result.append(f"{rule_id} :- {', '.join(body)}.")
-                case EqualityCondition(
-                    left_side=left_side, right_side=right_side
-                ):
-                    left_side_id = argument_to_id(left_side)
-                    right_side_id = argument_to_id(right_side)
-                    body = [f"{left_side_id} == {right_side_id}"]
-
-                    for variable, temporary_id in temporary_id_allocator:
-                        variable_id = variable_id_allocator.get_id_or_insert(
-                            variable
-                        )
-                        body.append(f"{variable_id}({temporary_id})")
-
-                    result.append(f"{rule_id} :- {', '.join(body)}.")
-
-            return rule_id
-
-        condition_rule_id = condition_to_asp_part(self.precondition)
-        result.append(f":- not {condition_rule_id}.")
-
-        for _, id in variable_id_allocator:
-            result.append(f"#show {id}/1.")
-
-        return "\n".join(result)
-
-    def _as_asp_program(
-        self,
-        variable_id_allocator: IDAllocator[Variable],
-        object_name_id_allocator: IDAllocator[ObjectName],
-        predicate_id_allocator: IDAllocator[Identifier],
-        type_name_id_allocator: IDAllocator[TypeName],
-    ) -> str:
-        parameters_part = self._parameters_as_asp_part(
-            variable_id_allocator, type_name_id_allocator
-        )
-        precondition_part = self._precondition_as_asp_part(
-            variable_id_allocator,
-            object_name_id_allocator,
-            predicate_id_allocator,
-        )
-
-        return f"{parameters_part}\n{precondition_part}"
 
 
 @dataclass(frozen=True)
@@ -435,11 +335,11 @@ class PDDLTransformer(Transformer):
         }
 
     @v_args(inline=False)
-    def assignment[A: Argument](self, assignment: list[A]) -> list[A]:
-        return assignment
+    def assignment[A: Argument](self, assignment: list[A]) -> tuple[A, ...]:
+        return tuple(assignment)
 
     def predicate[A: Argument](
-        self, name: Identifier, assignment: list[A]
+        self, name: Identifier, assignment: tuple[A, ...]
     ) -> Predicate[A]:
         return Predicate(name, assignment)
 

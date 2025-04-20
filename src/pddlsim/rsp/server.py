@@ -11,10 +11,10 @@ from pddlsim.rsp import (
 )
 from pddlsim.rsp.message import (
     Error,
+    ErrorReason,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GoalReached,
-    GroundedAction,
     Message,
     MessageTypeMismatchError,
     PerceptionRequest,
@@ -22,12 +22,14 @@ from pddlsim.rsp.message import (
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     ProblemSetupRequest,
+    SerializableGroundedAction,
+    SerializablePredicate,
     SessionSetupRequest,
     SessionSetupResponse,
     SessionUnsupported,
     TerminationSource,
 )
-from pddlsim.simulation import Simulation
+from pddlsim.simulation import GroundedAction, Simulation
 
 
 async def _receive_message[T: Message](
@@ -47,7 +49,7 @@ async def _receive_message[T: Message](
 async def _start_session(bridge: RSPMessageBridge) -> None:
     message = await _receive_message(SessionSetupRequest, bridge)
 
-    if message.supported_protocol_version != RSP_VERSION:
+    if message.payload != RSP_VERSION:
         session_unsupported = SessionUnsupported()
 
         await bridge.send_message(session_unsupported)
@@ -67,14 +69,26 @@ async def _problem_setup(
 
 
 async def _perception(simulation: Simulation, bridge: RSPMessageBridge) -> None:
-    await bridge.send_message(PerceptionResponse(simulation.state))
+    await bridge.send_message(
+        PerceptionResponse(
+            [
+                SerializablePredicate.from_predicate(predicate)
+                for predicate in simulation.state.true_predicates()
+            ]
+        )
+    )
 
 
 async def _get_grounded_actions(
     simulation: Simulation, bridge: RSPMessageBridge
 ) -> None:
     await bridge.send_message(
-        GetGroundedActionsResponse(simulation.get_grounded_actions())
+        GetGroundedActionsResponse(
+            [
+                SerializableGroundedAction.from_grounded_action(grounded_action)
+                for grounded_action in simulation.get_grounded_actions()
+            ]
+        )
     )
 
 
@@ -103,15 +117,19 @@ async def _handle_requests(
                 await _perception(simulation, bridge)
             case GetGroundedActionsRequest():
                 await _get_grounded_actions(simulation, bridge)
-            case PerformGroundedActionRequest(grounded_action=grounded_action):
+            case PerformGroundedActionRequest(payload=payload):
                 await _perform_grounded_action(
-                    grounded_action, simulation, bridge
+                    GroundedAction.from_serializable_grounded_action(payload),
+                    simulation,
+                    bridge,
                 )
             case _:
                 raise SessionTermination(
                     Error(
-                        TerminationSource.EXTERNAL,
-                        f"expected request, got {request.message_type()}",
+                        ErrorReason(
+                            TerminationSource.EXTERNAL,
+                            f"expected request, got {request.type}",
+                        )
                     ),
                     TerminationSource.INTERNAL,
                 )
@@ -128,7 +146,7 @@ async def _operate_session(
     bridge = RSPMessageBridge(reader, writer)
 
     try:
-        simulation = Simulation(domain, problem)
+        simulation = Simulation.from_domain_and_problem(domain, problem)
 
         await _start_session(bridge)
         await _handle_requests(simulation, bridge)
@@ -143,8 +161,10 @@ async def _operate_session(
         reason = str(exception)
         await bridge.send_message(
             Error(
-                TerminationSource.INTERNAL,
-                reason if reason else str(type(exception).__name__),
+                ErrorReason(
+                    TerminationSource.INTERNAL,
+                    reason if reason else str(type(exception).__name__),
+                )
             )
         )
 

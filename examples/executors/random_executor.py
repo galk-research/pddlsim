@@ -2,10 +2,12 @@ import random
 from collections.abc import Sequence
 
 from pddlsim.rsp.client import DeadEndAction, SimulationAction, SimulationClient
-from pddlsim.rsp.message import GroundedAction
+from pddlsim.simulation import GroundedAction
 
 
-def pick_grounded_action(actions: Sequence[GroundedAction]) -> GroundedAction:
+def pick_grounded_action(
+    actions: Sequence[GroundedAction],
+) -> GroundedAction:
     return random.choice(actions)
 
 

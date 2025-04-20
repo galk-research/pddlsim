@@ -1,24 +1,33 @@
 import os
-from collections import defaultdict
 from collections.abc import (
     Generator,
     Iterable,
     Mapping,
-    MutableMapping,
-    MutableSet,
 )
 from dataclasses import dataclass
 from random import Random
 
 from clingo import Control
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from pddlsim.asp import ID, IDAllocator, IDKind
+from pddlsim.asp import (
+    ID,
+    ASPPart,
+    ASPPartKind,
+    IDAllocator,
+    ObjectNameID,
+    PredicateID,
+    TypeNameID,
+    VariableID,
+    action_definition_asp_part,
+    objects_asp_part,
+    simulation_state_asp_part,
+)
 from pddlsim.parser import (
     ActionDefinition,
     AndCondition,
     AndEffect,
     Argument,
-    Atom,
     Condition,
     Domain,
     Effect,
@@ -34,6 +43,7 @@ from pddlsim.parser import (
     TypeName,
     Variable,
 )
+from pddlsim.state import SimulationState
 
 
 def _ground_argument(
@@ -108,167 +118,98 @@ def _ground_effect(
             return _ground_effect(base_predicate, grounding)
 
 
-class SimulationState:
-    """
-    Stores a state of the simulation, which is based on classical PDDL.
-    Therefore, a state is a set of true predicates.
-    """
-
-    _true_predicates: MutableSet[Predicate[ObjectName]] = set()
-
-    def does_atom_hold(self, atom: Atom[ObjectName]) -> bool:
-        match atom:
-            case Predicate():
-                return atom in self._true_predicates
-            case NotPredicate(base_predicate):
-                return base_predicate not in self._true_predicates
-
-    def _make_atom_hold(self, atom: Atom[ObjectName]) -> None:
-        match atom:
-            case Predicate():
-                self._true_predicates.add(atom)
-            case NotPredicate(base_predicate):
-                self._true_predicates.remove(base_predicate)
-
-    def does_condition_hold(self, condition: Condition[ObjectName]) -> bool:
-        match condition:
-            case AndCondition(subconditions):
-                return all(
-                    self.does_condition_hold(subcondition)
-                    for subcondition in subconditions
-                )
-            case OrCondition(subconditions):
-                return any(
-                    self.does_condition_hold(subcondition)
-                    for subcondition in subconditions
-                )
-            case NotCondition(base_condition):
-                return not (self.does_condition_hold(base_condition))
-            case EqualityCondition(left_side, right_side):
-                return left_side == right_side
-            case Predicate():
-                return self.does_atom_hold(condition)
-
-    def _make_effect_hold(
-        self, effect: Effect[ObjectName], rng: Random
-    ) -> None:
-        match effect:
-            case AndEffect(subeffects):
-                for subeffect in subeffects:
-                    self._make_effect_hold(subeffect, rng)
-            case ProbabilisticEffect():
-                self._make_effect_hold(effect.choose_possibility(rng), rng)
-            case Predicate() | NotPredicate():
-                self._make_atom_hold(effect)
-
-    def percepts(self) -> dict[str, list[list[str]]]:
-        percepts = defaultdict(list)
-
-        for predicate in self._true_predicates:
-            percepts[predicate.name.value].append(
-                [object_name.value for object_name in predicate.assignment]
-            )
-
-        return percepts
-
-    def _as_asp_part(
-        self,
-        predicate_id_allocator: IDAllocator[Identifier],
-        object_name_id_allocator: IDAllocator[ObjectName],
-    ) -> str:
-        result = []
-
-        for predicate in self._true_predicates:
-            arguments = (
-                str(object_name_id_allocator.get_id_or_insert(object_name))
-                for object_name in predicate.assignment
-            )
-            predicate_id = predicate_id_allocator.get_id_or_insert(
-                predicate.name
-            )
-
-            result.append(f"{predicate_id}({', '.join(arguments)}).")
-
-        return "\n".join(result)
-
-
-@dataclass(eq=True, frozen=True)
+@dataclass(frozen=True)
 class GroundedAction:
     name: Identifier
-    grounding: tuple[ObjectName, ...]
+    grounding: list[ObjectName]
+
+    @classmethod
+    def from_serializable_grounded_action(
+        cls, serializable_grounded_action: "SerializableGroundedAction"
+    ) -> "GroundedAction":
+        return GroundedAction(
+            Identifier(serializable_grounded_action.name),
+            [
+                ObjectName(object_name)
+                for object_name in serializable_grounded_action.grounding
+            ],
+        )
+
+
+@pydantic_dataclass
+class SerializableGroundedAction:
+    name: str
+    grounding: list[str]
+
+    @classmethod
+    def from_grounded_action(
+        cls, grounded_action: GroundedAction
+    ) -> "SerializableGroundedAction":
+        return SerializableGroundedAction(
+            grounded_action.name.value,
+            [object_name.value for object_name in grounded_action.grounding],
+        )
 
 
 class SimulationCompletedError(Exception):
     pass
 
 
+@dataclass
 class Simulation:
-    def __init__(
-        self, domain: Domain, problem: Problem, seed: int = 42
-    ) -> None:
-        self._domain = domain
-        self._problem = problem
-        self._rng = Random(seed)
-        self._state = SimulationState()
-        self._action_definition_asp_parts: MutableMapping[
-            Identifier, tuple[str, IDAllocator[Variable]]
-        ] = {}
-        self._object_name_id_allocator = IDAllocator[ObjectName](
-            IDKind.OBJECT_NAME
-        )
-        self._predicate_id_allocator = IDAllocator[Identifier](IDKind.PREDICATE)
-        self._type_name_id_allocator = IDAllocator[TypeName](IDKind.TYPE_NAME)
-        self._objects_asp_part = ""
+    _domain: Domain
+    _problem: Problem
 
-        self._initialize_state()
-        self._initialize_action_definition_asp_parts()
-        self._initialize_objects_asp_part()
+    _rng: Random
+    _state: SimulationState
 
-    def _initialize_state(self) -> None:
-        for predicate in self._problem.initialization:
-            self._state._make_atom_hold(predicate)
+    _object_name_id_allocator: IDAllocator[ObjectName]
+    _predicate_id_allocator: IDAllocator[Identifier]
+    _type_name_id_allocator: IDAllocator[TypeName]
 
-    def _initialize_action_definition_asp_parts(self) -> None:
-        for action_definition in self._domain.action_definitions.values():
-            variable_id_allocator = IDAllocator[Variable](IDKind.VARIABLE)
+    _objects_asp_part: ASPPart
+    _action_definition_asp_parts: Mapping[
+        Identifier, tuple[ASPPart, IDAllocator[Variable]]
+    ]
 
-            self._action_definition_asp_parts[action_definition.name] = (
-                action_definition._as_asp_program(
+    @classmethod
+    def from_domain_and_problem(
+        cls, domain: Domain, problem: Problem, seed: int = 42
+    ) -> "Simulation":
+        object_name_id_allocator = IDAllocator[ObjectName](ObjectNameID)
+        predicate_id_allocator = IDAllocator[Identifier](PredicateID)
+        type_name_id_allocator = IDAllocator[TypeName](TypeNameID)
+
+        return Simulation(
+            domain,
+            problem,
+            Random(seed),
+            SimulationState(set(problem.initialization)),
+            object_name_id_allocator,
+            predicate_id_allocator,
+            type_name_id_allocator,
+            objects_asp_part(
+                domain,
+                problem,
+                object_name_id_allocator,
+                type_name_id_allocator,
+            ),
+            {
+                action_definition.name: (
+                    action_definition_asp_part(
+                        action_definition,
+                        variable_id_allocator := IDAllocator[Variable](
+                            VariableID
+                        ),
+                        object_name_id_allocator,
+                        predicate_id_allocator,
+                        type_name_id_allocator,
+                    ),
                     variable_id_allocator,
-                    self._object_name_id_allocator,
-                    self._predicate_id_allocator,
-                    self._type_name_id_allocator,
-                ),
-                variable_id_allocator,
-            )
-
-    def _initialize_objects_asp_part(self) -> None:
-        result = []
-
-        for typed_object in self._problem.objects:
-            type_name_id = self._type_name_id_allocator.get_id_or_insert(
-                typed_object.type_name
-            )
-            object_name_id = self._object_name_id_allocator.get_id_or_insert(
-                typed_object.value
-            )
-
-            result.append(f"{type_name_id}({object_name_id}).")
-
-        for member in self._domain.type_hierarchy:
-            custom_type = member.value
-            supertype = member.type_name
-
-            custom_type_id = self._type_name_id_allocator.get_id_or_insert(
-                custom_type
-            )
-            supertype_id = self._type_name_id_allocator.get_id_or_insert(
-                supertype
-            )
-
-            result.append(f"{supertype_id}(O) :- {custom_type_id}(O).")
-
-        self._objects_asp_part = "\n".join(result)
+                )
+                for action_definition in domain.action_definitions.values()
+            },
+        )
 
     @property
     def state(self) -> SimulationState:
@@ -300,7 +241,7 @@ class Simulation:
             raise ValueError("grounded action doesn't satisfy precondition")
 
     def _get_groundings(
-        self, action_definition: ActionDefinition, state_asp_part: str
+        self, action_definition: ActionDefinition, state_part: ASPPart
     ) -> Generator[Mapping[Variable, ObjectName]]:
         action_definition_asp_part, variable_id_allocator = (
             self._action_definition_asp_parts[action_definition.name]
@@ -317,11 +258,17 @@ class Simulation:
         # Compute all models (all groundings)
         control.configuration.solve.models = 0  # type: ignore
 
-        control.add("objects", (), self._objects_asp_part)
-        control.add("state", (), state_asp_part)
-        control.add("precondition", (), action_definition_asp_part)
+        self._objects_asp_part.add_to_control(control)
+        state_part.add_to_control(control)
+        action_definition_asp_part.add_to_control(control)
 
-        control.ground((("objects", ()), ("state", ()), ("precondition", ())))
+        control.ground(
+            (
+                (ASPPartKind.OBJECTS, ()),
+                (ASPPartKind.STATE, ()),
+                (ASPPartKind.ACTION_DEFINITION, ()),
+            )
+        )
 
         with control.solve(yield_=True) as handle:
             for model in handle:
@@ -335,31 +282,31 @@ class Simulation:
                 }
 
     def _get_grounded_actions(
-        self, action_definition: ActionDefinition, state_asp_part: str
+        self, action_definition: ActionDefinition, state_part: ASPPart
     ) -> Iterable[GroundedAction]:
         return (
             GroundedAction(
                 action_definition.name,
-                tuple(
+                [
                     grounding[parameter.value]
                     for parameter in action_definition.parameters
-                ),
+                ],
             )
-            for grounding in self._get_groundings(
-                action_definition, state_asp_part
-            )
+            for grounding in self._get_groundings(action_definition, state_part)
         )
 
     def get_grounded_actions(self) -> Iterable[GroundedAction]:
-        asp_program_facts = self.state._as_asp_part(
-            self._predicate_id_allocator, self._object_name_id_allocator
+        state_part = simulation_state_asp_part(
+            self._state,
+            self._predicate_id_allocator,
+            self._object_name_id_allocator,
         )
 
         return (
             grounded_action
             for action_definition in self._domain.action_definitions.values()
             for grounded_action in self._get_grounded_actions(
-                action_definition, asp_program_facts
+                action_definition, state_part
             )
         )
 
