@@ -6,12 +6,11 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from random import Random
+from typing import cast
 
 from clingo import Control
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from pddlsim.asp import (
-    ID,
     ASPPart,
     ASPPartKind,
     IDAllocator,
@@ -57,10 +56,10 @@ def _ground_predicate(
 ) -> Predicate[ObjectName]:
     return Predicate(
         predicate.name,
-        [
+        tuple(
             _ground_argument(argument, grounding)
             for argument in predicate.assignment
-        ],
+        ),
     )
 
 
@@ -115,40 +114,18 @@ def _ground_effect(
         case Predicate():
             return _ground_predicate(effect, grounding)
         case NotPredicate(base_predicate):
-            return _ground_effect(base_predicate, grounding)
+            return NotPredicate(
+                cast(
+                    Predicate[ObjectName],
+                    _ground_effect(base_predicate, grounding),
+                )
+            )
 
 
 @dataclass(frozen=True)
 class GroundedAction:
     name: Identifier
     grounding: list[ObjectName]
-
-    @classmethod
-    def from_serializable_grounded_action(
-        cls, serializable_grounded_action: "SerializableGroundedAction"
-    ) -> "GroundedAction":
-        return GroundedAction(
-            Identifier(serializable_grounded_action.name),
-            [
-                ObjectName(object_name)
-                for object_name in serializable_grounded_action.grounding
-            ],
-        )
-
-
-@pydantic_dataclass
-class SerializableGroundedAction:
-    name: str
-    grounding: list[str]
-
-    @classmethod
-    def from_grounded_action(
-        cls, grounded_action: GroundedAction
-    ) -> "SerializableGroundedAction":
-        return SerializableGroundedAction(
-            grounded_action.name.value,
-            [object_name.value for object_name in grounded_action.grounding],
-        )
 
 
 class SimulationCompletedError(Exception):
@@ -274,9 +251,9 @@ class Simulation:
             for model in handle:
                 yield {
                     variable_id_allocator.get_value(
-                        ID.from_str(symbol.name)
+                        VariableID.from_str(symbol.name)
                     ): self._object_name_id_allocator.get_value(
-                        ID.from_str(symbol.arguments[0].name)
+                        ObjectNameID.from_str(symbol.arguments[0].name)
                     )
                     for symbol in model.symbols(shown=True)
                 }

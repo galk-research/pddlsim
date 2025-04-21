@@ -14,15 +14,14 @@ from pddlsim.rsp.message import (
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
-    Message,
-    MessageTypeMismatchError,
+    Payload,
     PerceptionRequest,
     PerceptionResponse,
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     ProblemSetupRequest,
     ProblemSetupResponse,
-    SerializableGroundedAction,
+    ReasonString,
     SessionSetupRequest,
     SessionSetupResponse,
     TerminationSource,
@@ -45,16 +44,16 @@ class SimulationClient:
 
         self._termination: SessionTermination | None = None
 
-    async def _receive_message[T: Message](
-        self, expected_message_type: type[T]
-    ) -> T:
+    async def _receive_message[P: Payload](
+        self, expected_message_type: type[P]
+    ) -> P:
         try:
             message = await self._bridge.receive_message()
 
             if not isinstance(message, expected_message_type):
                 await self._terminate_session(
                     SessionTermination(
-                        MessageTypeMismatchError(
+                        Error.from_type_mismatch(
                             expected_message_type, type(message)
                         ),
                         TerminationSource.INTERNAL,
@@ -65,7 +64,7 @@ class SimulationClient:
         except SessionTermination as termination:
             await self._terminate_session(termination.with_traceback(None))
 
-    async def _send_message(self, message: Message) -> None:
+    async def _send_message(self, message: Payload) -> None:
         try:
             await self._bridge.send_message(message)
         except SessionTermination as termination:
@@ -75,7 +74,7 @@ class SimulationClient:
         self, termination: SessionTermination
     ) -> NoReturn:
         if termination.source is TerminationSource.INTERNAL:
-            await self._send_message(termination.message)
+            await self._send_message(termination.termination_payload)
 
         self._termination = termination
 
@@ -116,7 +115,7 @@ class SimulationClient:
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[1]
 
-    async def get_simulation_state(self) -> SimulationState:
+    async def get_state(self) -> SimulationState:
         self._assert_unterminated()
 
         if not self._state:
@@ -128,10 +127,10 @@ class SimulationClient:
                 {
                     Predicate(
                         Identifier(predicate.name),
-                        [
+                        tuple(
                             ObjectName(object_name)
                             for object_name in predicate.assignment
-                        ],
+                        ),
                     )
                     for predicate in message.payload
                 }
@@ -147,13 +146,7 @@ class SimulationClient:
 
             message = await self._receive_message(GetGroundedActionsResponse)
 
-            self._grounded_actions = [
-                GroundedAction.from_serializable_grounded_action(
-                    serialized_grounded_action
-                )
-                for serialized_grounded_action in message.payload
-            ]
-
+            self._grounded_actions = message.payload
         return self._grounded_actions
 
     async def _perform_grounded_action(
@@ -164,14 +157,10 @@ class SimulationClient:
         self._state = None
         self._grounded_actions = None
 
-        await self._send_message(
-            PerformGroundedActionRequest(
-                SerializableGroundedAction.from_grounded_action(grounded_action)
-            )
-        )
+        await self._send_message(PerformGroundedActionRequest(grounded_action))
         await self._receive_message(PerformGroundedActionResponse)
 
-    async def _give_up(self, reason: str | None) -> None:
+    async def _give_up(self, reason: ReasonString | None) -> None:
         self._assert_unterminated()
 
         await self._terminate_session(
@@ -181,7 +170,7 @@ class SimulationClient:
 
 class GiveUpAction:
     def __init__(self, reason: str | None = None) -> None:
-        self._reason = reason
+        self._reason = ReasonString(reason) if reason else None
 
 
 class DeadEndAction(GiveUpAction):
@@ -215,13 +204,17 @@ async def act_in_simulation(
     except SessionTermination:
         pass
     except Exception as exception:
-        reason = str(exception)
+        exception_reason = str(exception)
 
         await simulation._bridge.send_message(
             Error(
                 ErrorReason(
                     TerminationSource.INTERNAL,
-                    reason if reason else type(exception).__name__,
+                    ReasonString(
+                        exception_reason
+                        if exception_reason
+                        else type(exception).__name__
+                    ),
                 ),
             )
         )

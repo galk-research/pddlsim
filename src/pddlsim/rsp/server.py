@@ -15,15 +15,13 @@ from pddlsim.rsp.message import (
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GoalReached,
-    Message,
-    MessageTypeMismatchError,
+    Payload,
     PerceptionRequest,
     PerceptionResponse,
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     ProblemSetupRequest,
-    SerializableGroundedAction,
-    SerializablePredicate,
+    ReasonString,
     SessionSetupRequest,
     SessionSetupResponse,
     SessionUnsupported,
@@ -32,14 +30,14 @@ from pddlsim.rsp.message import (
 from pddlsim.simulation import GroundedAction, Simulation
 
 
-async def _receive_message[T: Message](
+async def _receive_message[T: Payload](
     expected_message_type: type[T], bridge: RSPMessageBridge
 ) -> T:
     message = await bridge.receive_message()
 
     if not isinstance(message, expected_message_type):
         raise SessionTermination(
-            MessageTypeMismatchError(expected_message_type, type(message)),
+            Error.from_type_mismatch(expected_message_type, type(message)),
             TerminationSource.INTERNAL,
         )
 
@@ -70,12 +68,7 @@ async def _problem_setup(
 
 async def _perception(simulation: Simulation, bridge: RSPMessageBridge) -> None:
     await bridge.send_message(
-        PerceptionResponse(
-            [
-                SerializablePredicate.from_predicate(predicate)
-                for predicate in simulation.state.true_predicates()
-            ]
-        )
+        PerceptionResponse(list(simulation.state.true_predicates()))
     )
 
 
@@ -83,12 +76,7 @@ async def _get_grounded_actions(
     simulation: Simulation, bridge: RSPMessageBridge
 ) -> None:
     await bridge.send_message(
-        GetGroundedActionsResponse(
-            [
-                SerializableGroundedAction.from_grounded_action(grounded_action)
-                for grounded_action in simulation.get_grounded_actions()
-            ]
-        )
+        GetGroundedActionsResponse(list(simulation.get_grounded_actions()))
     )
 
 
@@ -119,7 +107,7 @@ async def _handle_requests(
                 await _get_grounded_actions(simulation, bridge)
             case PerformGroundedActionRequest(payload=payload):
                 await _perform_grounded_action(
-                    GroundedAction.from_serializable_grounded_action(payload),
+                    payload,
                     simulation,
                     bridge,
                 )
@@ -128,7 +116,9 @@ async def _handle_requests(
                     Error(
                         ErrorReason(
                             TerminationSource.EXTERNAL,
-                            f"expected request, got {request.type}",
+                            ReasonString(
+                                f"expected request, got {request.name()}"
+                            ),
                         )
                     ),
                     TerminationSource.INTERNAL,
@@ -154,16 +144,21 @@ async def _operate_session(
         logging.info(str(termination))
 
         if termination.source is TerminationSource.INTERNAL:
-            await bridge.send_message(termination.message)
+            await bridge.send_message(termination.termination_payload)
 
         return termination
     except Exception as exception:
-        reason = str(exception)
+        exception_reason = str(exception)
+
         await bridge.send_message(
             Error(
                 ErrorReason(
                     TerminationSource.INTERNAL,
-                    reason if reason else str(type(exception).__name__),
+                    ReasonString(
+                        exception_reason
+                        if exception_reason
+                        else str(type(exception).__name__)
+                    ),
                 )
             )
         )

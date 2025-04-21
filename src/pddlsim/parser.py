@@ -8,10 +8,9 @@ from decimal import Decimal
 from enum import StrEnum
 from itertools import chain
 from random import Random
-from typing import cast
+from typing import NewType, cast
 
 from lark import Lark, Token, Transformer, v_args
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from pddlsim import _RESOURCES
 
@@ -24,24 +23,18 @@ class Requirement(StrEnum):
     PROBABILISTIC_EFFECTS = ":probabilistic-effects"
 
 
-@dataclass(eq=True, frozen=True)
-class Identifier:
-    value: str
-
-    def __str__(self) -> str:
-        return self.value
+Identifier = NewType("Identifier", str)
 
 
 @dataclass(eq=True, order=True, frozen=True)
 class Variable:
-    value: str
+    value: Identifier
 
     def __str__(self) -> str:
         return f"?{self.value}"
 
 
-class CustomType(Identifier):
-    pass
+CustomType = NewType("CustomType", Identifier)
 
 
 @dataclass(eq=True, frozen=True)
@@ -52,10 +45,7 @@ class ObjectType:
 type TypeName = CustomType | ObjectType
 
 
-@dataclass(eq=True, frozen=True)
-class ObjectName(Identifier):
-    def __str__(self) -> str:
-        return self.value
+ObjectName = NewType("ObjectName", Identifier)
 
 
 @dataclass(eq=True, frozen=True)
@@ -111,33 +101,6 @@ class Predicate[A: Argument]:
         result += ")"
 
         return result
-
-    @classmethod
-    def from_serializable_predicate(
-        cls, serializable_predicate: "SerializablePredicate"
-    ) -> "Predicate[ObjectName]":
-        return Predicate(
-            Identifier(serializable_predicate.name),
-            tuple(
-                ObjectName(object_name)
-                for object_name in serializable_predicate.assignment
-            ),
-        )
-
-
-@pydantic_dataclass
-class SerializablePredicate:
-    name: str
-    assignment: list[str]
-
-    @classmethod
-    def from_predicate(
-        cls, predicate: Predicate[ObjectName]
-    ) -> "SerializablePredicate":
-        return SerializablePredicate(
-            predicate.name.value,
-            [object_name.value for object_name in predicate.assignment],
-        )
 
 
 type Condition[A: Argument] = (
@@ -259,7 +222,7 @@ class PDDLTransformer(Transformer):
         return Identifier(str(token))
 
     def VARIABLE(self, token: Token) -> Variable:
-        return Variable(token[1:])
+        return Variable(Identifier(token[1:]))
 
     def NUMBER(self, token: Token) -> Decimal:
         return Decimal(token)
@@ -289,7 +252,7 @@ class PDDLTransformer(Transformer):
         return ObjectType()
 
     def custom_type(self, identifier: Identifier) -> CustomType:
-        return CustomType(identifier.value)
+        return CustomType(identifier)
 
     @v_args(inline=False)
     def nonempty_list[T](self, items: list[T]) -> Iterable[T]:
@@ -312,7 +275,7 @@ class PDDLTransformer(Transformer):
         return TypeHierarchy.from_custom_types(types)
 
     def object_name(self, identifier: Identifier) -> ObjectName:
-        return ObjectName(identifier.value)
+        return ObjectName(identifier)
 
     @v_args(inline=False)
     def constants_section(

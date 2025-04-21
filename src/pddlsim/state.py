@@ -1,4 +1,4 @@
-from collections.abc import MutableSet, Set
+from collections.abc import Iterable, MutableSet
 from dataclasses import dataclass, field
 from random import Random
 
@@ -74,5 +74,5 @@ class SimulationState:
             case Predicate() | NotPredicate():
                 self._make_atom_hold(effect)
 
-    def true_predicates(self) -> Set[Predicate[ObjectName]]:
-        return frozenset(self._true_predicates)
+    def true_predicates(self) -> Iterable[Predicate[ObjectName]]:
+        return iter(self._true_predicates)

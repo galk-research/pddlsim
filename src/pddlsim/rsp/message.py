@@ -1,115 +1,117 @@
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Any, NewType
 
 import cbor2
-from pydantic import (
-    Field,
-    PositiveInt,
-    TypeAdapter,
-    field_validator,
-)
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+from apischema import deserialize, discriminator, schema, serialize, type_name
 
-from pddlsim.parser import SerializablePredicate
-from pddlsim.simulation import SerializableGroundedAction
+from pddlsim.parser import ObjectName, Predicate
+from pddlsim.simulation import GroundedAction
 
 
-@pydantic_dataclass
-class Message(ABC):
+@dataclass
+@discriminator("type")
+class Payload:
     payload: Any
-    type: str
 
-    @field_validator("type", mode="after")
     @classmethod
-    def matches_type(cls, value: str) -> str:
-        if value != cls.type:
-            raise ValueError(
-                f"expected message type '{cls.type}', got '{value}'"
-            )
+    def name(cls) -> str:
+        return cls.__name__
 
-        return value
+    def serialize(self) -> cbor2.Any:
+        return serialize(Payload, self)
 
 
-@pydantic_dataclass
-class SessionSetupRequest(Message):
-    payload: PositiveInt
-    type: str = "session-setup-request"
+@dataclass(frozen=True)
+class RSPName:
+    name: str
+
+    def __call__[P: Payload](self, type: type[P]) -> type[P]:
+        type.name = lambda: self.name  # type: ignore[method-assign]
+
+        return type_name(self.name)(type)
 
 
-@pydantic_dataclass
-class SessionSetupResponse(Message):
+def rsp_name(name: str) -> RSPName:
+    return RSPName(name)
+
+
+RSPVersion = NewType("RSPVersion", int)
+schema(min=1)(RSPVersion)
+
+
+@dataclass
+@rsp_name("session-setup-request")
+class SessionSetupRequest(Payload):
+    payload: RSPVersion
+
+
+@dataclass
+@rsp_name("session-setup-response")
+class SessionSetupResponse(Payload):
     payload: None = None
-    type: str = "session-setup-response"
 
 
-@pydantic_dataclass
-class ProblemSetupRequest(Message):
+@dataclass
+@rsp_name("problem-setup-request")
+class ProblemSetupRequest(Payload):
     payload: None = None
-    type: str = "problem-setup-request"
 
 
-@pydantic_dataclass
+@dataclass
 class DomainProblemPair:
     domain: str
     problem: str
 
 
-@pydantic_dataclass
-class ProblemSetupResponse(Message):
+@dataclass
+@rsp_name("problem-setup-response")
+class ProblemSetupResponse(Payload):
     payload: DomainProblemPair
-    type: str = "problem-setup-response"
 
 
-@pydantic_dataclass
-class PerceptionRequest(Message):
+@dataclass
+@rsp_name("perception-request")
+class PerceptionRequest(Payload):
     payload: None = None
-    type: str = "perception-request"
 
 
-@pydantic_dataclass
-class PerceptionResponse(Message):
-    payload: list[SerializablePredicate]
-    type: str = "perception-response"
+@dataclass
+@rsp_name("perception-response")
+class PerceptionResponse(Payload):
+    payload: list[Predicate[ObjectName]]
 
 
-@pydantic_dataclass
-class GetGroundedActionsRequest(Message):
+@dataclass
+@rsp_name("get-grounded-actions-request")
+class GetGroundedActionsRequest(Payload):
     payload: None = None
-    type: str = "get-grounded-actions-request"
 
 
-@pydantic_dataclass
-class GetGroundedActionsResponse(Message):
-    payload: list[SerializableGroundedAction]
-    type: str = "get-grounded-actions-response"
+@dataclass
+@rsp_name("get-grounded-actions-response")
+class GetGroundedActionsResponse(Payload):
+    payload: list[GroundedAction]
 
 
-@pydantic_dataclass
-class PerformGroundedActionRequest(Message):
-    payload: SerializableGroundedAction
-    type: str = "perform-grounded-action-request"
+@dataclass
+@rsp_name("perform-grounded-action-request")
+class PerformGroundedActionRequest(Payload):
+    payload: GroundedAction
 
 
-@pydantic_dataclass
-class PerformGroundedActionResponse(Message):
+@dataclass
+@rsp_name("perform-grounded-action-response")
+class PerformGroundedActionResponse(Payload):
     payload: None = None
-    type: str = "perform-grounded-action-response"
 
 
-@pydantic_dataclass
-class TerminationMessage(Message):
-    @abstractmethod
-    def description(self) -> str:
-        raise NotImplementedError
-
-
-@pydantic_dataclass
-class GoalReached(TerminationMessage):
+@dataclass
+@rsp_name("goal-reached")
+class GoalReached(Payload):
     payload: None = None
-    type: str = "goal-reached"
 
-    def description(self) -> str:
+    def __str__(self) -> str:
         return "goal reached"
 
 
@@ -118,65 +120,69 @@ class TerminationSource(StrEnum):
     EXTERNAL = "external"
 
 
-@pydantic_dataclass
+ReasonString = NewType("ReasonString", str)
+schema(min_len=1)(ReasonString)
+
+
+@dataclass
 class ErrorReason:
     source: TerminationSource
-    reason: str | None
+    reason: ReasonString | None
 
 
-@pydantic_dataclass
-class Error(TerminationMessage):
+@dataclass
+@rsp_name("error")
+class Error(Payload):
     payload: ErrorReason
-    type: str = "error"
 
-    def description(self) -> str:
+    def __str__(self) -> str:
         return (
             f"{self.payload.reason} ({self.payload.source} error)"
             if self.payload.reason
             else f"{self.payload.source} error"
         )
 
-
-@pydantic_dataclass
-class MessageTypeMismatchError(Error):
-    def __init__(
-        self,
-        expected_message_type: type[Message],
-        received_message_type: type[Message],
-    ) -> None:
-        super().__init__(
+    @classmethod
+    def from_type_mismatch(
+        cls,
+        expected_message_type: type[Payload],
+        received_message_type: type[Payload],
+    ) -> "Error":
+        return Error(
             ErrorReason(
                 source=TerminationSource.EXTERNAL,
-                reason=f"expected {expected_message_type.type}, "
-                f"got {received_message_type.type}",
+                reason=ReasonString(
+                    f"expected {expected_message_type.name()}, "
+                    f"got {received_message_type.name()}"
+                ),
             )
         )
 
 
-@pydantic_dataclass
-class SessionUnsupported(TerminationMessage):
+@dataclass
+@rsp_name("session-unsupported")
+class SessionUnsupported(Payload):
     payload: None = None
-    type: str = "session-unsupported"
 
-    def description(self) -> str:
+    def __str__(self) -> str:
         return "session unsupported"
 
 
-@pydantic_dataclass
-class Timeout(TerminationMessage):
+@dataclass
+@rsp_name("timeout")
+class Timeout(Payload):
     payload: None = None
-    type: str = "timeout"
 
-    def description(self) -> str:
+    def __str__(self) -> str:
         return "timeout"
 
 
-@pydantic_dataclass
-class GiveUp(TerminationMessage):
-    payload: str | None
-    type: str = "give-up"
+@dataclass
+@rsp_name("give-up")
+class GiveUp(Payload):
+    payload: ReasonString | None
 
-    def description(self):
+    def __str__(self) -> str:
         return (
             f"session given up ({self.payload})"
             if self.payload
@@ -184,47 +190,23 @@ class GiveUp(TerminationMessage):
         )
 
 
-@pydantic_dataclass
-class Custom(TerminationMessage):
-    payload: str | None
-    type: str = "custom"
+@dataclass
+@rsp_name("custom")
+class Custom(Payload):
+    payload: ReasonString | None
 
-    def description(self) -> str:
+    def __str__(self) -> str:
         return self.payload if self.payload else "unknown"
 
+    @classmethod
+    def from_communication_channel_closed(cls) -> "Custom":
+        return Custom(ReasonString("communication channel closed"))
 
-class CommunicationChannelClosed(Custom):
-    def __init__(self) -> None:
-        super().__init__("communication channel closed")
 
-
-ValidMessage = (
-    SessionSetupRequest
-    | SessionSetupResponse
-    | ProblemSetupRequest
-    | ProblemSetupResponse
-    | PerceptionRequest
-    | PerceptionResponse
-    | GetGroundedActionsRequest
-    | GetGroundedActionsResponse
-    | PerformGroundedActionRequest
-    | PerformGroundedActionResponse
-    | GoalReached
-    | Error
-    | SessionUnsupported
-    | Timeout
-    | GiveUp
-    | Custom
+TerminationPayload = (
+    GoalReached | Error | SessionUnsupported | Timeout | GiveUp | Custom
 )
 
 
-_ADAPTER = TypeAdapter[ValidMessage](
-    Annotated[
-        ValidMessage,
-        Field(union_mode="left_to_right"),
-    ]
-)
-
-
-def deserialize_message(message: cbor2.Any) -> Message:
-    return _ADAPTER.validate_python(message, strict=True)
+def deserialize_message(message: cbor2.Any) -> Payload:
+    return deserialize(Payload, message)

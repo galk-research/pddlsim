@@ -26,6 +26,8 @@ def create_get_next_action(
 
         steps += 1
 
+        _state = await simulation.get_state()
+
         grounded_actions = await simulation.get_grounded_actions()
 
         return random.choice(grounded_actions)
