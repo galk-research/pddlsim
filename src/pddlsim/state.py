@@ -11,7 +11,7 @@ from pddlsim.parser import (
     EqualityCondition,
     NotCondition,
     NotPredicate,
-    ObjectName,
+    Object,
     OrCondition,
     Predicate,
     ProbabilisticEffect,
@@ -25,25 +25,23 @@ class SimulationState:
     Therefore, a state is a set of true predicates.
     """
 
-    _true_predicates: MutableSet[Predicate[ObjectName]] = field(
-        default_factory=set
-    )
+    _true_predicates: MutableSet[Predicate[Object]] = field(default_factory=set)
 
-    def does_atom_hold(self, atom: Atom[ObjectName]) -> bool:
+    def does_atom_hold(self, atom: Atom[Object]) -> bool:
         match atom:
             case Predicate():
                 return atom in self._true_predicates
             case NotPredicate(base_predicate):
                 return base_predicate not in self._true_predicates
 
-    def _make_atom_hold(self, atom: Atom[ObjectName]) -> None:
+    def _make_atom_hold(self, atom: Atom[Object]) -> None:
         match atom:
             case Predicate():
                 self._true_predicates.add(atom)
             case NotPredicate(base_predicate):
                 self._true_predicates.remove(base_predicate)
 
-    def does_condition_hold(self, condition: Condition[ObjectName]) -> bool:
+    def does_condition_hold(self, condition: Condition[Object]) -> bool:
         match condition:
             case AndCondition(subconditions):
                 return all(
@@ -62,9 +60,7 @@ class SimulationState:
             case Predicate():
                 return self.does_atom_hold(condition)
 
-    def _make_effect_hold(
-        self, effect: Effect[ObjectName], rng: Random
-    ) -> None:
+    def _make_effect_hold(self, effect: Effect[Object], rng: Random) -> None:
         match effect:
             case AndEffect(subeffects):
                 for subeffect in subeffects:
@@ -74,5 +70,5 @@ class SimulationState:
             case Predicate() | NotPredicate():
                 self._make_atom_hold(effect)
 
-    def true_predicates(self) -> Iterable[Predicate[ObjectName]]:
+    def true_predicates(self) -> Iterable[Predicate[Object]]:
         return iter(self._true_predicates)

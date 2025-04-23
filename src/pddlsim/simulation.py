@@ -34,26 +34,26 @@ from pddlsim.parser import (
     Identifier,
     NotCondition,
     NotPredicate,
-    ObjectName,
+    Object,
     OrCondition,
     Predicate,
     ProbabilisticEffect,
     Problem,
-    TypeName,
+    Type,
     Variable,
 )
 from pddlsim.state import SimulationState
 
 
 def _ground_argument(
-    argument: Argument, grounding: Mapping[Variable, ObjectName]
-) -> ObjectName:
+    argument: Argument, grounding: Mapping[Variable, Object]
+) -> Object:
     return grounding[argument] if isinstance(argument, Variable) else argument
 
 
 def _ground_predicate(
-    predicate: Predicate[Argument], grounding: Mapping[Variable, ObjectName]
-) -> Predicate[ObjectName]:
+    predicate: Predicate[Argument], grounding: Mapping[Variable, Object]
+) -> Predicate[Object]:
     return Predicate(
         predicate.name,
         tuple(
@@ -64,8 +64,8 @@ def _ground_predicate(
 
 
 def _ground_condition(
-    condition: Condition[Argument], grounding: Mapping[Variable, ObjectName]
-) -> Condition[ObjectName]:
+    condition: Condition[Argument], grounding: Mapping[Variable, Object]
+) -> Condition[Object]:
     match condition:
         case AndCondition(subconditions):
             return AndCondition(
@@ -93,8 +93,8 @@ def _ground_condition(
 
 
 def _ground_effect(
-    effect: Effect[Argument], grounding: Mapping[Variable, ObjectName]
-) -> Effect[ObjectName]:
+    effect: Effect[Argument], grounding: Mapping[Variable, Object]
+) -> Effect[Object]:
     match effect:
         case AndEffect(subeffects):
             return AndEffect(
@@ -116,7 +116,7 @@ def _ground_effect(
         case NotPredicate(base_predicate):
             return NotPredicate(
                 cast(
-                    Predicate[ObjectName],
+                    Predicate[Object],
                     _ground_effect(base_predicate, grounding),
                 )
             )
@@ -125,7 +125,7 @@ def _ground_effect(
 @dataclass(frozen=True)
 class GroundedAction:
     name: Identifier
-    grounding: list[ObjectName]
+    grounding: list[Object]
 
 
 class SimulationCompletedError(Exception):
@@ -140,9 +140,9 @@ class Simulation:
     _rng: Random
     _state: SimulationState
 
-    _object_name_id_allocator: IDAllocator[ObjectName]
+    _object_name_id_allocator: IDAllocator[Object]
     _predicate_id_allocator: IDAllocator[Identifier]
-    _type_name_id_allocator: IDAllocator[TypeName]
+    _type_name_id_allocator: IDAllocator[Type]
 
     _objects_asp_part: ASPPart
     _action_definition_asp_parts: Mapping[
@@ -153,9 +153,9 @@ class Simulation:
     def from_domain_and_problem(
         cls, domain: Domain, problem: Problem, seed: int = 42
     ) -> "Simulation":
-        object_name_id_allocator = IDAllocator[ObjectName](ObjectNameID)
+        object_name_id_allocator = IDAllocator[Object](ObjectNameID)
         predicate_id_allocator = IDAllocator[Identifier](PredicateID)
-        type_name_id_allocator = IDAllocator[TypeName](TypeNameID)
+        type_name_id_allocator = IDAllocator[Type](TypeNameID)
 
         return Simulation(
             domain,
@@ -200,9 +200,9 @@ class Simulation:
             grounded_action.name
         ]
         grounding = {
-            parameter.value: object_name
-            for parameter, object_name in zip(
-                action_definition.parameters,
+            variable: object_
+            for variable, object_ in zip(
+                action_definition.variable_types,
                 grounded_action.grounding,
                 strict=True,
             )
@@ -219,7 +219,7 @@ class Simulation:
 
     def _get_groundings(
         self, action_definition: ActionDefinition, state_part: ASPPart
-    ) -> Generator[Mapping[Variable, ObjectName]]:
+    ) -> Generator[Mapping[Variable, Object]]:
         action_definition_asp_part, variable_id_allocator = (
             self._action_definition_asp_parts[action_definition.name]
         )
@@ -265,8 +265,8 @@ class Simulation:
             GroundedAction(
                 action_definition.name,
                 [
-                    grounding[parameter.value]
-                    for parameter in action_definition.parameters
+                    grounding[variable]
+                    for variable in action_definition.variable_types
                 ],
             )
             for grounding in self._get_groundings(action_definition, state_part)

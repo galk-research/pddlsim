@@ -1,219 +1,39 @@
-import bisect
-import itertools
-import operator
 import os
-from collections.abc import Iterable, Iterator, Mapping, Set
-from dataclasses import dataclass
+from collections.abc import Iterable
 from decimal import Decimal
-from enum import StrEnum
 from itertools import chain
-from random import Random
-from typing import NewType, cast
+from typing import cast
 
 from lark import Lark, Token, Transformer, v_args
 
 from pddlsim import _RESOURCES
-
-
-class Requirement(StrEnum):
-    STRIPS = ":strips"
-    TYPING = ":typing"
-    DISJUNCTIVE_PRECONDITIONS = ":disjunctive-preconditions"
-    EQUALITY = ":equality"
-    PROBABILISTIC_EFFECTS = ":probabilistic-effects"
-
-
-Identifier = NewType("Identifier", str)
-
-
-@dataclass(eq=True, order=True, frozen=True)
-class Variable:
-    value: Identifier
-
-    def __str__(self) -> str:
-        return f"?{self.value}"
-
-
-CustomType = NewType("CustomType", Identifier)
-
-
-@dataclass(eq=True, frozen=True)
-class ObjectType:
-    pass
-
-
-type TypeName = CustomType | ObjectType
-
-
-ObjectName = NewType("ObjectName", Identifier)
-
-
-@dataclass(eq=True, frozen=True)
-class Typed[T]:
-    value: T
-    type_name: TypeName
-
-
-@dataclass(frozen=True)
-class PredicateDefinition:
-    name: Identifier
-    parameters: list[Typed[Variable]]
-
-
-type Argument = Variable | ObjectName
-
-
-@dataclass(frozen=True)
-class AndCondition[A: Argument]:
-    subconditions: list["Condition[A]"]
-
-
-@dataclass(frozen=True)
-class OrCondition[A: Argument]:
-    subconditions: list["Condition[A]"]
-
-
-@dataclass(frozen=True)
-class NotCondition[A: Argument]:
-    base_condition: "Condition[A]"
-
-
-@dataclass(frozen=True)
-class EqualityCondition[A: Argument]:
-    left_side: A
-    right_side: A
-
-    def __str__(self) -> str:
-        return f"(= {self.left_side} {self.right_side})"
-
-
-@dataclass(frozen=True)
-class Predicate[A: Argument]:
-    name: Identifier
-    assignment: tuple[A, ...]
-
-    def __str__(self) -> str:
-        result = f"({self.name}"
-
-        for argument in self.assignment:
-            result += f" {argument}"
-
-        result += ")"
-
-        return result
-
-
-type Condition[A: Argument] = (
-    AndCondition[A]
-    | OrCondition[A]
-    | NotCondition[A]
-    | Predicate[A]
-    | EqualityCondition[A]
+from pddlsim.ast import (
+    ActionDefinition,
+    AndCondition,
+    AndEffect,
+    Argument,
+    Condition,
+    CustomType,
+    Domain,
+    Effect,
+    EqualityCondition,
+    Identifier,
+    NotCondition,
+    NotPredicate,
+    Object,
+    ObjectType,
+    OrCondition,
+    Predicate,
+    PredicateDefinition,
+    ProbabilisticEffect,
+    Problem,
+    RawProblemParts,
+    Requirement,
+    Type,
+    Typed,
+    TypeHierarchy,
+    Variable,
 )
-
-
-@dataclass(frozen=True)
-class NotPredicate[A: Argument]:
-    base_predicate: Predicate[A]
-
-
-type Atom[A: Argument] = Predicate[A] | NotPredicate[A]
-
-
-@dataclass(frozen=True)
-class AndEffect[A: Argument]:
-    subeffects: list["Effect[A]"]
-
-
-@dataclass(frozen=True)
-class ProbabilisticEffect[A: Argument]:
-    _possible_effects: list["Effect[A]"]
-    _cummulative_probabilities: list[float]
-
-    @classmethod
-    def from_possibilities(
-        cls, possibilities: list[tuple[float, "Effect[A]"]]
-    ) -> "ProbabilisticEffect":
-        possible_effects = [possibility for _, possibility in possibilities]
-        cummulative_probabilities = list(
-            itertools.accumulate(
-                (probability for probability, _ in possibilities), operator.add
-            )
-        )
-
-        total_probability = cummulative_probabilities[-1]
-
-        if total_probability > 1:
-            raise ValueError(
-                "total probability mustn't be greater than 1"
-                f", is {total_probability}"
-            )
-
-        return ProbabilisticEffect(possible_effects, cummulative_probabilities)
-
-    def choose_possibility(self, rng: Random) -> "Effect[A]":
-        index = bisect.bisect(self._cummulative_probabilities, rng.random())
-
-        if index == len(self._possible_effects):
-            return AndEffect([])  # Empty effect
-
-        return self._possible_effects[index]
-
-
-type Effect[A: Argument] = AndEffect[A] | ProbabilisticEffect[A] | Atom[A]
-
-
-@dataclass(frozen=True)
-class ActionDefinition:
-    name: Identifier
-    parameters: list[Typed[Variable]]
-    precondition: Condition[Argument]
-    effect: Effect[Argument]
-
-
-@dataclass(frozen=True)
-class TypeHierarchy:
-    _supertypes: Mapping[CustomType, TypeName]
-
-    @classmethod
-    def from_custom_types(
-        cls, custom_types: Iterable[Typed[CustomType]]
-    ) -> "TypeHierarchy":
-        return TypeHierarchy(
-            {
-                custom_type.value: custom_type.type_name
-                for custom_type in custom_types
-            }
-        )
-
-    def __iter__(self) -> Iterator[Typed[CustomType]]:
-        return (
-            Typed(subtype, supertype)
-            for subtype, supertype in self._supertypes.items()
-        )
-
-    def supertype(self, custom_type: CustomType) -> TypeName:
-        return self._supertypes[custom_type]
-
-
-@dataclass(frozen=True)
-class Domain:
-    name: Identifier
-    requirements: Set[Requirement]
-    type_hierarchy: TypeHierarchy
-    constants: Set[Typed[ObjectName]]
-    predicate_definitions: Mapping[Identifier, PredicateDefinition]
-    action_definitions: Mapping[Identifier, ActionDefinition]
-
-
-@dataclass(frozen=True)
-class Problem:
-    name: Identifier
-    used_domain_name: Identifier
-    requirements: Set[Requirement]
-    objects: Set[Typed[ObjectName]]
-    initialization: Set[Predicate[ObjectName]]
-    goal_condition: Condition[ObjectName]
 
 
 @v_args(inline=True)
@@ -222,7 +42,7 @@ class PDDLTransformer(Transformer):
         return Identifier(str(token))
 
     def VARIABLE(self, token: Token) -> Variable:
-        return Variable(Identifier(token[1:]))
+        return Variable(token[1:])
 
     def NUMBER(self, token: Token) -> Decimal:
         return Decimal(token)
@@ -245,23 +65,23 @@ class PDDLTransformer(Transformer):
     @v_args(inline=False)
     def requirements_section(
         self, requirements: list[Requirement]
-    ) -> Set[Requirement]:
-        return frozenset(requirements)
+    ) -> list[Requirement]:
+        return requirements
 
     def object_type(self) -> ObjectType:
         return ObjectType()
 
     def custom_type(self, identifier: Identifier) -> CustomType:
-        return CustomType(identifier)
+        return CustomType(identifier.value)
 
     @v_args(inline=False)
     def nonempty_list[T](self, items: list[T]) -> Iterable[T]:
         return items
 
     def typed_list_part[T](
-        self, items: Iterable[T], type_name: TypeName
+        self, items: Iterable[T], type: Type
     ) -> Iterable[Typed[T]]:
-        return (Typed(item, type_name) for item in items)
+        return (Typed(item, type) for item in items)
 
     def object_typed_list[T](self, items: Iterable[T]) -> Iterable[Typed[T]]:
         return (Typed(item, ObjectType()) for item in items)
@@ -272,30 +92,27 @@ class PDDLTransformer(Transformer):
         return chain(head, tail) if tail else head
 
     def types_section(self, types: list[Typed[CustomType]]) -> TypeHierarchy:
-        return TypeHierarchy.from_custom_types(types)
+        return TypeHierarchy.from_raw_parts(types)
 
-    def object_name(self, identifier: Identifier) -> ObjectName:
-        return ObjectName(identifier)
+    def object_(self, identifier: Identifier) -> Object:
+        return Object(identifier.value)
 
     @v_args(inline=False)
     def constants_section(
-        self, objects: list[Typed[ObjectName]]
-    ) -> Set[Typed[ObjectName]]:
-        return frozenset(objects)
+        self, objects: list[Typed[Object]]
+    ) -> list[Typed[Object]]:
+        return objects
 
     def predicate_definition(
         self, name: Identifier, parameters: Iterable[Typed[Variable]]
     ) -> PredicateDefinition:
-        return PredicateDefinition(name, list(parameters))
+        return PredicateDefinition.from_raw_parts(name, list(parameters))
 
     @v_args(inline=False)
     def predicates_section(
         self, predicate_definitions: list[PredicateDefinition]
-    ) -> Mapping[Identifier, PredicateDefinition]:
-        return {
-            predicate_definition.name: predicate_definition
-            for predicate_definition in predicate_definitions
-        }
+    ) -> list[PredicateDefinition]:
+        return predicate_definitions
 
     @v_args(inline=False)
     def assignment[A: Argument](self, assignment: list[A]) -> tuple[A, ...]:
@@ -340,8 +157,8 @@ class PDDLTransformer(Transformer):
         return AndEffect(subeffects)
 
     def probabilistic_effect_pair[A: Argument](
-        self, probability: float, effect: Effect[A]
-    ) -> tuple[float, Effect[A]]:
+        self, probability: Decimal, effect: Effect[A]
+    ) -> tuple[Decimal, Effect[A]]:
         if not (0 <= probability <= 1):
             raise ValueError(
                 f"probability must be between 0 and 1, is {probability}"
@@ -351,7 +168,7 @@ class PDDLTransformer(Transformer):
 
     @v_args(inline=False)
     def probabilistic_effect[A: Argument](
-        self, possibilities: list[tuple[float, Effect[A]]]
+        self, possibilities: list[tuple[Decimal, Effect[A]]]
     ) -> ProbabilisticEffect:
         return ProbabilisticEffect.from_possibilities(possibilities)
 
@@ -362,7 +179,7 @@ class PDDLTransformer(Transformer):
         precondition: Condition[Argument] | None,
         effect: Effect[Argument] | None,
     ) -> ActionDefinition:
-        return ActionDefinition(
+        return ActionDefinition.from_raw_parts(
             name,
             list(parameters),
             precondition if precondition else AndCondition([]),
@@ -372,57 +189,52 @@ class PDDLTransformer(Transformer):
     @v_args(inline=False)
     def actions_section(
         self, action_definitions: list[ActionDefinition]
-    ) -> Mapping[Identifier, ActionDefinition]:
-        return {
-            action_definition.name: action_definition
-            for action_definition in action_definitions
-        }
+    ) -> list[ActionDefinition]:
+        return action_definitions
 
     def domain(
         self,
         name: Identifier,
-        requirements: Set[Requirement] | None,
+        requirements: list[Requirement] | None,
         type_hierarchy: TypeHierarchy | None,
-        constants: Set[Typed[ObjectName]] | None,
-        predicate_definitions: Mapping[Identifier, PredicateDefinition] | None,
-        action_definitions: Mapping[Identifier, ActionDefinition] | None,
+        constants: list[Typed[Object]] | None,
+        predicate_definitions: list[PredicateDefinition] | None,
+        action_definitions: list[ActionDefinition] | None,
     ) -> Domain:
-        return Domain(
+        return Domain.from_raw_parts(
             name,
-            requirements if requirements else frozenset(),
+            requirements if requirements else [],
             type_hierarchy
             if type_hierarchy
-            else TypeHierarchy.from_custom_types([]),
-            constants if constants else frozenset(),
-            predicate_definitions if predicate_definitions else {},
-            action_definitions if action_definitions else {},
+            else TypeHierarchy.from_raw_parts([]),
+            constants if constants else [],
+            predicate_definitions if predicate_definitions else [],
+            action_definitions if action_definitions else [],
         )
 
     def objects_section(
-        self, objects: Iterable[Typed[ObjectName]]
-    ) -> Set[Typed[ObjectName]]:
-        return frozenset(objects)
+        self, objects: list[Typed[Object]]
+    ) -> list[Typed[Object]]:
+        return objects
 
     @v_args(inline=False)
     def initialization_section(
-        self, predicates: list[Predicate[ObjectName]]
-    ) -> Set[Predicate[ObjectName]]:
-        return frozenset(predicates)
+        self, predicates: list[Predicate[Object]]
+    ) -> list[Predicate[Object]]:
+        return predicates
 
     def problem(
         self,
         name: Identifier,
         used_domain_name: Identifier,
-        requirements: Set[Requirement] | None,
-        objects: Set[Typed[ObjectName]] | None,
-        initialization: Set[Predicate[ObjectName]],
-        goal_condition: Condition[ObjectName],
-    ) -> Problem:
-        return Problem(
+        objects: list[Typed[Object]] | None,
+        initialization: list[Predicate[Object]],
+        goal_condition: Condition[Object],
+    ) -> RawProblemParts:
+        return RawProblemParts(
             name,
             used_domain_name,
-            requirements if requirements else frozenset(),
-            objects if objects else frozenset(),
+            objects if objects else [],
             initialization,
             goal_condition,
         )
@@ -442,8 +254,19 @@ def parse_domain(text: str) -> Domain:
     return cast(Domain, _PDDL_PARSER.parse(text, "domain"))
 
 
-def parse_problem(text: str) -> Problem:
-    return cast(Problem, _PDDL_PARSER.parse(text, "problem"))
+def parse_problem(text: str, domain: Domain) -> Problem:
+    return Problem.from_raw_parts(
+        cast(RawProblemParts, _PDDL_PARSER.parse(text, "problem")), domain
+    )
+
+
+def parse_domain_problem_pair(
+    domain_text: str, problem_text: str
+) -> tuple[Domain, Problem]:
+    domain = parse_domain(domain_text)
+    problem = parse_problem(problem_text, domain)
+
+    return (domain, problem)
 
 
 def parse_domain_from_file(path: str | os.PathLike) -> Domain:
@@ -451,6 +274,15 @@ def parse_domain_from_file(path: str | os.PathLike) -> Domain:
         return parse_domain(file.read())
 
 
-def parse_problem_from_file(path: str | os.PathLike) -> Problem:
+def parse_problem_from_file(path: str | os.PathLike, domain: Domain) -> Problem:
     with open(path) as file:
-        return parse_problem(file.read())
+        return parse_problem(file.read(), domain)
+
+
+def parse_domain_problem_pair_from_file(
+    domain_path: str | os.PathLike, problem_path: str | os.PathLike
+) -> tuple[Domain, Problem]:
+    domain = parse_domain_from_file(domain_path)
+    problem = parse_problem_from_file(problem_path, domain)
+
+    return (domain, problem)

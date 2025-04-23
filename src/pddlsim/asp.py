@@ -17,11 +17,11 @@ from pddlsim.parser import (
     EqualityCondition,
     Identifier,
     NotCondition,
-    ObjectName,
+    Object,
     OrCondition,
     Predicate,
     Problem,
-    TypeName,
+    Type,
     Variable,
 )
 from pddlsim.state import SimulationState
@@ -262,31 +262,29 @@ class ASPPartKind(StrEnum):
 def objects_asp_part(
     domain: Domain,
     problem: Problem,
-    object_name_id_allocator: IDAllocator[ObjectName],
-    type_name_id_allocator: IDAllocator[TypeName],
+    object_id_allocator: IDAllocator[Object],
+    type_id_allocator: IDAllocator[Type],
 ) -> ASPPart:
     part = ASPPart(ASPPartKind.OBJECTS)
 
-    for typed_object in chain(problem.objects, domain.constants):
-        type_name_id = type_name_id_allocator.get_id_or_insert(
-            typed_object.type_name
-        )
-        object_name_id = object_name_id_allocator.get_id_or_insert(
-            typed_object.value
-        )
+    for object_, type in chain(
+        problem.object_types.items(), domain.constant_types.items()
+    ):
+        type_id = type_id_allocator.get_id_or_insert(type)
+        object_id = object_id_allocator.get_id_or_insert(object_)
 
         part.add_fact(
             part.create_function_literal(
-                str(type_name_id), [part.create_symbol(str(object_name_id))]
+                str(type_id), [part.create_symbol(str(object_id))]
             )
         )
 
-    for member in domain.type_hierarchy:
+    for member in domain._type_hierarchy:
         custom_type = member.value
-        supertype = member.type_name
+        supertype = member.type
 
-        custom_type_id = type_name_id_allocator.get_id_or_insert(custom_type)
-        supertype_id = type_name_id_allocator.get_id_or_insert(supertype)
+        custom_type_id = type_id_allocator.get_id_or_insert(custom_type)
+        supertype_id = type_id_allocator.get_id_or_insert(supertype)
 
         part.add_rule(
             part.create_function_literal(
@@ -305,7 +303,7 @@ def objects_asp_part(
 def simulation_state_asp_part(
     state: SimulationState,
     predicate_id_allocator: IDAllocator[Identifier],
-    object_name_id_allocator: IDAllocator[ObjectName],
+    object_id_allocator: IDAllocator[Object],
 ) -> ASPPart:
     part = ASPPart(ASPPartKind.STATE)
 
@@ -317,13 +315,9 @@ def simulation_state_asp_part(
                 str(predicate_id),
                 [
                     part.create_symbol(
-                        str(
-                            object_name_id_allocator.get_id_or_insert(
-                                object_name
-                            )
-                        )
+                        str(object_id_allocator.get_id_or_insert(object_))
                     )
-                    for object_name in predicate.assignment
+                    for object_ in predicate.assignment
                 ],
             )
         )
@@ -336,7 +330,7 @@ def _add_condition_to_asp_part(
     part: ASPPart,
     rule_id_allocator: IDAllocator,
     variable_id_allocator: IDAllocator[Variable],
-    object_name_id_allocator: IDAllocator[ObjectName],
+    object_id_allocator: IDAllocator[Object],
     predicate_id_allocator: IDAllocator[Identifier],
 ) -> ID:
     temporary_id_allocator = IDAllocator[Variable](TemporaryID)
@@ -346,9 +340,9 @@ def _add_condition_to_asp_part(
             case Variable():
                 temporary_id = temporary_id_allocator.get_id_or_insert(argument)
                 return part.create_variable(str(temporary_id))
-            case ObjectName():
+            case Object():
                 return part.create_symbol(
-                    str(object_name_id_allocator.get_id_or_insert(argument))
+                    str(object_id_allocator.get_id_or_insert(argument))
                 )
 
     rule_id = rule_id_allocator.next_id()
@@ -362,7 +356,7 @@ def _add_condition_to_asp_part(
                     part,
                     rule_id_allocator,
                     variable_id_allocator,
-                    object_name_id_allocator,
+                    object_id_allocator,
                     predicate_id_allocator,
                 )
                 for subcondition in subconditions
@@ -382,7 +376,7 @@ def _add_condition_to_asp_part(
                     part,
                     rule_id_allocator,
                     variable_id_allocator,
-                    object_name_id_allocator,
+                    object_id_allocator,
                     predicate_id_allocator,
                 )
 
@@ -396,7 +390,7 @@ def _add_condition_to_asp_part(
                 part,
                 rule_id_allocator,
                 variable_id_allocator,
-                object_name_id_allocator,
+                object_id_allocator,
                 predicate_id_allocator,
             )
 
@@ -455,19 +449,16 @@ def _add_condition_to_asp_part(
 def action_definition_asp_part(
     action_definition: ActionDefinition,
     variable_id_allocator: IDAllocator[Variable],
-    object_name_id_allocator: IDAllocator[ObjectName],
+    object_id_allocator: IDAllocator[Object],
     predicate_id_allocator: IDAllocator[Identifier],
-    type_name_id_allocator: IDAllocator[TypeName],
+    type_id_allocator: IDAllocator[Type],
 ) -> ASPPart:
     part = ASPPart(ASPPartKind.ACTION_DEFINITION)
 
-    # Require each parameter has a single object as its value
-    for parameter in action_definition.parameters:
-        variable = parameter.value
-        type_name = parameter.type_name
-
+    # Require each parameter have a single object as its value
+    for variable, type in action_definition.variable_types.items():
         variable_id = variable_id_allocator.get_id_or_insert(variable)
-        type_name_id = type_name_id_allocator.get_id_or_insert(type_name)
+        type_id = type_id_allocator.get_id_or_insert(type)
 
         part.add_single_instantiation_constraint(
             part.create_function_literal(
@@ -475,7 +466,7 @@ def action_definition_asp_part(
             ),
             [
                 part.create_function_literal(
-                    str(type_name_id), [part.create_variable("O")]
+                    str(type_id), [part.create_variable("O")]
                 )
             ],
         )
@@ -486,7 +477,7 @@ def action_definition_asp_part(
         part,
         IDAllocator(RuleID),
         variable_id_allocator,
-        object_name_id_allocator,
+        object_id_allocator,
         predicate_id_allocator,
     )
     part.add_integrity_constraint(

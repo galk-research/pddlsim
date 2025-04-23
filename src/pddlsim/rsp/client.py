@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from typing import NoReturn
 
-from pddlsim.parser import Identifier, ObjectName, Predicate
+from pddlsim.parser import Identifier, Object, Predicate
 from pddlsim.rsp import (
     RSP_VERSION,
     RSPMessageBridge,
@@ -128,7 +128,7 @@ class SimulationClient:
                     Predicate(
                         Identifier(predicate.name),
                         tuple(
-                            ObjectName(object_name)
+                            Object(object_name)
                             for object_name in predicate.assignment
                         ),
                     )

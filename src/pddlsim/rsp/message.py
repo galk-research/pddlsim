@@ -5,7 +5,7 @@ from typing import Any, NewType
 import cbor2
 from apischema import deserialize, discriminator, schema, serialize, type_name
 
-from pddlsim.parser import ObjectName, Predicate
+from pddlsim.parser import Object, Predicate
 from pddlsim.simulation import GroundedAction
 
 
@@ -79,7 +79,7 @@ class PerceptionRequest(Payload):
 @dataclass
 @rsp_name("perception-response")
 class PerceptionResponse(Payload):
-    payload: list[Predicate[ObjectName]]
+    payload: list[Predicate[Object]]
 
 
 @dataclass
