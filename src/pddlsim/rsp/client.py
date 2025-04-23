@@ -2,7 +2,6 @@ import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from typing import NoReturn
 
-from pddlsim.parser import Identifier, Object, Predicate
 from pddlsim.rsp import (
     RSP_VERSION,
     RSPMessageBridge,
@@ -123,18 +122,7 @@ class SimulationClient:
 
             message = await self._receive_message(PerceptionResponse)
 
-            self._state = SimulationState(
-                {
-                    Predicate(
-                        Identifier(predicate.name),
-                        tuple(
-                            Object(object_name)
-                            for object_name in predicate.assignment
-                        ),
-                    )
-                    for predicate in message.payload
-                }
-            )
+            self._state = SimulationState(set(message.payload))
 
         return self._state
 

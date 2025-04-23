@@ -8,7 +8,7 @@ from typing import NewType
 import clingo.ast
 from clingo import Control
 
-from pddlsim.parser import (
+from pddlsim.ast import (
     ActionDefinition,
     AndCondition,
     Argument,
@@ -279,7 +279,7 @@ def objects_asp_part(
             )
         )
 
-    for member in domain._type_hierarchy:
+    for member in domain.type_hierarchy:
         custom_type = member.value
         supertype = member.type
 

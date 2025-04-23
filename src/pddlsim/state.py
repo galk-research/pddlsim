@@ -2,7 +2,7 @@ from collections.abc import Iterable, MutableSet
 from dataclasses import dataclass, field
 from random import Random
 
-from pddlsim.parser import (
+from pddlsim.ast import (
     AndCondition,
     AndEffect,
     Atom,

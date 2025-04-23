@@ -3,7 +3,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import NoReturn
 
-from pddlsim.parser import Domain, Problem
+from pddlsim.ast import Domain, Problem
 from pddlsim.rsp import (
     RSP_VERSION,
     RSPMessageBridge,

@@ -41,11 +41,16 @@ class Identifier:
         deserializer(Conversion(cls.deserialize, target=cls))
 
 
+deserializer(Conversion(Identifier.deserialize, target=Identifier))
+
+
+@dataclass(frozen=True)
 class Variable(Identifier):
     def __str__(self) -> str:
         return f"?{self.value}"
 
 
+@dataclass(frozen=True)
 class CustomType(Identifier):
     pass
 
@@ -59,6 +64,7 @@ class ObjectType:
 type Type = CustomType | ObjectType
 
 
+@dataclass(frozen=True)
 class Object(Identifier):
     pass
 

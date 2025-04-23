@@ -22,7 +22,7 @@ from pddlsim.asp import (
     objects_asp_part,
     simulation_state_asp_part,
 )
-from pddlsim.parser import (
+from pddlsim.ast import (
     ActionDefinition,
     AndCondition,
     AndEffect,
