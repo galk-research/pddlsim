@@ -79,18 +79,7 @@ class PDDLTransformer(Transformer):
     def requirements_section(
         self, location: Location, requirements: list[Requirement]
     ) -> RequirementSet:
-        requirement_set = set[Requirement]()
-        result = RequirementSet(requirement_set, location=location)
-
-        for requirement in requirements:
-            if requirement in requirement_set:
-                raise ValueError(
-                    f"requirement {requirement} used multiple times in {result}"
-                )
-
-            requirement_set.add(requirement)
-
-        return result
+        return RequirementSet.from_raw_parts(requirements, location=location)
 
     def object_type(self) -> ObjectType:
         return ObjectType()

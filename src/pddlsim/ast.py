@@ -82,6 +82,28 @@ class Requirement(StrEnum):
 class RequirementSet(Locationed):
     requirements: set[Requirement]
 
+    @classmethod
+    def from_raw_parts(
+        cls,
+        requirements: Iterable[Requirement],
+        *,
+        location: Location | None = None,
+    ) -> "RequirementSet":
+        requirement_set = set[Requirement]()
+        result = RequirementSet(
+            requirement_set, location=location if location else EmptyLocation()
+        )
+
+        for requirement in requirements:
+            if requirement in requirement_set:
+                raise ValueError(
+                    f"requirement {requirement} used multiple times in {result}"
+                )
+
+            requirement_set.add(requirement)
+
+        return result
+
     def __iter__(self) -> Iterator[Requirement]:
         return iter(self.requirements)
 
