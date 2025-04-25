@@ -1,8 +1,9 @@
 import bisect
 import itertools
 import operator
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Set
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, dataclass, field
 from decimal import Decimal
 from enum import StrEnum
 from random import Random
@@ -10,6 +11,72 @@ from typing import Any
 
 from apischema import deserializer, serializer
 from apischema.conversions import Conversion
+from lark import Token
+from lark.tree import Meta
+
+
+class Location(ABC):
+    @abstractmethod
+    def __str__(self) -> str:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class FileLocation(Location):
+    line: int
+    column: int
+
+    def __post_init__(self) -> None:
+        if self.line <= 0:
+            raise ValueError(
+                f"line number must be positive, is instead {self.line}"
+            )
+
+        if self.column <= 0:
+            raise ValueError(
+                f"column number must be positive, is instead {self.column}"
+            )
+
+    @classmethod
+    def from_meta(cls, meta: Meta) -> "FileLocation":
+        return FileLocation(meta.line, meta.column)
+
+    @classmethod
+    def from_token(cls, token: Token) -> "FileLocation":
+        if not token.line:
+            raise ValueError("token must have line information")
+
+        if not token.column:
+            raise ValueError("token must have column information")
+
+        return FileLocation(token.line, token.column)
+
+    def __str__(self) -> str:
+        return f"{self.line}:{self.column}"
+
+
+@dataclass(frozen=True)
+class EmptyLocation(Location):
+    def __str__(self) -> str:
+        return "?:?"
+
+
+@dataclass(frozen=True, eq=True)
+class Locationed[T]:
+    value: T
+    location: Location = field(
+        hash=False, compare=False, default=EmptyLocation()
+    )
+
+    @serializer
+    def _serialize(self) -> T:
+        return self.value
+
+    def __str__(self) -> str:
+        return f"{self.value} ({self.location})"
+
+
+deserializer(Locationed)
 
 
 class Requirement(StrEnum):
@@ -72,16 +139,16 @@ class Object(Identifier):
 @dataclass(eq=True, frozen=True)
 class Typed[T]:
     value: T
-    type: Type
+    type: Locationed[Type]
 
 
 @dataclass(frozen=True)
 class TypeHierarchy:
-    _supertypes: Mapping[CustomType, Type]
+    _supertypes: Mapping[Locationed[CustomType], Locationed[Type]]
 
     @classmethod
     def from_raw_parts(
-        cls, custom_types: Iterable[Typed[CustomType]]
+        cls, custom_types: Iterable[Typed[Locationed[CustomType]]]
     ) -> "TypeHierarchy":
         supertypes = {}
 
@@ -95,16 +162,20 @@ class TypeHierarchy:
 
         return TypeHierarchy(supertypes)
 
-    def __iter__(self) -> Iterator[Typed[CustomType]]:
+    def __iter__(self) -> Iterator[Typed[Locationed[CustomType]]]:
         return (
             Typed(subtype, supertype)
             for subtype, supertype in self._supertypes.items()
         )
 
-    def supertype(self, custom_type: CustomType) -> Type:
+    def supertype(
+        self, custom_type: Locationed[CustomType]
+    ) -> Locationed[Type]:
         return self._supertypes[custom_type]
 
-    def is_compatible(self, test_type: Type, tester_type: Type) -> bool:
+    def is_compatible(
+        self, test_type: Locationed[Type], tester_type: Locationed[Type]
+    ) -> bool:
         # Technically speaking `is_compatible` implements the transitive closure
         # of a DAG. Usually this DAG is fairly shallow, and so performance
         # should be fine. Still, this could use some work.
@@ -121,12 +192,14 @@ class TypeHierarchy:
 
 @dataclass(frozen=True)
 class PredicateDefinition:
-    name: Identifier
-    parameters: list[Typed[Variable]]
+    name: Locationed[Identifier]
+    parameters: list[Typed[Locationed[Variable]]]
 
     @classmethod
     def from_raw_parts(
-        cls, name: Identifier, parameters: list[Typed[Variable]]
+        cls,
+        name: Locationed[Identifier],
+        parameters: list[Typed[Locationed[Variable]]],
     ) -> "PredicateDefinition":
         variables = set()
 
@@ -140,11 +213,11 @@ class PredicateDefinition:
 
         return PredicateDefinition(name, parameters)
 
-    def _validate(self, type_hierarchy: TypeHierarchy) -> None:
+    def _validate(self, type_hierarchy: Locationed[TypeHierarchy]) -> None:
         for parameter in self.parameters:
             if (
-                isinstance(parameter.type, CustomType)
-                and parameter.type not in type_hierarchy
+                isinstance(parameter.type.value, CustomType)
+                and parameter.type not in type_hierarchy.value
             ):
                 raise ValueError(
                     f"parameter '{parameter.value}' of predicate definition '{self.name}' uses an undefined type: '{parameter.type}'"  # noqa: E501
@@ -156,18 +229,22 @@ type Argument = Variable | Object
 
 @dataclass(frozen=True)
 class AndCondition[A: Argument]:
-    subconditions: list["Condition[A]"]
+    subconditions: list[Locationed["Condition[A]"]]
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        _location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
         for subcondition in self.subconditions:
-            subcondition._validate(
+            subcondition.value._validate(
+                subcondition.location,
                 variable_types,
                 object_types,
                 predicate_definitions,
@@ -178,23 +255,29 @@ class AndCondition[A: Argument]:
 
 @dataclass(frozen=True)
 class OrCondition[A: Argument]:
-    subconditions: list["Condition[A]"]
+    subconditions: list[Locationed["Condition[A]"]]
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
-        if Requirement.DISJUNCTIVE_PRECONDITIONS not in requirements:
+        if Requirement.DISJUNCTIVE_PRECONDITIONS not in requirements.value:
+            disjunction_text = Locationed("disjunction", location)
+
             raise ValueError(
-                f"disjunction (or) used in condition, but '{Requirement.DISJUNCTIVE_PRECONDITIONS}' is not used"  # noqa: E501
+                f"{disjunction_text} used in condition, but '{Requirement.DISJUNCTIVE_PRECONDITIONS}' is not used"  # noqa: E501
             )
 
         for subcondition in self.subconditions:
-            subcondition._validate(
+            subcondition.value._validate(
+                subcondition.location,
                 variable_types,
                 object_types,
                 predicate_definitions,
@@ -205,17 +288,21 @@ class OrCondition[A: Argument]:
 
 @dataclass(frozen=True)
 class NotCondition[A: Argument]:
-    base_condition: "Condition[A]"
+    base_condition: "Locationed[Condition[A]]"
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        _location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
-        self.base_condition._validate(
+        self.base_condition.value._validate(
+            self.base_condition.location,
             variable_types,
             object_types,
             predicate_definitions,
@@ -226,27 +313,32 @@ class NotCondition[A: Argument]:
 
 @dataclass(frozen=True)
 class EqualityCondition[A: Argument]:
-    left_side: A
-    right_side: A
+    left_side: Locationed[A]
+    right_side: Locationed[A]
 
     def __str__(self) -> str:
-        return f"(= {self.left_side} {self.right_side})"
+        return f"(= {self.left_side.value} {self.right_side.value})"
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        _predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        _type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        _predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        _type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
-        if Requirement.EQUALITY not in requirements:
+        if Requirement.EQUALITY not in requirements.value:
+            equality_predicate_text = Locationed("equality predicate", location)
+
             raise ValueError(
-                f"equality predicate used in condition, but '{Requirement.EQUALITY}' is not used"  # noqa: E501
+                f"{equality_predicate_text} used in condition, but '{Requirement.EQUALITY}' is not used"  # noqa: E501
             )
 
-        def validate_argument(argument: A):
-            match argument:
+        def validate_argument(argument: Locationed[A]) -> None:
+            match argument.value:
                 case Variable():
                     if argument not in variable_types:
                         raise ValueError(f"variable '{argument}' is undefined")
@@ -260,8 +352,8 @@ class EqualityCondition[A: Argument]:
 
 @dataclass(frozen=True)
 class Predicate[A: Argument]:
-    name: Identifier
-    assignment: tuple[A, ...]
+    name: Locationed[Identifier]
+    assignment: tuple[Locationed[A], ...]
 
     def __str__(self) -> str:
         result = f"({self.name}"
@@ -275,33 +367,38 @@ class Predicate[A: Argument]:
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        _requirements: Set[Requirement],
+        _location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        _requirements: Locationed[Set[Requirement]],
     ) -> None:
         if self.name not in predicate_definitions:
-            raise ValueError(f"predicate '{self.name}' is undefined")
+            raise ValueError(f"predicate {self.name} is undefined")
 
         predicate_definition = predicate_definitions[self.name]
 
         for parameter, argument in zip(
             predicate_definition.parameters, self.assignment, strict=True
         ):
-            match argument:
+            match argument.value:
                 case Variable():
                     if argument not in variable_types:
                         raise ValueError(f"variable '{argument}' is undefined")
 
-                    argument_type = variable_types[argument]
+                    argument_type = variable_types[argument]  # type: ignore
                 case Object():
                     if argument not in object_types:
                         raise ValueError(f"constant '{argument}' is undefined")
 
-                    argument_type = object_types[argument]
+                    argument_type = object_types[argument]  # type: ignore
 
-            if not type_hierarchy.is_compatible(argument_type, parameter.type):
+            if not type_hierarchy.value.is_compatible(
+                argument_type, parameter.type
+            ):
                 raise ValueError(
                     f"parameter '{parameter.value}' of predicate '{self.name}' is of type '{parameter.type}', but is assigned argument '{argument}' of incompatible type '{argument_type}'"  # noqa: E501
                 )
@@ -318,17 +415,21 @@ type Condition[A: Argument] = (
 
 @dataclass(frozen=True)
 class NotPredicate[A: Argument]:
-    base_predicate: Predicate[A]
+    base_predicate: Locationed[Predicate[A]]
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        _location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
-        self.base_predicate._validate(
+        self.base_predicate.value._validate(
+            self.base_predicate.location,
             variable_types,
             object_types,
             predicate_definitions,
@@ -342,18 +443,22 @@ type Atom[A: Argument] = Predicate[A] | NotPredicate[A]
 
 @dataclass(frozen=True)
 class AndEffect[A: Argument]:
-    subeffects: list["Effect[A]"]
+    subeffects: list[Locationed["Effect[A]"]]
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        _location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
         for subeffect in self.subeffects:
-            subeffect._validate(
+            subeffect.value._validate(
+                subeffect.location,
                 variable_types,
                 object_types,
                 predicate_definitions,
@@ -364,12 +469,12 @@ class AndEffect[A: Argument]:
 
 @dataclass(frozen=True)
 class ProbabilisticEffect[A: Argument]:
-    _possible_effects: list["Effect[A]"]
-    _cummulative_probabilities: list[float]
+    _possible_effects: list[Locationed["Effect[A]"]]
+    _cummulative_probabilities: list[Decimal]
 
     @classmethod
     def from_possibilities(
-        cls, possibilities: list[tuple[Decimal, "Effect[A]"]]
+        cls, possibilities: list[tuple[Decimal, Locationed["Effect[A]"]]]
     ) -> "ProbabilisticEffect":
         possible_effects = [possibility for _, possibility in possibilities]
         cummulative_probabilities = list(
@@ -388,29 +493,37 @@ class ProbabilisticEffect[A: Argument]:
 
         return ProbabilisticEffect(possible_effects, cummulative_probabilities)
 
-    def choose_possibility(self, rng: Random) -> "Effect[A]":
+    def choose_possibility(self, rng: Random) -> Locationed["Effect[A]"]:
         index = bisect.bisect(self._cummulative_probabilities, rng.random())
 
         if index == len(self._possible_effects):
-            return AndEffect([])  # Empty effect
+            return Locationed(AndEffect([]))  # Empty effect
 
         return self._possible_effects[index]
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        location: Location,
+        variable_types: Mapping[Locationed[Variable], Locationed[Type]],
+        object_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
-        if Requirement.PROBABILISTIC_EFFECTS not in requirements:
+        if Requirement.PROBABILISTIC_EFFECTS not in requirements.value:
+            probabilistic_effect_text = Locationed(
+                "probabilistic effect", location
+            )
+
             raise ValueError(
-                f"probabilistic effect used in action, but '{Requirement.PROBABILISTIC_EFFECTS}' is not used"  # noqa: E501
+                f"{probabilistic_effect_text} used in action, but '{Requirement.PROBABILISTIC_EFFECTS}' is not used"  # noqa: E501
             )
 
         for effect in self._possible_effects:
-            effect._validate(
+            effect.value._validate(
+                effect.location,
                 variable_types,
                 object_types,
                 predicate_definitions,
@@ -424,18 +537,18 @@ type Effect[A: Argument] = AndEffect[A] | ProbabilisticEffect[A] | Atom[A]
 
 @dataclass(frozen=True)
 class ActionDefinition:
-    name: Identifier
-    variable_types: dict[Variable, Type]
-    precondition: Condition[Argument]
-    effect: Effect[Argument]
+    name: Locationed[Identifier]
+    variable_types: dict[Locationed[Variable], Locationed[Type]]
+    precondition: Locationed[Condition[Argument]]
+    effect: Locationed[Effect[Argument]]
 
     @classmethod
     def from_raw_parts(
         cls,
-        name: Identifier,
-        parameters: list[Typed[Variable]],
-        precondition: Condition[Argument],
-        effect: Effect[Argument],
+        name: Locationed[Identifier],
+        parameters: list[Typed[Locationed[Variable]]],
+        precondition: Locationed[Condition[Argument]],
+        effect: Locationed[Effect[Argument]],
     ) -> "ActionDefinition":
         variable_types = {}
 
@@ -452,26 +565,33 @@ class ActionDefinition:
 
     def _validate(
         self,
-        constant_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: Set[Requirement],
+        constant_types: Mapping[Locationed[Object], Locationed[Type]],
+        predicate_definitions: Mapping[
+            Locationed[Identifier], PredicateDefinition
+        ],
+        type_hierarchy: Locationed[TypeHierarchy],
+        requirements: Locationed[Set[Requirement]],
     ) -> None:
         # The dictionary is insertion ordered, so this is fine
         for variable, type in self.variable_types.items():
-            if isinstance(type, CustomType) and type not in type_hierarchy:
+            if (
+                isinstance(type.value, CustomType)
+                and type not in type_hierarchy.value
+            ):
                 raise ValueError(
                     f"parameter '{variable}' of action definition '{self.name}' uses an undefined type: '{type}'"  # noqa: E501
                 )
 
-        self.precondition._validate(
+        self.precondition.value._validate(
+            self.precondition.location,
             self.variable_types,
             constant_types,
             predicate_definitions,
             type_hierarchy,
             requirements,
         )
-        self.effect._validate(
+        self.effect.value._validate(
+            self.effect.location,
             self.variable_types,
             constant_types,
             predicate_definitions,
@@ -482,29 +602,34 @@ class ActionDefinition:
 
 @dataclass(frozen=True)
 class Domain:
-    name: Identifier
-    requirements: Set[Requirement]
-    _type_hierarchy: TypeHierarchy | None
-    constant_types: Mapping[Object, Type]
-    predicate_definitions: Mapping[Identifier, PredicateDefinition]
-    action_definitions: Mapping[Identifier, ActionDefinition]
+    name: Locationed[Identifier]
+    requirements: Locationed[Set[Requirement]]
+    type_hierarchy: Locationed[TypeHierarchy] = field(init=False)
+    _type_hierarchy: InitVar[Locationed[TypeHierarchy] | None]
+    constant_types: Mapping[Locationed[Object], Locationed[Type]]
+    predicate_definitions: Mapping[Locationed[Identifier], PredicateDefinition]
+    action_definitions: Mapping[Locationed[Identifier], ActionDefinition]
 
     @classmethod
     def from_raw_parts(
         cls,
-        name: Identifier,
-        requirements: Iterable[Requirement],
-        type_hierarchy: TypeHierarchy | None,
-        constants: Iterable[Typed[Object]],
+        name: Locationed[Identifier],
+        requirements: Locationed[Iterable[Requirement]],
+        type_hierarchy: Locationed[TypeHierarchy] | None,
+        constants: Iterable[Typed[Locationed[Object]]],
         predicate_definitions: Iterable[PredicateDefinition],
         action_definitions: Iterable[ActionDefinition],
     ) -> "Domain":
         requirements_set = set()
 
-        for requirement in requirements:
+        for requirement in requirements.value:
             if requirement in requirements_set:
+                requirements_text = Locationed(
+                    "requirements", requirements.location
+                )
+
                 raise ValueError(
-                    f"requirement '{requirement}' appears multiple times"
+                    f"requirement '{requirement}' appears multiple times in {requirements_text}"  # noqa: E501
                 )
 
             requirements_set.add(requirement)
@@ -542,33 +667,42 @@ class Domain:
             action_definition_map[action_definition.name] = action_definition
         return Domain(
             name,
-            requirements_set,
+            Locationed(requirements_set, requirements.location),
             type_hierarchy,
             constant_types,
             predicate_definition_map,
             action_definition_map,
         )
 
-    # TODO: Just store the type hierarchy as a field, and separate the `None`
-    # case during `__post_init__` if this ever becomes a bottleneck.
-    @property
-    def type_hierarchy(self) -> TypeHierarchy:
-        return (
-            self._type_hierarchy if self._type_hierarchy else TypeHierarchy({})
+    def __post_init__(
+        self, type_hierarchy: Locationed[TypeHierarchy] | None
+    ) -> None:
+        object.__setattr__(
+            self,
+            "type_hierarchy",
+            type_hierarchy if type_hierarchy else Locationed(TypeHierarchy({})),
         )
+        self._validate(type_hierarchy)
 
-    def _validate_type_hierarchy(self) -> None:
+    def _validate_type_hierarchy(
+        self, type_hierarchy: Locationed[TypeHierarchy] | None
+    ) -> None:
         if (
-            Requirement.TYPING not in self.requirements
-            and self._type_hierarchy is not None
+            Requirement.TYPING not in self.requirements.value
+            and type_hierarchy is not None
         ):
+            types_text = Locationed("types", type_hierarchy.location)
+
             raise ValueError(
-                f"types are defined in domain, but '{Requirement.TYPING}' requirement is not used"  # noqa: E501
+                f"{types_text} are defined in domain, but '{Requirement.TYPING}' requirement is not used"  # noqa: E501
             )
 
     def _validate_constant_types(self) -> None:
         for constant, type in self.constant_types.items():
-            if isinstance(type, CustomType) and type not in self.type_hierarchy:
+            if (
+                isinstance(type.value, CustomType)
+                and type not in self.type_hierarchy.value
+            ):
                 raise ValueError(
                     f"constant '{constant}' has type {type}, but that type is undefined"  # noqa: E501
                 )
@@ -586,7 +720,10 @@ class Domain:
                 self.requirements,
             )
 
-    def _validate(self) -> None:
+    def _validate(
+        self, type_hierarchy: Locationed[TypeHierarchy] | None
+    ) -> None:
+        self._validate_type_hierarchy(type_hierarchy)
         self._validate_constant_types()
         self._validate_predicate_definitions()
         self._validate_action_definitions()
@@ -594,20 +731,20 @@ class Domain:
 
 @dataclass(frozen=True)
 class RawProblemParts:
-    name: Identifier
-    used_domain_name: Identifier
-    objects: list[Typed[Object]]
-    initialization: list[Predicate[Object]]
-    goal_condition: Condition[Object]
+    name: Locationed[Identifier]
+    used_domain_name: Locationed[Identifier]
+    objects: list[Typed[Locationed[Object]]]
+    initialization: list[Locationed[Predicate[Object]]]
+    goal_condition: Locationed[Condition[Object]]
 
 
 @dataclass(frozen=True)
 class Problem:
-    name: Identifier
-    used_domain_name: Identifier
-    object_types: Mapping[Object, Type]
-    initialization: Set[Predicate[Object]]
-    goal_condition: Condition[Object]
+    name: Locationed[Identifier]
+    used_domain_name: Locationed[Identifier]
+    object_types: Mapping[Locationed[Object], Locationed[Type]]
+    initialization: Set[Locationed[Predicate[Object]]]
+    goal_condition: Locationed[Condition[Object]]
     domain: InitVar[Domain]
 
     @classmethod
@@ -656,14 +793,15 @@ class Problem:
 
     def _validate_object_types(self, domain: Domain) -> None:
         for object_, type in self.object_types.items():
-            if type not in domain.type_hierarchy:
+            if type not in domain.type_hierarchy.value:
                 raise ValueError(
                     f"object '{object_}' is of non-existent type: '{type}'"
                 )
 
     def _validate_initialization(self, domain: Domain) -> None:
         for predicate in self.initialization:
-            predicate._validate(
+            predicate.value._validate(
+                predicate.location,
                 {},
                 self.object_types,
                 domain.predicate_definitions,
@@ -672,7 +810,8 @@ class Problem:
             )
 
     def _validate_goal_condition(self, domain: Domain) -> None:
-        self.goal_condition._validate(
+        self.goal_condition.value._validate(
+            self.goal_condition.location,
             {},
             self.object_types,
             domain.predicate_definitions,

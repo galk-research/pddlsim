@@ -10,6 +10,9 @@ IDENTIFIER: /[a-zA-Z][a-zA-Z0-9\-_]*/
 
 VARIABLE: "?" IDENTIFIER
 
+list_{item}: item*
+nonempty_list{item}: item+
+
 _domain_name: "(" "domain" IDENTIFIER ")"
 
 requirement: ":strips"                    -> strips_requirement
@@ -17,21 +20,23 @@ requirement: ":strips"                    -> strips_requirement
            | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
            | ":equality"                  -> equality_requirement
            | ":probabilistic-effects"     -> probabilistic_effects_requirement
-requirements_section: "(" ":requirements" requirement+ ")"
-
-nonempty_list{item}: item+
+// We need the location of the requirements section, so this is separate
+REQUIREMENTS_KEYWORD: ":requirements"
+requirements_section: "(" REQUIREMENTS_KEYWORD nonempty_list{requirement} ")"
 
 custom_type: IDENTIFIER
 
-object_type: "object"
+OBJECT_TYPE: "object"
 
-_type: object_type | custom_type
+_type: OBJECT_TYPE | custom_type
 
 typed_list_part{item}: nonempty_list{item} "-" _type
 typed_list{item}: typed_list_part{item} [typed_list{item}]
                 | nonempty_list{item}                      -> object_typed_list
 
-types_section: "(" ":types" typed_list{custom_type} ")"
+// We need the location of the types section in case `:typing` is not enabled
+TYPES_KEYWORD: ":types"
+types_section: "(" TYPES_KEYWORD typed_list{custom_type} ")"
 
 // `object` is reserved in Python
 object_: IDENTIFIER
@@ -39,15 +44,18 @@ object_: IDENTIFIER
 constants_section: "(" ":constants" typed_list{object_} ")"
 
 predicate_definition: "(" IDENTIFIER typed_list{VARIABLE} ")"
-predicates_section: "(" ":predicates" predicate_definition+ ")"
+predicates_section: "(" ":predicates" nonempty_list{predicate_definition} ")"
 
-assignment{argument}: argument*
-predicate{argument}: "(" IDENTIFIER assignment{argument} ")"
+predicate{argument}: "(" IDENTIFIER list_{argument} ")"
 
-?condition{argument}: "(" "and" condition{argument}* ")" -> and_condition
-                    | "(" "or" condition{argument}* ")"  -> or_condition
+// We need the location of or-conditions in case `:disjunctive-preconditions` is not enabled
+OR_KEYWORD: "or"
+// We need the location of equality predicates in case `:equality` is not enabled
+EQUALS_SIGN: "="
+?condition{argument}: "(" "and" list_{condition{argument}} ")" -> and_condition
+                    | "(" OR_KEYWORD list_{condition{argument}} ")"  -> or_condition
                     | "(" "not" condition{argument} ")"  -> not_condition
-                    | "(" "=" argument argument ")"      -> equality_condition
+                    | "(" EQUALS_SIGN argument argument ")"      -> equality_condition
                     | predicate{argument}
 
 not_predicate{argument}: "(" "not" predicate{argument} ")"
@@ -55,16 +63,18 @@ _atom{argument}: predicate{argument}
                | not_predicate{argument}
 
 probabilistic_effect_pair{argument}: NUMBER effect{argument}
-?effect{argument}: "(" "and" effect{argument}* ")"                              -> and_effect
+// We need the location of probabilistic effects in case `:probabilistic-effects` was not enabled
+PROBABILISTIC_KEYWORD: "probabilistic"
+?effect{argument}: "(" "and" list_{effect{argument}} ")"                              -> and_effect
                 // Using `*` is intentional: `(probabilistic)` implies no effect
-                | "(" "probabilistic" probabilistic_effect_pair{argument}* ")" -> probabilistic_effect
+                | "(" PROBABILISTIC_KEYWORD list_{probabilistic_effect_pair{argument}} ")" -> probabilistic_effect
                 | _atom{argument}
 
 _argument: VARIABLE
          | object_
 
 action_definition: "(" ":action" IDENTIFIER ":parameters" "(" typed_list{VARIABLE} ")" [":precondition" condition{_argument}] [":effect" effect{_argument}] ")"
-actions_section: action_definition*
+actions_section: list_{action_definition}
 
 domain: "(" "define" _domain_name [requirements_section] [types_section] [constants_section] [predicates_section] actions_section ")"
 
@@ -74,7 +84,7 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
 objects_section: "(" ":objects" typed_list{object_} ")"
 
-initialization_section: "(" ":init" predicate{object_}* ")"
+initialization_section: "(" ":init" list_{predicate{object_}} ")"
 
 _goal_section: "(" ":goal" condition{object_} ")"
 
