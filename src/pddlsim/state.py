@@ -39,22 +39,22 @@ class SimulationState:
             case Predicate():
                 self._true_predicates.add(atom)
             case NotPredicate(base_predicate):
-                self._true_predicates.remove(base_predicate.value)
+                self._true_predicates.remove(base_predicate)
 
     def does_condition_hold(self, condition: Condition[Object]) -> bool:
         match condition:
             case AndCondition(subconditions):
                 return all(
-                    self.does_condition_hold(subcondition.value)
+                    self.does_condition_hold(subcondition)
                     for subcondition in subconditions
                 )
             case OrCondition(subconditions):
                 return any(
-                    self.does_condition_hold(subcondition.value)
+                    self.does_condition_hold(subcondition)
                     for subcondition in subconditions
                 )
             case NotCondition(base_condition):
-                return not (self.does_condition_hold(base_condition.value))
+                return not (self.does_condition_hold(base_condition))
             case EqualityCondition(left_side, right_side):
                 return left_side == right_side
             case Predicate():
@@ -64,11 +64,9 @@ class SimulationState:
         match effect:
             case AndEffect(subeffects):
                 for subeffect in subeffects:
-                    self._make_effect_hold(subeffect.value, rng)
+                    self._make_effect_hold(subeffect, rng)
             case ProbabilisticEffect():
-                self._make_effect_hold(
-                    effect.choose_possibility(rng).value, rng
-                )
+                self._make_effect_hold(effect.choose_possibility(rng), rng)
             case Predicate() | NotPredicate():
                 self._make_atom_hold(effect)
 

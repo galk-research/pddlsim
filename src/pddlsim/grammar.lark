@@ -26,9 +26,9 @@ requirements_section: "(" REQUIREMENTS_KEYWORD nonempty_list{requirement} ")"
 
 custom_type: IDENTIFIER
 
-OBJECT_TYPE: "object"
+object_type: "object"
 
-_type: OBJECT_TYPE | custom_type
+_type: object_type | custom_type
 
 typed_list_part{item}: nonempty_list{item} "-" _type
 typed_list{item}: typed_list_part{item} [typed_list{item}]

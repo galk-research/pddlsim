@@ -32,7 +32,6 @@ from pddlsim.ast import (
     Effect,
     EqualityCondition,
     Identifier,
-    Locationed,
     NotCondition,
     NotPredicate,
     Object,
@@ -58,7 +57,7 @@ def _ground_predicate(
     return Predicate(
         predicate.name,
         tuple(
-            Locationed(_ground_argument(argument.value, grounding))
+            _ground_argument(argument, grounding)
             for argument in predicate.assignment
         ),
     )
@@ -71,25 +70,23 @@ def _ground_condition(
         case AndCondition(subconditions):
             return AndCondition(
                 [
-                    Locationed(_ground_condition(subcondition.value, grounding))
+                    _ground_condition(subcondition, grounding)
                     for subcondition in subconditions
                 ]
             )
         case OrCondition(subconditions):
             return OrCondition(
                 [
-                    Locationed(_ground_condition(subcondition.value, grounding))
+                    _ground_condition(subcondition, grounding)
                     for subcondition in subconditions
                 ]
             )
         case NotCondition(base_condition):
-            return NotCondition(
-                Locationed(_ground_condition(base_condition.value, grounding))
-            )
+            return NotCondition(_ground_condition(base_condition, grounding))
         case EqualityCondition(left_side, right_side):
             return EqualityCondition(
-                Locationed(_ground_argument(left_side.value, grounding)),
-                Locationed(_ground_argument(right_side.value, grounding)),
+                _ground_argument(left_side, grounding),
+                _ground_argument(right_side, grounding),
             )
         case Predicate():
             return _ground_predicate(condition, grounding)
@@ -102,14 +99,14 @@ def _ground_effect(
         case AndEffect(subeffects):
             return AndEffect(
                 [
-                    Locationed(_ground_effect(subeffect.value, grounding))
+                    _ground_effect(subeffect, grounding)
                     for subeffect in subeffects
                 ]
             )
         case ProbabilisticEffect():
             return ProbabilisticEffect(
                 [
-                    Locationed(_ground_effect(possible_effect.value, grounding))
+                    _ground_effect(possible_effect, grounding)
                     for possible_effect in effect._possible_effects
                 ],
                 effect._cummulative_probabilities,
@@ -119,8 +116,8 @@ def _ground_effect(
         case NotPredicate(base_predicate):
             return NotPredicate(
                 cast(
-                    Locationed[Predicate[Object]],
-                    Locationed(_ground_effect(base_predicate.value, grounding)),
+                    Predicate[Object],
+                    _ground_effect(base_predicate, grounding),
                 )
             )
 
@@ -165,10 +162,7 @@ class Simulation:
             problem,
             Random(seed),
             SimulationState(
-                {
-                    true_predicate.value
-                    for true_predicate in problem.initialization
-                }
+                {true_predicate for true_predicate in problem.initialization}
             ),
             object_name_id_allocator,
             predicate_id_allocator,
@@ -180,7 +174,7 @@ class Simulation:
                 type_name_id_allocator,
             ),
             {
-                action_definition.name.value: (
+                action_definition.name: (
                     action_definition_asp_part(
                         action_definition,
                         variable_id_allocator := IDAllocator[Variable](
@@ -205,10 +199,10 @@ class Simulation:
             raise SimulationCompletedError
 
         action_definition = self._domain.action_definitions[
-            Locationed(grounded_action.name)
+            grounded_action.name
         ]
         grounding = {
-            variable.value: object_
+            variable: object_
             for variable, object_ in zip(
                 action_definition.variable_types,
                 grounded_action.grounding,
@@ -217,10 +211,10 @@ class Simulation:
         }
 
         if self.state.does_condition_hold(
-            _ground_condition(action_definition.precondition.value, grounding)
+            _ground_condition(action_definition.precondition, grounding)
         ):
             self.state._make_effect_hold(
-                _ground_effect(action_definition.effect.value, grounding),
+                _ground_effect(action_definition.effect, grounding),
                 self._rng,
             )
         else:
@@ -230,7 +224,7 @@ class Simulation:
         self, action_definition: ActionDefinition, state_part: ASPPart
     ) -> Generator[Mapping[Variable, Object]]:
         action_definition_asp_part, variable_id_allocator = (
-            self._action_definition_asp_parts[action_definition.name.value]
+            self._action_definition_asp_parts[action_definition.name]
         )
 
         # `-Wno-atom-undefined` disables warnings about undefined atoms
@@ -272,9 +266,9 @@ class Simulation:
     ) -> Iterable[GroundedAction]:
         return (
             GroundedAction(
-                action_definition.name.value,
+                action_definition.name,
                 [
-                    grounding[variable.value]
+                    grounding[variable]
                     for variable in action_definition.variable_types
                 ],
             )
@@ -297,6 +291,4 @@ class Simulation:
         )
 
     def is_solved(self) -> bool:
-        return self.state.does_condition_hold(
-            self._problem.goal_condition.value
-        )
+        return self.state.does_condition_hold(self._problem.goal_condition)

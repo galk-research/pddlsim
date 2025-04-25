@@ -20,7 +20,6 @@ from pddlsim.ast import (
     FileLocation,
     Identifier,
     Location,
-    Locationed,
     NotCondition,
     NotPredicate,
     Object,
@@ -32,6 +31,7 @@ from pddlsim.ast import (
     Problem,
     RawProblemParts,
     Requirement,
+    RequirementSet,
     Type,
     Typed,
     TypeHierarchy,
@@ -44,13 +44,11 @@ class PDDLTransformer(Transformer):
     def NUMBER(self, token: Token) -> Decimal:
         return Decimal(token)
 
-    def IDENTIFIER(self, token: Token) -> Locationed[Identifier]:
-        return Locationed(
-            Identifier(str(token)), FileLocation.from_token(token)
-        )
+    def IDENTIFIER(self, token: Token) -> Identifier:
+        return Identifier(str(token), location=FileLocation.from_token(token))
 
-    def VARIABLE(self, token: Token) -> Locationed[Variable]:
-        return Locationed(Variable(token[1:]), FileLocation.from_token(token))
+    def VARIABLE(self, token: Token) -> Variable:
+        return Variable(token[1:], location=FileLocation.from_token(token))
 
     @v_args(inline=False)
     def list_[T](self, items: list[T]) -> list[T]:
@@ -80,26 +78,33 @@ class PDDLTransformer(Transformer):
 
     def requirements_section(
         self, location: Location, requirements: list[Requirement]
-    ) -> Locationed[list[Requirement]]:
-        return Locationed(requirements, location)
+    ) -> RequirementSet:
+        requirement_set = set[Requirement]()
+        result = RequirementSet(requirement_set, location=location)
 
-    def OBJECT_TYPE(self, token: Token) -> Locationed[ObjectType]:
-        return Locationed(ObjectType(), FileLocation.from_token(token))
+        for requirement in requirements:
+            if requirement in requirement_set:
+                raise ValueError(
+                    f"requirement {requirement} used multiple times in {result}"
+                )
 
-    def custom_type(
-        self, identifier: Locationed[Identifier]
-    ) -> Locationed[CustomType]:
-        return Locationed(
-            CustomType(identifier.value.value), identifier.location
-        )
+            requirement_set.add(requirement)
+
+        return result
+
+    def object_type(self) -> ObjectType:
+        return ObjectType()
+
+    def custom_type(self, identifier: Identifier) -> CustomType:
+        return CustomType(identifier.value, location=identifier.location)
 
     def typed_list_part[T](
-        self, items: list[T], type: Locationed[Type]
+        self, items: list[T], type: Type
     ) -> Iterable[Typed[T]]:
         return (Typed(item, type) for item in items)
 
     def object_typed_list[T](self, items: Iterable[T]) -> Iterable[Typed[T]]:
-        return (Typed(item, Locationed(ObjectType())) for item in items)
+        return (Typed(item, ObjectType()) for item in items)
 
     def typed_list[T](
         self,
@@ -112,55 +117,55 @@ class PDDLTransformer(Transformer):
         return FileLocation.from_token(token)
 
     def types_section(
-        self, location: Location, types: Iterable[Typed[Locationed[CustomType]]]
-    ) -> Locationed[TypeHierarchy]:
-        return Locationed(TypeHierarchy.from_raw_parts(types), location)
+        self, location: Location, types: Iterable[Typed[CustomType]]
+    ) -> TypeHierarchy:
+        return TypeHierarchy.from_raw_parts(types, location=location)
 
-    def object_(self, identifier: Locationed[Identifier]) -> Locationed[Object]:
-        return Locationed(Object(identifier.value.value), identifier.location)
+    def object_(self, identifier: Identifier) -> Object:
+        return Object(identifier.value, location=identifier.location)
 
     def constants_section(
-        self, objects: list[Typed[Locationed[Object]]]
-    ) -> list[Typed[Locationed[Object]]]:
+        self, objects: list[Typed[Object]]
+    ) -> list[Typed[Object]]:
         return objects
 
     def predicate_definition(
         self,
-        name: Locationed[Identifier],
-        parameters: Iterable[Typed[Locationed[Variable]]],
+        name: Identifier,
+        parameters: Iterable[Typed[Variable]],
     ) -> PredicateDefinition:
         return PredicateDefinition.from_raw_parts(name, list(parameters))
 
     def predicates_section(
         self,
-        predicate_definitions: list[Locationed[PredicateDefinition]],
-    ) -> list[Locationed[PredicateDefinition]]:
+        predicate_definitions: list[PredicateDefinition],
+    ) -> list[PredicateDefinition]:
         return predicate_definitions
 
     def predicate[A: Argument](
         self,
-        name: Locationed[Identifier],
-        assignment: list[Locationed[A]],
-    ) -> Locationed[Predicate[A]]:
-        return Locationed(Predicate(name, tuple(assignment)))
+        name: Identifier,
+        assignment: list[A],
+    ) -> Predicate[A]:
+        return Predicate(name, tuple(assignment))
 
     def and_condition[A: Argument](
-        self, operands: list[Locationed[Condition[A]]]
-    ) -> Locationed[AndCondition[A]]:
-        return Locationed(AndCondition(operands))
+        self, operands: list[Condition[A]]
+    ) -> AndCondition[A]:
+        return AndCondition(operands)
 
     def OR_KEYWORD(self, token: Token) -> Location:
         return FileLocation.from_token(token)
 
     def or_condition[A: Argument](
-        self, location: Location, operands: list[Locationed[Condition[A]]]
-    ) -> Locationed[OrCondition[A]]:
-        return Locationed(OrCondition(operands), location)
+        self, location: Location, operands: list[Condition[A]]
+    ) -> OrCondition[A]:
+        return OrCondition(operands, location=location)
 
     def not_condition[A: Argument](
-        self, operand: Locationed[Condition[A]]
-    ) -> Locationed[NotCondition[A]]:
-        return Locationed(NotCondition(operand))
+        self, operand: Condition[A]
+    ) -> NotCondition[A]:
+        return NotCondition(operand)
 
     def EQUALS_SIGN(self, token: Token) -> Location:
         return FileLocation.from_token(token)
@@ -168,24 +173,24 @@ class PDDLTransformer(Transformer):
     def equality_condition[A: Argument](
         self,
         location: Location,
-        left_side: Locationed[A],
-        right_side: Locationed[A],
-    ) -> Locationed[EqualityCondition[A]]:
-        return Locationed(EqualityCondition(left_side, right_side), location)
+        left_side: A,
+        right_side: A,
+    ) -> EqualityCondition[A]:
+        return EqualityCondition(left_side, right_side, location=location)
 
     def not_predicate[A: Argument](
-        self, base_predicate: Locationed[Predicate[A]]
-    ) -> Locationed[NotPredicate[A]]:
-        return Locationed(NotPredicate(base_predicate))
+        self, base_predicate: Predicate[A]
+    ) -> NotPredicate[A]:
+        return NotPredicate(base_predicate)
 
     def and_effect[A: Argument](
-        self, subeffects: list[Locationed[Effect[A]]]
-    ) -> Locationed[AndEffect[A]]:
-        return Locationed(AndEffect(subeffects))
+        self, subeffects: list[Effect[A]]
+    ) -> AndEffect[A]:
+        return AndEffect(subeffects)
 
     def probabilistic_effect_pair[A: Argument](
-        self, probability: Decimal, effect: Locationed[Effect[A]]
-    ) -> tuple[Decimal, Locationed[Effect[A]]]:
+        self, probability: Decimal, effect: Effect[A]
+    ) -> tuple[Decimal, Effect[A]]:
         return (probability, effect)
 
     def PROBABILISTIC_KEYWORD(self, token: Token) -> Location:
@@ -194,25 +199,24 @@ class PDDLTransformer(Transformer):
     def probabilistic_effect[A: Argument](
         self,
         location: Location,
-        possibilities: list[tuple[Decimal, Locationed[Effect[A]]]],
-    ) -> Locationed[ProbabilisticEffect]:
-        return Locationed(
-            ProbabilisticEffect.from_possibilities(possibilities),
-            location,
+        possibilities: list[tuple[Decimal, Effect[A]]],
+    ) -> ProbabilisticEffect:
+        return ProbabilisticEffect.from_possibilities(
+            possibilities, location=location
         )
 
     def action_definition(
         self,
-        name: Locationed[Identifier],
-        parameters: Iterable[Typed[Locationed[Variable]]],
-        precondition: Locationed[Condition[Argument]] | None,
-        effect: Locationed[Effect[Argument]] | None,
+        name: Identifier,
+        parameters: list[Typed[Variable]],
+        precondition: Condition[Argument] | None,
+        effect: Effect[Argument] | None,
     ) -> ActionDefinition:
         return ActionDefinition.from_raw_parts(
             name,
             list(parameters),
-            precondition if precondition else Locationed(AndCondition([])),
-            effect if effect else Locationed(AndEffect([])),
+            precondition if precondition else AndCondition([]),
+            effect if effect else AndEffect([]),
         )
 
     def actions_section(
@@ -222,16 +226,16 @@ class PDDLTransformer(Transformer):
 
     def domain(
         self,
-        name: Locationed[Identifier],
-        requirements: Locationed[list[Requirement]] | None,
-        type_hierarchy: Locationed[TypeHierarchy] | None,
-        constants: list[Typed[Locationed[Object]]] | None,
+        name: Identifier,
+        requirements: list[Requirement] | None,
+        type_hierarchy: TypeHierarchy | None,
+        constants: list[Typed[Object]] | None,
         predicate_definitions: list[PredicateDefinition] | None,
         action_definitions: list[ActionDefinition] | None,
     ) -> Domain:
         return Domain.from_raw_parts(
             name,
-            requirements if requirements else Locationed([]),  # type: ignore
+            requirements if requirements else RequirementSet({}),  # type: ignore
             type_hierarchy,
             constants if constants else [],
             predicate_definitions if predicate_definitions else [],
@@ -239,22 +243,22 @@ class PDDLTransformer(Transformer):
         )
 
     def objects_section(
-        self, objects: list[Typed[Locationed[Object]]]
-    ) -> list[Typed[Locationed[Object]]]:
+        self, objects: list[Typed[Object]]
+    ) -> list[Typed[Object]]:
         return objects
 
     def initialization_section(
-        self, predicates: list[Locationed[Predicate[Object]]]
-    ) -> list[Locationed[Predicate[Object]]]:
+        self, predicates: list[Predicate[Object]]
+    ) -> list[Predicate[Object]]:
         return predicates
 
     def problem(
         self,
-        name: Locationed[Identifier],
-        used_domain_name: Locationed[Identifier],
-        objects: list[Typed[Locationed[Object]]] | None,
-        initialization: list[Locationed[Predicate[Object]]],
-        goal_condition: Locationed[Condition[Object]],
+        name: Identifier,
+        used_domain_name: Identifier,
+        objects: list[Typed[Object]] | None,
+        initialization: list[Predicate[Object]],
+        goal_condition: Condition[Object],
     ) -> RawProblemParts:
         return RawProblemParts(
             name,

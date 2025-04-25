@@ -270,8 +270,8 @@ def objects_asp_part(
     for object_, type in chain(
         problem.object_types.items(), domain.constant_types.items()
     ):
-        type_id = type_id_allocator.get_id_or_insert(type.value)
-        object_id = object_id_allocator.get_id_or_insert(object_.value)
+        type_id = type_id_allocator.get_id_or_insert(type)
+        object_id = object_id_allocator.get_id_or_insert(object_)
 
         part.add_fact(
             part.create_function_literal(
@@ -279,12 +279,12 @@ def objects_asp_part(
             )
         )
 
-    for member in domain.type_hierarchy.value:
+    for member in domain.type_hierarchy:
         custom_type = member.value
         supertype = member.type
 
-        custom_type_id = type_id_allocator.get_id_or_insert(custom_type.value)
-        supertype_id = type_id_allocator.get_id_or_insert(supertype.value)
+        custom_type_id = type_id_allocator.get_id_or_insert(custom_type)
+        supertype_id = type_id_allocator.get_id_or_insert(supertype)
 
         part.add_rule(
             part.create_function_literal(
@@ -308,16 +308,14 @@ def simulation_state_asp_part(
     part = ASPPart(ASPPartKind.STATE)
 
     for predicate in state._true_predicates:
-        predicate_id = predicate_id_allocator.get_id_or_insert(
-            predicate.name.value
-        )
+        predicate_id = predicate_id_allocator.get_id_or_insert(predicate.name)
 
         part.add_fact(
             part.create_function_literal(
                 str(predicate_id),
                 [
                     part.create_symbol(
-                        str(object_id_allocator.get_id_or_insert(object_.value))
+                        str(object_id_allocator.get_id_or_insert(object_))
                     )
                     for object_ in predicate.assignment
                 ],
@@ -328,7 +326,7 @@ def simulation_state_asp_part(
 
 
 def _add_condition_to_asp_part(
-    condition: Condition,
+    condition: Condition[Argument],
     part: ASPPart,
     rule_id_allocator: IDAllocator,
     variable_id_allocator: IDAllocator[Variable],
@@ -354,7 +352,7 @@ def _add_condition_to_asp_part(
         case AndCondition(subconditions):
             subcondition_ids = (
                 _add_condition_to_asp_part(
-                    subcondition.value,
+                    subcondition,
                     part,
                     rule_id_allocator,
                     variable_id_allocator,
@@ -374,7 +372,7 @@ def _add_condition_to_asp_part(
         case OrCondition(subconditions):
             for subcondition in subconditions:
                 subcondition_id = _add_condition_to_asp_part(
-                    subcondition.value,
+                    subcondition,
                     part,
                     rule_id_allocator,
                     variable_id_allocator,
@@ -388,7 +386,7 @@ def _add_condition_to_asp_part(
                 )
         case NotCondition(base_condition):
             base_condition_id = _add_condition_to_asp_part(
-                base_condition.value,
+                base_condition,
                 part,
                 rule_id_allocator,
                 variable_id_allocator,
@@ -401,11 +399,11 @@ def _add_condition_to_asp_part(
                 [part.create_constant_literal(str(base_condition_id), False)],
             )
         case Predicate(name=name, assignment=assignment):
-            predicate_id = predicate_id_allocator.get_id_or_insert(name.value)
+            predicate_id = predicate_id_allocator.get_id_or_insert(name)
 
             predicate_literal = part.create_function_literal(
                 str(predicate_id),
-                [argument_to_asp(argument.value) for argument in assignment],
+                [argument_to_asp(argument) for argument in assignment],
             )
 
             body = [
@@ -423,8 +421,8 @@ def _add_condition_to_asp_part(
                 body,
             )
         case EqualityCondition(left_side=left_side, right_side=right_side):
-            left_side_ast = argument_to_asp(left_side.value)
-            right_side_ast = argument_to_asp(right_side.value)
+            left_side_ast = argument_to_asp(left_side)
+            right_side_ast = argument_to_asp(right_side)
 
             equality_literal = part.create_equality_literal(
                 left_side_ast, right_side_ast
@@ -459,8 +457,8 @@ def action_definition_asp_part(
 
     # Require each parameter have a single object as its value
     for variable, type in action_definition.variable_types.items():
-        variable_id = variable_id_allocator.get_id_or_insert(variable.value)
-        type_id = type_id_allocator.get_id_or_insert(type.value)
+        variable_id = variable_id_allocator.get_id_or_insert(variable)
+        type_id = type_id_allocator.get_id_or_insert(type)
 
         part.add_single_instantiation_constraint(
             part.create_function_literal(
@@ -475,7 +473,7 @@ def action_definition_asp_part(
 
     # Specify the precondition over the parameters
     precondition_id = _add_condition_to_asp_part(
-        action_definition.precondition.value,
+        action_definition.precondition,
         part,
         IDAllocator(RuleID),
         variable_id_allocator,
