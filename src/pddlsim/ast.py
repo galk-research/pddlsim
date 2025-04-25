@@ -47,7 +47,7 @@ class FileLocation(Location):
         return FileLocation(token.line, token.column)
 
     def as_str_with_value(self, value: Any) -> str:
-        return f"{value} ({self.line}:{self.column})"
+        return f"`{value}` ({self.line}:{self.column})"
 
 
 @dataclass(frozen=True)
@@ -97,7 +97,7 @@ class RequirementSet(Locationed):
         for requirement in requirements:
             if requirement in requirement_set:
                 raise ValueError(
-                    f"requirement {requirement} used multiple times in {result}"
+                    f"requirement {requirement} appears multiple times in {result}"  # noqa: E501
                 )
 
             requirement_set.add(requirement)
@@ -180,19 +180,20 @@ class TypeHierarchy(Locationed):
         *,
         location: Location | None = None,
     ) -> "TypeHierarchy":
-        supertypes = {}
+        supertypes: dict[CustomType, Type] = {}
+        result = TypeHierarchy(
+            supertypes, location=location if location else EmptyLocation()
+        )
 
         for custom_type in custom_types:
             if custom_type.value in supertypes:
                 raise ValueError(
-                    f"type '{custom_type.value}' is defined multiple times"
+                    f"type {custom_type.value} is defined multiple times in {result}"  # noqa: E501
                 )
 
             supertypes[custom_type.value] = custom_type.type
 
-        return TypeHierarchy(
-            supertypes, location=location if location else EmptyLocation()
-        )
+        return result
 
     def __iter__(self) -> Iterator[Typed[CustomType]]:
         return (
@@ -237,7 +238,7 @@ class PredicateDefinition:
         for parameter in parameters:
             if parameter.value in variables:
                 raise ValueError(
-                    f"parameter '{parameter.value}' of predicate definition '{name}' defined multiple times"  # noqa: E501
+                    f"parameter {parameter.value} defined multiple times in predicate definition {name}"  # noqa: E501
                 )
 
             variables.add(parameter.value)
@@ -251,7 +252,7 @@ class PredicateDefinition:
                 and parameter.type not in type_hierarchy
             ):
                 raise ValueError(
-                    f"parameter '{parameter.value}' of predicate definition '{self.name}' uses an undefined type: '{parameter.type}'"  # noqa: E501
+                    f"parameter {parameter.value} of predicate definition {self.name} is of undefined type {parameter.type}"  # noqa: E501
                 )
 
 
@@ -294,7 +295,7 @@ class OrCondition[A: Argument](Locationed):
     ) -> None:
         if Requirement.DISJUNCTIVE_PRECONDITIONS not in requirements:
             raise ValueError(
-                f"{self} used in condition, but '{Requirement.DISJUNCTIVE_PRECONDITIONS}' is not used"  # noqa: E501
+                f"{self} used in condition, but `{Requirement.DISJUNCTIVE_PRECONDITIONS}` is not in {requirements}"  # noqa: E501
             )
 
         for subcondition in self.subconditions:
@@ -346,17 +347,21 @@ class EqualityCondition[A: Argument](Locationed):
     ) -> None:
         if Requirement.EQUALITY not in requirements:
             raise ValueError(
-                f"{self} used in condition, but '{Requirement.EQUALITY}' is not used"  # noqa: E501
+                f"{self} used in condition, but `{Requirement.EQUALITY}` is not in {requirements}"  # noqa: E501
             )
 
         def validate_argument(argument: A) -> None:
             match argument:
                 case Variable():
                     if argument not in variable_types:
-                        raise ValueError(f"variable '{argument}' is undefined")
+                        raise ValueError(
+                            f"variable {argument} in {self} is undefined"
+                        )
                 case Object():
                     if argument not in object_types:
-                        raise ValueError(f"constant '{argument}' is undefined")
+                        raise ValueError(
+                            f"constant {argument} in {self} is undefined"
+                        )
 
         validate_argument(self.left_side)
         validate_argument(self.right_side)
@@ -369,6 +374,16 @@ class EqualityCondition[A: Argument](Locationed):
 class Predicate[A: Argument]:
     name: Identifier
     assignment: tuple[A, ...]
+
+    def __str__(self) -> str:
+        result = f"({self.name}"
+
+        for argument in self.assignment:
+            result += f" {argument}"
+
+        result += ")"
+
+        return result
 
     def _validate(
         self,
@@ -389,18 +404,22 @@ class Predicate[A: Argument]:
             match argument:
                 case Variable():
                     if argument not in variable_types:
-                        raise ValueError(f"variable '{argument}' is undefined")
+                        raise ValueError(
+                            f"variable {argument} in {self.name} is undefined"  # noqa: E501
+                        )
 
                     argument_type = variable_types[argument]  # type: ignore
                 case Object():
                     if argument not in object_types:
-                        raise ValueError(f"constant '{argument}' is undefined")
+                        raise ValueError(
+                            f"constant {argument} in {self.name} is undefined"  # noqa: E501
+                        )
 
                     argument_type = object_types[argument]  # type: ignore
 
             if not type_hierarchy.is_compatible(argument_type, parameter.type):
                 raise ValueError(
-                    f"parameter '{parameter.value}' of predicate '{self.name}' is of type '{parameter.type}', but is assigned argument '{argument}' of incompatible type '{argument_type}'"  # noqa: E501
+                    f"argument {argument} in {self.name} is of type {argument_type}, but is supposed to be of type {parameter.type}"  # noqa: E501
                 )
 
 
@@ -471,26 +490,39 @@ class ProbabilisticEffect[A: Argument](Locationed):
         *,
         location: Location | None = None,
     ) -> "ProbabilisticEffect":
-        possible_effects = [possibility for _, possibility in possibilities]
+        possible_effects: list[Effect[A]] = []
+        cummulative_probabilities: list[Decimal] = []
+        cummulative_probability = Decimal()
+
+        result = ProbabilisticEffect(
+            possible_effects,
+            cummulative_probabilities,
+            location=location if location else EmptyLocation(),
+        )
+
+        for probability, possibility in possibilities:
+            if probability < 0:
+                raise ValueError(
+                    f"probability {probability} in {result} is negative"
+                )
+
+            cummulative_probability += probability
+
+            cummulative_probabilities.append(cummulative_probability)
+            possible_effects.append(possibility)
+
         cummulative_probabilities = list(
             itertools.accumulate(
                 (probability for probability, _ in possibilities), operator.add
             )
         )
 
-        total_probability = cummulative_probabilities[-1]
-
-        if total_probability > 1:
+        if cummulative_probability > 1:
             raise ValueError(
-                "total probability mustn't be greater than 1"
-                f", is {total_probability}"
+                f"total probability of {result} mustn't be greater than 1, is {cummulative_probability}"  # noqa: E501
             )
 
-        return ProbabilisticEffect(
-            possible_effects,
-            cummulative_probabilities,
-            location=location if location else EmptyLocation(),
-        )
+        return result
 
     def choose_possibility(self, rng: Random) -> "Effect[A]":
         index = bisect.bisect(self._cummulative_probabilities, rng.random())
@@ -510,7 +542,7 @@ class ProbabilisticEffect[A: Argument](Locationed):
     ) -> None:
         if Requirement.PROBABILISTIC_EFFECTS not in requirements:
             raise ValueError(
-                f"{self} used in action, but '{Requirement.PROBABILISTIC_EFFECTS}' is not used"  # noqa: E501
+                f"{self} used in action, but `{Requirement.PROBABILISTIC_EFFECTS}` does not appear in {requirements}"  # noqa: E501
             )
 
         for effect in self._possible_effects:
@@ -549,7 +581,7 @@ class ActionDefinition:
         for parameter in parameters:
             if parameter.value in variable_types:
                 raise ValueError(
-                    f"parameter '{parameter.value}' of action definition '{name}' defined multiple times"  # noqa: E501
+                    f"parameter with name {parameter.value} is defined in action definition {name} multiple times"  # noqa: E501
                 )
 
             # The dictionary is insertion ordered, so this is fine
@@ -568,7 +600,7 @@ class ActionDefinition:
         for variable, type in self.variable_types.items():
             if isinstance(type, CustomType) and type not in type_hierarchy:
                 raise ValueError(
-                    f"parameter '{variable}' of action definition '{self.name}' uses an undefined type: '{type}'"  # noqa: E501
+                    f"parameter {variable} of action definition {self.name} is of an undefined type {type}"  # noqa: E501
                 )
 
         self.precondition._validate(
@@ -612,7 +644,7 @@ class Domain:
         for constant in constants:
             if constant.value in constant_types:
                 raise ValueError(
-                    f"constant '{constant.value}' defined multiple times"
+                    f"constant with name {constant.value} is defined multiple times"  # noqa: E501
                 )
 
             constant_types[constant.value] = constant.type
@@ -622,7 +654,7 @@ class Domain:
         for predicate_definition in predicate_definitions:
             if predicate_definition.name in predicate_definition_map:
                 raise ValueError(
-                    f"predicate '{predicate_definition.name}' is defined multiple times"  # noqa: E501
+                    f"predicate with name {predicate_definition.name} is defined multiple times"  # noqa: E501
                 )
 
             predicate_definition_map[predicate_definition.name] = (
@@ -634,7 +666,7 @@ class Domain:
         for action_definition in action_definitions:
             if action_definition.name in action_definition_map:
                 raise ValueError(
-                    f"action '{action_definition.name}' is defined multiple times"  # noqa: E501
+                    f"action with name {action_definition.name} is defined multiple times"  # noqa: E501
                 )
 
             action_definition_map[action_definition.name] = action_definition
@@ -663,14 +695,14 @@ class Domain:
             and type_hierarchy is not None
         ):
             raise ValueError(
-                f"{type_hierarchy} is defined in domain, but '{Requirement.TYPING}' requirement is not used"  # noqa: E501
+                f"{type_hierarchy} is defined in domain, but `{Requirement.TYPING}` does not appear in {self.requirements}"  # noqa: E501
             )
 
     def _validate_constant_types(self) -> None:
         for constant, type in self.constant_types.items():
             if isinstance(type, CustomType) and type not in self.type_hierarchy:
                 raise ValueError(
-                    f"constant '{constant}' has type {type}, but that type is undefined"  # noqa: E501
+                    f"constant {constant} is of undefined type {type}"  # noqa: E501
                 )
 
     def _validate_predicate_definitions(self) -> None:
@@ -722,7 +754,7 @@ class Problem:
         for object_ in raw_parts.objects:
             if object_.value in object_types:
                 raise ValueError(
-                    f"object '{object_.value}' is defined multiple times"
+                    f"object {object_.value} is defined multiple times"
                 )
 
             object_types[object_.value] = object_.type
@@ -732,7 +764,7 @@ class Problem:
         for predicate in raw_parts.initialization:
             if predicate in true_predicates:
                 raise ValueError(
-                    f"predicate '{predicate}' appears in initialization multiple times"  # noqa: E501
+                    f"predicate {predicate} appears in initialization multiple times"  # noqa: E501
                 )
 
             true_predicates.add(predicate)
@@ -752,14 +784,14 @@ class Problem:
     def _validate_used_domain_name(self, domain: Domain) -> None:
         if domain.name != self.used_domain_name:
             raise ValueError(
-                f"used domain name '{self.used_domain_name}' doesn't match paired domain name '{domain.name}'"  # noqa: E501
+                f"used domain name {self.used_domain_name} doesn't match paired domain name {domain.name}"  # noqa: E501
             )
 
     def _validate_object_types(self, domain: Domain) -> None:
         for object_, type in self.object_types.items():
             if type not in domain.type_hierarchy:
                 raise ValueError(
-                    f"object '{object_}' is of non-existent type: '{type}'"
+                    f"object {object_} is of an undefined type {type}"
                 )
 
     def _validate_initialization(self, domain: Domain) -> None:
