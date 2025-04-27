@@ -1,44 +1,54 @@
 import asyncio
 import logging
 import random
-from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 import pddlsim.rsp.client
-from pddlsim.rsp.client import SimulationAction
+from pddlsim.rsp.client import (
+    NextActionGetter,
+    SimulationAction,
+    SimulationClient,
+)
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def create_get_next_action(
-    max_steps: int | None = None,
-) -> Callable[
-    [pddlsim.rsp.client.SimulationClient], Awaitable[SimulationAction]
-]:
-    steps = 0
+@dataclass
+class Agent:
+    configuration: "AgentConfiguration"
+    client: SimulationClient
+    steps: int = 0
 
-    async def get_next_action(
-        simulation: pddlsim.rsp.client.SimulationClient,
-    ) -> SimulationAction:
-        nonlocal steps
-
-        if max_steps and steps >= max_steps:
+    async def get_next_action(self) -> SimulationAction:
+        if self.steps >= self.configuration.max_steps:
             return pddlsim.rsp.client.GiveUpAction("max steps reached")
 
-        steps += 1
+        self.steps += 1
 
-        _state = await simulation.get_state()
+        _state = await self.client.get_state()
 
-        grounded_actions = await simulation.get_grounded_actions()
+        grounded_actions = await self.client.get_grounded_actions()
 
         return random.choice(grounded_actions)
 
-    return get_next_action
+
+@dataclass
+class AgentConfiguration:
+    max_steps: int
+
+    async def initialize(self, client: SimulationClient) -> NextActionGetter:
+        _domain = await client.get_domain()
+        _problem = await client.get_problem()
+
+        return Agent(self, client).get_next_action
 
 
 async def main() -> None:
     port = int(input("What port to connect to? (0-65535): "))
     termination = await pddlsim.rsp.client.act_in_simulation(
-        "127.0.0.1", port, create_get_next_action()
+        "127.0.0.1",
+        port,
+        AgentConfiguration(300).initialize,
     )
 
     print(f"Finished with: {termination}")

@@ -5,13 +5,19 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Set
 from dataclasses import InitVar, dataclass, field
 from decimal import Decimal
-from enum import StrEnum
 from random import Random
-from typing import Any
+from typing import Any, TypedDict
 
-from apischema import deserializer, serializer
-from apischema.conversions import Conversion
+from koda_validate import (
+    AlwaysValid,
+    ListValidator,
+    StringValidator,
+    TypedDictValidator,
+    Validator,
+)
 from lark.lexer import Token
+
+from pddlsim.rsp.serde import Serdeable, SerdeableEnum
 
 
 class Location(ABC):
@@ -59,7 +65,10 @@ class EmptyLocation(Location):
 @dataclass(frozen=True, eq=True)
 class Locationed(ABC):
     location: Location = field(
-        hash=False, compare=False, default_factory=EmptyLocation, kw_only=True
+        hash=False,
+        compare=False,
+        default_factory=EmptyLocation,
+        kw_only=True,
     )
 
     @abstractmethod
@@ -70,7 +79,7 @@ class Locationed(ABC):
         return self.location.as_str_with_value(self.as_str_without_location())
 
 
-class Requirement(StrEnum):
+class Requirement(SerdeableEnum):
     STRIPS = ":strips"
     TYPING = ":typing"
     DISJUNCTIVE_PRECONDITIONS = ":disjunctive-preconditions"
@@ -79,7 +88,7 @@ class Requirement(StrEnum):
 
 
 @dataclass(frozen=True)
-class RequirementSet(Locationed):
+class RequirementSet(Serdeable[list[Any]], Locationed):
     requirements: set[Requirement]
 
     @classmethod
@@ -113,29 +122,35 @@ class RequirementSet(Locationed):
     def as_str_without_location(self) -> str:
         return "requirements section"
 
+    def serialize(self) -> list[Any]:
+        return [requirement.serialize() for requirement in self.requirements]
+
+    @classmethod
+    def validator(cls) -> Validator[list[Any]]:
+        return ListValidator(AlwaysValid())
+
+    @classmethod
+    def create(cls, value: list[Any]) -> "RequirementSet":
+        return RequirementSet({Requirement.deserialize(item) for item in value})
+
 
 @dataclass(frozen=True)
-class Identifier(Locationed):
+class Identifier(Locationed, Serdeable[str]):
     value: str
 
-    def as_str_without_location(self) -> str:
-        return self.value
-
-    @serializer
-    def _serialize(self) -> str:
+    def serialize(self) -> str:
         return self.value
 
     @classmethod
-    def deserialize[I: "Identifier"](cls: type[I], value: str) -> I:
+    def validator(cls) -> Validator[str]:
+        return StringValidator()
+
+    @classmethod
+    def create(cls, value: str) -> "Identifier":
         return cls(value)
 
-    def __init_subclass__(cls, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-
-        deserializer(Conversion(cls.deserialize, target=cls))
-
-
-deserializer(Identifier)
+    def as_str_without_location(self) -> str:
+        return self.value
 
 
 @dataclass(frozen=True)
@@ -155,7 +170,7 @@ class ObjectType:
         return "object"
 
 
-type Type = CustomType | ObjectType
+Type = CustomType | ObjectType
 
 
 @dataclass(frozen=True)
@@ -370,10 +385,32 @@ class EqualityCondition[A: Argument](Locationed):
         return "equality predicate"
 
 
+class PredicateAssignmentPair(TypedDict):
+    name: str
+    assignment: list[str]
+
+
 @dataclass(frozen=True)
-class Predicate[A: Argument]:
+class Predicate[A: Argument](Serdeable[PredicateAssignmentPair]):
     name: Identifier
     assignment: tuple[A, ...]
+
+    def serialize(self) -> PredicateAssignmentPair:
+        return PredicateAssignmentPair(
+            name=self.name.value,
+            assignment=[argument.value for argument in self.assignment],
+        )
+
+    @classmethod
+    def validator(cls) -> Validator[PredicateAssignmentPair]:
+        return TypedDictValidator(PredicateAssignmentPair)
+
+    @classmethod
+    def create(cls, value: PredicateAssignmentPair) -> "Predicate[A]":
+        return Predicate(
+            Identifier(value["name"]),
+            tuple(Object.deserialize(item) for item in value["assignment"]),
+        )
 
     def __str__(self) -> str:
         result = f"({self.name}"

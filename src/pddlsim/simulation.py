@@ -6,9 +6,10 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from random import Random
-from typing import cast
+from typing import TypedDict, cast
 
 from clingo import Control
+from koda_validate import TypedDictValidator, Validator
 
 from pddlsim.asp import (
     ASPPart,
@@ -42,6 +43,7 @@ from pddlsim.ast import (
     Type,
     Variable,
 )
+from pddlsim.rsp.serde import Serdeable
 from pddlsim.state import SimulationState
 
 
@@ -122,10 +124,32 @@ def _ground_effect(
             )
 
 
+class ActionGroundingPair(TypedDict):
+    name: str
+    grounding: list[str]
+
+
 @dataclass(frozen=True)
-class GroundedAction:
+class GroundedAction(Serdeable[ActionGroundingPair]):
     name: Identifier
     grounding: list[Object]
+
+    def serialize(self) -> ActionGroundingPair:
+        return ActionGroundingPair(
+            name=self.name.value,
+            grounding=[object_.value for object_ in self.grounding],
+        )
+
+    @classmethod
+    def validator(cls) -> Validator[ActionGroundingPair]:
+        return TypedDictValidator(ActionGroundingPair)
+
+    @classmethod
+    def create(cls, value: ActionGroundingPair) -> "GroundedAction":
+        return GroundedAction(
+            Identifier(value["name"]),
+            [Object(object_) for object_ in value["grounding"]],
+        )
 
 
 class SimulationCompletedError(Exception):

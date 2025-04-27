@@ -14,7 +14,7 @@ dependencies = [
     "cbor2>=5.6.5",
     "lark>=1.2.2",
     "clingo>=5.8.0",
-    "apischema>=0.19.0",
+    "koda-validate>=4.2.0",
 ]
 requires-python = ">=3.12"
 readme = "README.md"

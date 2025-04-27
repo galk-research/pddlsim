@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 from typing import NoReturn
 
 from pddlsim.rsp import (
@@ -9,7 +10,6 @@ from pddlsim.rsp import (
 )
 from pddlsim.rsp.message import (
     Error,
-    ErrorReason,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
@@ -20,7 +20,6 @@ from pddlsim.rsp.message import (
     PerformGroundedActionResponse,
     ProblemSetupRequest,
     ProblemSetupResponse,
-    ReasonString,
     SessionSetupRequest,
     SessionSetupResponse,
     TerminationSource,
@@ -43,29 +42,29 @@ class SimulationClient:
 
         self._termination: SessionTermination | None = None
 
-    async def _receive_message[P: Payload](
-        self, expected_message_type: type[P]
+    async def _receive_payload[P: Payload](
+        self, expected_payload_type: type[P]
     ) -> P:
         try:
-            message = await self._bridge.receive_message()
+            payload = await self._bridge.receive_payload()
 
-            if not isinstance(message, expected_message_type):
+            if not isinstance(payload, expected_payload_type):
                 await self._terminate_session(
                     SessionTermination(
                         Error.from_type_mismatch(
-                            expected_message_type, type(message)
+                            expected_payload_type, type(payload)
                         ),
                         TerminationSource.INTERNAL,
                     )
                 )
 
-            return message
+            return payload
         except SessionTermination as termination:
             await self._terminate_session(termination.with_traceback(None))
 
-    async def _send_message(self, message: Payload) -> None:
+    async def _send_message(self, payload: Payload) -> None:
         try:
-            await self._bridge.send_message(message)
+            await self._bridge.send_message(payload)
         except SessionTermination as termination:
             await self._terminate_session(termination.with_traceback(None))
 
@@ -89,7 +88,7 @@ class SimulationClient:
     async def _start_session(self) -> None:
         await self._send_message(SessionSetupRequest(RSP_VERSION))
 
-        _message = await self._receive_message(SessionSetupResponse)
+        _message = await self._receive_payload(SessionSetupResponse)
 
     async def _get_problem_setup(self) -> tuple[str, str]:
         self._assert_unterminated()
@@ -97,11 +96,11 @@ class SimulationClient:
         if not self._domain_problem_pair:
             await self._send_message(ProblemSetupRequest())
 
-            message = await self._receive_message(ProblemSetupResponse)
+            payload = await self._receive_payload(ProblemSetupResponse)
 
             self._domain_problem_pair = (
-                message.payload.domain,
-                message.payload.problem,
+                payload.domain,
+                payload.problem,
             )
 
         return self._domain_problem_pair
@@ -120,9 +119,9 @@ class SimulationClient:
         if not self._state:
             await self._send_message(PerceptionRequest())
 
-            message = await self._receive_message(PerceptionResponse)
+            payload = await self._receive_payload(PerceptionResponse)
 
-            self._state = SimulationState(set(message.payload))
+            self._state = SimulationState(set(payload.true_predicates))
 
         return self._state
 
@@ -132,9 +131,10 @@ class SimulationClient:
         if not self._grounded_actions:
             await self._send_message(GetGroundedActionsRequest())
 
-            message = await self._receive_message(GetGroundedActionsResponse)
+            payload = await self._receive_payload(GetGroundedActionsResponse)
 
-            self._grounded_actions = message.payload
+            self._grounded_actions = payload.grounded_actions
+
         return self._grounded_actions
 
     async def _perform_grounded_action(
@@ -146,9 +146,9 @@ class SimulationClient:
         self._grounded_actions = None
 
         await self._send_message(PerformGroundedActionRequest(grounded_action))
-        await self._receive_message(PerformGroundedActionResponse)
+        await self._receive_payload(PerformGroundedActionResponse)
 
-    async def _give_up(self, reason: ReasonString | None) -> None:
+    async def _give_up(self, reason: str | None) -> None:
         self._assert_unterminated()
 
         await self._terminate_session(
@@ -156,9 +156,9 @@ class SimulationClient:
         )
 
 
+@dataclass(frozen=True)
 class GiveUpAction:
-    def __init__(self, reason: str | None = None) -> None:
-        self._reason = ReasonString(reason) if reason else None
+    reason: str | None = None
 
 
 class DeadEndAction(GiveUpAction):
@@ -169,47 +169,60 @@ class DeadEndAction(GiveUpAction):
 type SimulationAction = GiveUpAction | GroundedAction
 
 
+type NextActionGetter = Callable[[], Awaitable[SimulationAction]]
+type AgentInitializer = Callable[
+    [SimulationClient], Awaitable[NextActionGetter]
+]
+
+
+def with_no_initializer(
+    get_next_action: Callable[[SimulationClient], Awaitable[SimulationAction]],
+) -> AgentInitializer:
+    async def no_op_initializer(client: SimulationClient) -> NextActionGetter:
+        return lambda: get_next_action(client)
+
+    return no_op_initializer
+
+
 async def act_in_simulation(
     host: str,
     port: int,
-    get_next_action: Callable[[SimulationClient], Awaitable[SimulationAction]],
+    initializer: AgentInitializer,
 ) -> SessionTermination:
     reader, writer = await asyncio.open_connection(host, port)
 
-    simulation = SimulationClient(reader, writer)
+    client = SimulationClient(reader, writer)
 
     try:
-        await simulation._start_session()
+        await client._start_session()
 
-        while not simulation._is_terminated():
-            action = await get_next_action(simulation)
+        get_next_action = await initializer(client)
+
+        while not client._is_terminated():
+            action = await get_next_action()
 
             match action:
-                case GiveUpAction(_reason=reason):
-                    await simulation._give_up(reason)
+                case GiveUpAction(reason):
+                    await client._give_up(reason)
                 case GroundedAction():
-                    await simulation._perform_grounded_action(action)
+                    await client._perform_grounded_action(action)
     except SessionTermination:
         pass
     except Exception as exception:
         exception_reason = str(exception)
 
-        await simulation._bridge.send_message(
+        await client._bridge.send_message(
             Error(
-                ErrorReason(
-                    TerminationSource.INTERNAL,
-                    ReasonString(
-                        exception_reason
-                        if exception_reason
-                        else type(exception).__name__
-                    ),
-                ),
+                TerminationSource.INTERNAL,
+                exception_reason
+                if exception_reason
+                else type(exception).__name__,
             )
         )
 
         raise exception
 
-    if not simulation._termination:
+    if not client._termination:
         raise AssertionError("simulation cannot end without termination")
 
-    return simulation._termination
+    return client._termination

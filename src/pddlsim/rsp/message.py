@@ -1,212 +1,356 @@
+from abc import abstractmethod
+from collections.abc import MutableMapping
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, NewType
+from inspect import isabstract
+from typing import Any, Self, TypedDict
 
-import cbor2
-from apischema import deserialize, discriminator, schema, serialize, type_name
+from koda_validate import (
+    AlwaysValid,
+    IntValidator,
+    ListValidator,
+    Min,
+    NoneValidator,
+    OptionalValidator,
+    StringValidator,
+    TypedDictValidator,
+    Validator,
+)
 
 from pddlsim.ast import Object, Predicate
+from pddlsim.rsp.serde import Serdeable, SerdeableEnum
 from pddlsim.simulation import GroundedAction
 
 
-@dataclass
-@discriminator("type")
-class Payload:
-    payload: Any
+class Payload[T](Serdeable[T]):
+    payloads: MutableMapping[str, type["Payload"]] = {}
+
+    def __init_subclass__(cls: type["Payload"]) -> None:
+        if not isabstract(cls):
+            Payload.payloads[cls.type()] = cls
+
+        super().__init_subclass__()
 
     @classmethod
-    def name(cls) -> str:
-        return cls.__name__
-
-    def serialize(self) -> cbor2.Any:
-        return serialize(Payload, self)
+    @abstractmethod
+    def type(cls) -> str:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)
-class RSPName:
-    name: str
-
-    def __call__[P: Payload](self, type: type[P]) -> type[P]:
-        type.name = lambda: self.name  # type: ignore[method-assign]
-
-        return type_name(self.name)(type)
-
-
-def rsp_name(name: str) -> RSPName:
-    return RSPName(name)
-
-
-RSPVersion = NewType("RSPVersion", int)
-schema(min=1)(RSPVersion)
-
-
-@dataclass
-@rsp_name("session-setup-request")
 class SessionSetupRequest(Payload):
-    payload: RSPVersion
+    supported_rsp_version: int
+
+    def serialize(self) -> int:
+        return self.supported_rsp_version
+
+    @classmethod
+    def validator(cls) -> Validator[int]:
+        return IntValidator(Min(1))
+
+    @classmethod
+    def create(cls, value: int) -> "SessionSetupRequest":
+        return SessionSetupRequest(value)
+
+    @classmethod
+    def type(cls) -> str:
+        return "session-setup-request"
 
 
-@dataclass
-@rsp_name("session-setup-response")
-class SessionSetupResponse(Payload):
-    payload: None = None
+@dataclass(frozen=True)
+class EmptyPayload(Payload[None]):
+    def serialize(self) -> None:
+        return None
+
+    @classmethod
+    def validator(cls) -> Validator[None]:
+        return NoneValidator()
+
+    @classmethod
+    def create(cls, _value: None) -> Self:
+        return cls()
 
 
-@dataclass
-@rsp_name("problem-setup-request")
-class ProblemSetupRequest(Payload):
-    payload: None = None
+class SessionSetupResponse(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "session-setup-response"
 
 
-@dataclass
-class DomainProblemPair:
+class ProblemSetupRequest(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "problem-setup-request"
+
+
+class DomainProblemPair(TypedDict):
     domain: str
     problem: str
 
 
-@dataclass
-@rsp_name("problem-setup-response")
-class ProblemSetupResponse(Payload):
-    payload: DomainProblemPair
+@dataclass(frozen=True)
+class ProblemSetupResponse(Payload[DomainProblemPair]):
+    domain: str
+    problem: str
+
+    def serialize(self) -> DomainProblemPair:
+        return DomainProblemPair(domain=self.domain, problem=self.problem)
+
+    @classmethod
+    def validator(cls) -> Validator[DomainProblemPair]:
+        return TypedDictValidator(DomainProblemPair)
+
+    @classmethod
+    def create(cls, value: DomainProblemPair) -> "ProblemSetupResponse":
+        return ProblemSetupResponse(value["domain"], value["problem"])
+
+    @classmethod
+    def type(cls) -> str:
+        return "problem-setup-response"
 
 
-@dataclass
-@rsp_name("perception-request")
-class PerceptionRequest(Payload):
-    payload: None = None
+class PerceptionRequest(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "perception-request"
 
 
-@dataclass
-@rsp_name("perception-response")
-class PerceptionResponse(Payload):
-    payload: list[Predicate[Object]]
+@dataclass(frozen=True)
+class PerceptionResponse(Payload[list[Any]]):
+    true_predicates: list[Predicate[Object]]
+
+    def serialize(self) -> list[Any]:
+        return [predicate.serialize() for predicate in self.true_predicates]
+
+    @classmethod
+    def validator(cls) -> Validator[list[Any]]:
+        return ListValidator(AlwaysValid())
+
+    @classmethod
+    def create(cls, value: list[Any]) -> "PerceptionResponse":
+        return PerceptionResponse(
+            [Predicate[Object].deserialize(item) for item in value]
+        )
+
+    @classmethod
+    def type(cls) -> str:
+        return "perception-response"
 
 
-@dataclass
-@rsp_name("get-grounded-actions-request")
-class GetGroundedActionsRequest(Payload):
-    payload: None = None
+class GetGroundedActionsRequest(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "get-grounded-actions-request"
 
 
-@dataclass
-@rsp_name("get-grounded-actions-response")
-class GetGroundedActionsResponse(Payload):
-    payload: list[GroundedAction]
+@dataclass(frozen=True)
+class GetGroundedActionsResponse(Payload[list[Any]]):
+    grounded_actions: list[GroundedAction]
+
+    def serialize(self) -> list[Any]:
+        return [
+            grounded_action.serialize()
+            for grounded_action in self.grounded_actions
+        ]
+
+    @classmethod
+    def validator(cls) -> Validator[list[Any]]:
+        return ListValidator(AlwaysValid())
+
+    @classmethod
+    def create(cls, value: list[Any]) -> "GetGroundedActionsResponse":
+        return GetGroundedActionsResponse(
+            [GroundedAction.deserialize(item) for item in value]
+        )
+
+    @classmethod
+    def type(cls) -> str:
+        return "get-grounded-actions-response"
 
 
-@dataclass
-@rsp_name("perform-grounded-action-request")
-class PerformGroundedActionRequest(Payload):
-    payload: GroundedAction
+@dataclass(frozen=True)
+class PerformGroundedActionRequest(Payload[Any]):
+    grounded_action: GroundedAction
+
+    def serialize(self) -> Any:
+        return self.grounded_action.serialize()
+
+    @classmethod
+    def validator(cls) -> Validator[Any]:
+        return AlwaysValid()
+
+    @classmethod
+    def create(cls, value: Any) -> "PerformGroundedActionRequest":
+        return PerformGroundedActionRequest(GroundedAction.deserialize(value))
+
+    @classmethod
+    def type(cls) -> str:
+        return "perform-grounded-action-request"
 
 
-@dataclass
-@rsp_name("perform-grounded-action-response")
-class PerformGroundedActionResponse(Payload):
-    payload: None = None
+class PerformGroundedActionResponse(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "perform-grounded-action-response"
 
 
-@dataclass
-@rsp_name("goal-reached")
-class GoalReached(Payload):
-    payload: None = None
+class TerminationPayload[T](Payload[T]):
+    @abstractmethod
+    def description(self) -> str:
+        raise NotImplementedError
 
-    def __str__(self) -> str:
+
+class GoalReached(EmptyPayload, TerminationPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "goal-reached"
+
+    def description(self) -> str:
         return "goal reached"
 
 
-class TerminationSource(StrEnum):
+class TerminationSource(SerdeableEnum):
     INTERNAL = "internal"
     EXTERNAL = "external"
 
 
-ReasonString = NewType("ReasonString", str)
-schema(min_len=1)(ReasonString)
+class ErrorReason(TypedDict):
+    source: Any
+    reason: str | None
 
 
-@dataclass
-class ErrorReason:
+@dataclass(frozen=True)
+class Error(TerminationPayload[ErrorReason]):
     source: TerminationSource
-    reason: ReasonString | None
-
-
-@dataclass
-@rsp_name("error")
-class Error(Payload):
-    payload: ErrorReason
-
-    def __str__(self) -> str:
-        return (
-            f"{self.payload.reason} ({self.payload.source} error)"
-            if self.payload.reason
-            else f"{self.payload.source} error"
-        )
+    reason: str | None
 
     @classmethod
     def from_type_mismatch(
         cls,
-        expected_message_type: type[Payload],
-        received_message_type: type[Payload],
+        expected_payload_type: type[Payload],
+        received_payload_type: type[Payload],
     ) -> "Error":
         return Error(
-            ErrorReason(
-                source=TerminationSource.EXTERNAL,
-                reason=ReasonString(
-                    f"expected {expected_message_type.name()}, "
-                    f"got {received_message_type.name()}"
-                ),
-            )
+            TerminationSource.EXTERNAL,
+            f"expected {expected_payload_type.type()}, got {received_payload_type.type()}",  # noqa: E501
+        )
+
+    def serialize(self) -> ErrorReason:
+        return ErrorReason(source=self.source.serialize(), reason=self.reason)
+
+    @classmethod
+    def validator(cls) -> Validator[ErrorReason]:
+        return TypedDictValidator(ErrorReason)
+
+    @classmethod
+    def create(cls, value: ErrorReason) -> "Error":
+        return Error(
+            TerminationSource.deserialize(value["source"]), value["reason"]
+        )
+
+    @classmethod
+    def type(cls) -> str:
+        return "error"
+
+    def description(self) -> str:
+        return (
+            f"{self.reason} ({self.source} error)"
+            if self.reason
+            else f"{self.source} error"
         )
 
 
-@dataclass
-@rsp_name("session-unsupported")
-class SessionUnsupported(Payload):
-    payload: None = None
+class SessionUnsupported(EmptyPayload, TerminationPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "session-unsupported"
 
-    def __str__(self) -> str:
+    def description(self) -> str:
         return "session unsupported"
 
 
-@dataclass
-@rsp_name("timeout")
-class Timeout(Payload):
-    payload: None = None
+class Timeout(EmptyPayload, TerminationPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "timeout"
 
-    def __str__(self) -> str:
+    def description(self) -> str:
         return "timeout"
 
 
-@dataclass
-@rsp_name("give-up")
-class GiveUp(Payload):
-    payload: ReasonString | None
+@dataclass(frozen=True)
+class GiveUp(TerminationPayload[str | None]):
+    reason: str | None
 
-    def __str__(self) -> str:
+    def serialize(self) -> str | None:
+        return self.reason
+
+    @classmethod
+    def validator(cls) -> Validator[str | None]:
+        return OptionalValidator(StringValidator())
+
+    @classmethod
+    def create(cls, value: str | None) -> "GiveUp":
+        return GiveUp(value)
+
+    @classmethod
+    def type(cls) -> str:
+        return "give-up"
+
+    def description(self) -> str:
         return (
-            f"session given up ({self.payload})"
-            if self.payload
+            f"session given up ({self.reason})"
+            if self.reason
             else "session given up"
         )
 
 
-@dataclass
-@rsp_name("custom")
-class Custom(Payload):
-    payload: ReasonString | None
-
-    def __str__(self) -> str:
-        return self.payload if self.payload else "unknown"
+@dataclass(frozen=True)
+class Custom(TerminationPayload[str | None]):
+    reason: str | None
 
     @classmethod
     def from_communication_channel_closed(cls) -> "Custom":
-        return Custom(ReasonString("communication channel closed"))
+        return Custom("communication channel closed")
+
+    def serialize(self) -> str | None:
+        return self.reason
+
+    @classmethod
+    def validator(cls) -> Validator[str | None]:
+        return OptionalValidator(StringValidator())
+
+    @classmethod
+    def create(cls, value: str | None) -> "Custom":
+        return Custom(value)
+
+    @classmethod
+    def type(cls) -> str:
+        return "custom"
+
+    def description(self) -> str:
+        return self.reason if self.reason else "unknown"
 
 
-TerminationPayload = (
-    GoalReached | Error | SessionUnsupported | Timeout | GiveUp | Custom
-)
+class TypePayloadPair(TypedDict):
+    type: str
+    payload: Any
 
 
-def deserialize_message(message: cbor2.Any) -> Payload:
-    return deserialize(Payload, message)
+@dataclass(frozen=True)
+class Message(Serdeable[TypePayloadPair]):
+    payload: Payload
+
+    def serialize(self) -> TypePayloadPair:
+        return TypePayloadPair(
+            type=self.payload.type(), payload=self.payload.serialize()
+        )
+
+    @classmethod
+    def validator(cls) -> Validator[TypePayloadPair]:
+        return TypedDictValidator(TypePayloadPair)
+
+    @classmethod
+    def create(cls, value: TypePayloadPair) -> "Message":
+        return Message(
+            Payload.payloads[value["type"]].deserialize(value["payload"])
+        )

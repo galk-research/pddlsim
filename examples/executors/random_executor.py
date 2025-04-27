@@ -1,7 +1,12 @@
 import random
 from collections.abc import Sequence
 
-from pddlsim.rsp.client import DeadEndAction, SimulationAction, SimulationClient
+from pddlsim.rsp.client import (
+    DeadEndAction,
+    SimulationAction,
+    SimulationClient,
+    with_no_initializer,
+)
 from pddlsim.simulation import GroundedAction
 
 
@@ -21,3 +26,6 @@ async def get_next_action(simulation: SimulationClient) -> SimulationAction:
             return options[0]
         case _:
             return pick_grounded_action(options)
+
+
+initializer = with_no_initializer(get_next_action)

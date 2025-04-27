@@ -6,16 +6,13 @@ import cbor2
 from pddlsim.rsp.message import (
     Custom,
     Error,
-    ErrorReason,
+    Message,
     Payload,
-    ReasonString,
-    RSPVersion,
     TerminationPayload,
     TerminationSource,
-    deserialize_message,
 )
 
-RSP_VERSION = RSPVersion(1)
+RSP_VERSION = 1
 
 MAXIMUM_VALUE_BITS_BYTES = 4
 
@@ -33,7 +30,7 @@ class SessionTermination(Exception):
         self.source = source
 
     def __str__(self):
-        description = str(self.termination_payload)
+        description = self.termination_payload.description()
 
         match self.source:
             case TerminationSource.INTERNAL:
@@ -49,8 +46,8 @@ class RSPMessageBridge:
         self.reader = reader
         self.writer = writer
 
-    async def send_message(self, message: Payload) -> None:
-        serialized_message = message.serialize()
+    async def send_message(self, payload: Payload) -> None:
+        serialized_message = Message(payload).serialize()
         logging.info(f"sending: {serialized_message}")
 
         data = cbor2.dumps(serialized_message)
@@ -65,7 +62,7 @@ class RSPMessageBridge:
                 TerminationSource.EXTERNAL,
             ) from exception
 
-    async def receive_message(self) -> Payload:
+    async def receive_payload(self) -> Payload:
         try:
             byte_size = int.from_bytes(
                 await self.reader.readexactly(MAXIMUM_VALUE_BITS_BYTES)
@@ -80,7 +77,7 @@ class RSPMessageBridge:
         serialized_message = cbor2.loads(value_bytes)
         logging.info(f"receiving: {serialized_message}")
 
-        message = deserialize_message(serialized_message)
+        message = Message.deserialize(serialized_message).payload
 
         if isinstance(message, TerminationPayload):
             raise SessionTermination(message, TerminationSource.EXTERNAL)
@@ -88,9 +85,9 @@ class RSPMessageBridge:
         return message
 
     async def error(
-        self, source: TerminationSource, reason: ReasonString | None
+        self, source: TerminationSource, reason: str | None
     ) -> SessionTermination:
-        error_message = Error(ErrorReason(source, reason))
+        error_message = Error(source, reason)
 
         await self.send_message(error_message)
 

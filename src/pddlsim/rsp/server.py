@@ -11,7 +11,6 @@ from pddlsim.rsp import (
 )
 from pddlsim.rsp.message import (
     Error,
-    ErrorReason,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GoalReached,
@@ -21,7 +20,7 @@ from pddlsim.rsp.message import (
     PerformGroundedActionRequest,
     PerformGroundedActionResponse,
     ProblemSetupRequest,
-    ReasonString,
+    ProblemSetupResponse,
     SessionSetupRequest,
     SessionSetupResponse,
     SessionUnsupported,
@@ -33,7 +32,7 @@ from pddlsim.simulation import GroundedAction, Simulation
 async def _receive_message[T: Payload](
     expected_message_type: type[T], bridge: RSPMessageBridge
 ) -> T:
-    message = await bridge.receive_message()
+    message = await bridge.receive_payload()
 
     if not isinstance(message, expected_message_type):
         raise SessionTermination(
@@ -47,7 +46,7 @@ async def _receive_message[T: Payload](
 async def _start_session(bridge: RSPMessageBridge) -> None:
     message = await _receive_message(SessionSetupRequest, bridge)
 
-    if message.payload != RSP_VERSION:
+    if message.supported_rsp_version != RSP_VERSION:
         session_unsupported = SessionUnsupported()
 
         await bridge.send_message(session_unsupported)
@@ -62,8 +61,7 @@ async def _start_session(bridge: RSPMessageBridge) -> None:
 async def _problem_setup(
     simulation: Simulation, bridge: RSPMessageBridge
 ) -> None:
-    # TODO: Figure out exactly how this is going to be done
-    raise NotImplementedError
+    await bridge.send_message(ProblemSetupResponse("", ""))
 
 
 async def _perception(simulation: Simulation, bridge: RSPMessageBridge) -> None:
@@ -96,7 +94,7 @@ async def _handle_requests(
     bridge: RSPMessageBridge,
 ) -> NoReturn:
     while not simulation.is_solved():
-        request = await bridge.receive_message()
+        request = await bridge.receive_payload()
 
         match request:
             case ProblemSetupRequest():
@@ -105,21 +103,17 @@ async def _handle_requests(
                 await _perception(simulation, bridge)
             case GetGroundedActionsRequest():
                 await _get_grounded_actions(simulation, bridge)
-            case PerformGroundedActionRequest(payload=payload):
+            case PerformGroundedActionRequest(grounded_action):
                 await _perform_grounded_action(
-                    payload,
+                    grounded_action,
                     simulation,
                     bridge,
                 )
             case _:
                 raise SessionTermination(
                     Error(
-                        ErrorReason(
-                            TerminationSource.EXTERNAL,
-                            ReasonString(
-                                f"expected request, got {request.name()}"
-                            ),
-                        )
+                        TerminationSource.EXTERNAL,
+                        f"expected request, got {request.type()}",
                     ),
                     TerminationSource.INTERNAL,
                 )
@@ -152,14 +146,10 @@ async def _operate_session(
 
         await bridge.send_message(
             Error(
-                ErrorReason(
-                    TerminationSource.INTERNAL,
-                    ReasonString(
-                        exception_reason
-                        if exception_reason
-                        else str(type(exception).__name__)
-                    ),
-                )
+                TerminationSource.INTERNAL,
+                exception_reason
+                if exception_reason
+                else str(type(exception).__name__),
             )
         )
 
