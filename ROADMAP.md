@@ -21,7 +21,7 @@
 - full protocol to manage a simulator with access to a set of problems? (Not really needed, one can run multiple servers, but maybe add code to make running a multi-server easier)
 - report cards, and maybe a more general framework for summary statistics
 - a more efficient implementation for "get grounded actions" (successor generation) is possible using database theory and query optimization.
-  - The gist of it is compiling a precondition into a set of conjunctive queries with negation, and then running these efficiently using join algorithms and filtering for the negations (whenever possible).
-  - Good fit for a student interested in these topics.
-  - An implementation should probably use FFI. If using Rust, consider Maturin!
+    - The gist of it is compiling a precondition into a set of conjunctive queries with negation, and then running these efficiently using join algorithms and filtering for the negations (whenever possible).
+    - Good fit for a student interested in these topics.
+    - An implementation should probably use FFI. If using Rust, consider Maturin!
 
