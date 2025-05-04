@@ -5,6 +5,7 @@ from collections.abc import (
     Mapping,
 )
 from dataclasses import dataclass
+from functools import cached_property
 from random import Random
 from typing import TypedDict, cast
 
@@ -164,14 +165,44 @@ class Simulation:
     _rng: Random
     _state: SimulationState
 
-    _object_name_id_allocator: IDAllocator[Object]
-    _predicate_id_allocator: IDAllocator[Identifier]
-    _type_name_id_allocator: IDAllocator[Type]
+    @cached_property
+    def _object_name_id_allocator(self) -> IDAllocator[Object]:
+        return IDAllocator(ObjectNameID)
 
-    _objects_asp_part: ASPPart
-    _action_definition_asp_parts: Mapping[
-        Identifier, tuple[ASPPart, IDAllocator[Variable]]
-    ]
+    @cached_property
+    def _predicate_id_allocator(self) -> IDAllocator[Identifier]:
+        return IDAllocator(PredicateID)
+
+    @cached_property
+    def _type_name_id_allocator(self) -> IDAllocator[Type]:
+        return IDAllocator(TypeNameID)
+
+    @cached_property
+    def _objects_asp_part(self) -> ASPPart:
+        return objects_asp_part(
+            self.domain,
+            self.problem,
+            self._object_name_id_allocator,
+            self._type_name_id_allocator,
+        )
+
+    @cached_property
+    def _action_definition_asp_parts(
+        self,
+    ) -> Mapping[Identifier, tuple[ASPPart, IDAllocator[Variable]]]:
+        return {
+            action_definition.name: (
+                action_definition_asp_part(
+                    action_definition,
+                    variable_id_allocator := IDAllocator[Variable](VariableID),
+                    self._object_name_id_allocator,
+                    self._predicate_id_allocator,
+                    self._type_name_id_allocator,
+                ),
+                variable_id_allocator,
+            )
+            for action_definition in self.domain.action_definitions.values()
+        }
 
     @classmethod
     def from_domain_and_problem(
@@ -181,43 +212,20 @@ class Simulation:
         state_override: SimulationState | None = None,
         seed: int | float | str | bytes | bytearray | None = None,
     ) -> "Simulation":
-        object_name_id_allocator = IDAllocator[Object](ObjectNameID)
-        predicate_id_allocator = IDAllocator[Identifier](PredicateID)
-        type_name_id_allocator = IDAllocator[Type](TypeNameID)
-
         return Simulation(
             domain,
             problem,
+            # Technically speaking, the seed could be cracked under very
+            # specific circumstances (system time is known and is used
+            # for randomness), but in practice, this is fine, and shouldn't
+            # be exploited.
             Random(seed),
-            state_override
+            # Internally, we mutate the state, so copying is needed
+            state_override._copy()
             if state_override
             else SimulationState(
                 {true_predicate for true_predicate in problem.initialization}
             ),
-            object_name_id_allocator,
-            predicate_id_allocator,
-            type_name_id_allocator,
-            objects_asp_part(
-                domain,
-                problem,
-                object_name_id_allocator,
-                type_name_id_allocator,
-            ),
-            {
-                action_definition.name: (
-                    action_definition_asp_part(
-                        action_definition,
-                        variable_id_allocator := IDAllocator[Variable](
-                            VariableID
-                        ),
-                        object_name_id_allocator,
-                        predicate_id_allocator,
-                        type_name_id_allocator,
-                    ),
-                    variable_id_allocator,
-                )
-                for action_definition in domain.action_definitions.values()
-            },
         )
 
     @property
