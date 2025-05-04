@@ -1,15 +1,18 @@
 import asyncio
 import logging
+import os
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import NoReturn
 
 from pddlsim.ast import Domain, Problem
-from pddlsim.rsp import (
+from pddlsim.parser import parse_domain_problem_pair_from_files
+from pddlsim.remote import (
     RSP_VERSION,
-    RSPMessageBridge,
     SessionTermination,
+    _RSPMessageBridge,
 )
-from pddlsim.rsp.message import (
+from pddlsim.remote._message import (
     Error,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
@@ -30,7 +33,7 @@ from pddlsim.simulation import GroundedAction, Simulation
 
 
 async def _receive_message[T: Payload](
-    expected_message_type: type[T], bridge: RSPMessageBridge
+    expected_message_type: type[T], bridge: _RSPMessageBridge
 ) -> T:
     message = await bridge.receive_payload()
 
@@ -43,7 +46,7 @@ async def _receive_message[T: Payload](
     return message
 
 
-async def _start_session(bridge: RSPMessageBridge) -> None:
+async def _start_session(bridge: _RSPMessageBridge) -> None:
     message = await _receive_message(SessionSetupRequest, bridge)
 
     if message.supported_rsp_version != RSP_VERSION:
@@ -59,19 +62,23 @@ async def _start_session(bridge: RSPMessageBridge) -> None:
 
 
 async def _problem_setup(
-    simulation: Simulation, bridge: RSPMessageBridge
+    simulation: Simulation, bridge: _RSPMessageBridge
 ) -> None:
-    await bridge.send_message(ProblemSetupResponse("", ""))
+    await bridge.send_message(
+        ProblemSetupResponse(simulation.domain, simulation.problem)
+    )
 
 
-async def _perception(simulation: Simulation, bridge: RSPMessageBridge) -> None:
+async def _perception(
+    simulation: Simulation, bridge: _RSPMessageBridge
+) -> None:
     await bridge.send_message(
         PerceptionResponse(list(simulation.state.true_predicates()))
     )
 
 
 async def _get_grounded_actions(
-    simulation: Simulation, bridge: RSPMessageBridge
+    simulation: Simulation, bridge: _RSPMessageBridge
 ) -> None:
     await bridge.send_message(
         GetGroundedActionsResponse(list(simulation.get_grounded_actions()))
@@ -81,7 +88,7 @@ async def _get_grounded_actions(
 async def _perform_grounded_action(
     grounded_action: GroundedAction,
     simulation: Simulation,
-    bridge: RSPMessageBridge,
+    bridge: _RSPMessageBridge,
 ) -> None:
     simulation.apply_grounded_action(grounded_action)
 
@@ -91,7 +98,7 @@ async def _perform_grounded_action(
 
 async def _handle_requests(
     simulation: Simulation,
-    bridge: RSPMessageBridge,
+    bridge: _RSPMessageBridge,
 ) -> NoReturn:
     while not simulation.is_solved():
         request = await bridge.receive_payload()
@@ -127,7 +134,7 @@ async def _operate_session(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> SessionTermination:
-    bridge = RSPMessageBridge(reader, writer)
+    bridge = _RSPMessageBridge(reader, writer)
 
     try:
         simulation = Simulation.from_domain_and_problem(domain, problem)
@@ -138,7 +145,7 @@ async def _operate_session(
         logging.info(str(termination))
 
         if termination.source is TerminationSource.INTERNAL:
-            await bridge.send_message(termination.termination_payload)
+            await bridge.send_message(termination._termination_payload)
 
         return termination
     except Exception as exception:
@@ -167,12 +174,63 @@ def _server_constructor(
     return _serve
 
 
+@dataclass(frozen=True)
+class _SimulationServer:
+    domain: Domain
+    problem: Problem
+    _server: asyncio.Server
+
+    @classmethod
+    async def from_host_and_port(
+        cls,
+        domain: Domain,
+        problem: Problem,
+        host: str,
+        port: int | None = None,
+    ) -> "_SimulationServer":
+        server = await asyncio.start_server(
+            _server_constructor(domain, problem), host, port
+        )
+
+        return _SimulationServer(domain, problem, server)
+
+    @property
+    def host(self) -> str:
+        return self._server.sockets[0].getsockname()[0]
+
+    @property
+    def port(self) -> int:
+        return self._server.sockets[0].getsockname()[1]
+
+    async def serve(self) -> NoReturn:
+        async with self._server:
+            await self._server.serve_forever()
+
+        raise AssertionError("serve must never end normally")
+
+
 async def start_simulation_server(
     domain: Domain, problem: Problem, host: str, port: int | None = None
 ) -> None:
-    server = await asyncio.start_server(
-        _server_constructor(domain, problem), host, port
+    server = await _SimulationServer.from_host_and_port(
+        domain, problem, host, port
     )
 
-    async with server:
-        await server.serve_forever()
+    await server.serve()
+
+
+async def start_simulation_server_from_files(
+    domain_path: str | os.PathLike,
+    problem_path: str | os.PathLike,
+    host: str,
+    port: int | None = None,
+) -> None:
+    domain, problem = parse_domain_problem_pair_from_files(
+        domain_path, problem_path
+    )
+
+    server = await _SimulationServer.from_host_and_port(
+        domain, problem, host, port
+    )
+
+    await server.serve()

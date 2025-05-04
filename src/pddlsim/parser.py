@@ -29,7 +29,7 @@ from pddlsim.ast import (
     PredicateDefinition,
     ProbabilisticEffect,
     Problem,
-    RawProblemParts,
+    RawProblem,
     Requirement,
     RequirementSet,
     Type,
@@ -248,8 +248,8 @@ class PDDLTransformer(Transformer):
         objects: list[Typed[Object]] | None,
         initialization: list[Predicate[Object]],
         goal_condition: Condition[Object],
-    ) -> RawProblemParts:
-        return RawProblemParts(
+    ) -> RawProblem:
+        return RawProblem.from_raw_parts(
             name,
             used_domain_name,
             objects if objects else [],
@@ -273,9 +273,9 @@ def parse_domain(text: str) -> Domain:
 
 
 def parse_problem(text: str, domain: Domain) -> Problem:
-    return Problem.from_raw_parts(
+    return Problem(
         cast(
-            RawProblemParts,
+            RawProblem,
             _PDDL_PARSER.parse(text, "problem"),
         ),
         domain,
@@ -301,7 +301,7 @@ def parse_problem_from_file(path: str | os.PathLike, domain: Domain) -> Problem:
         return parse_problem(file.read(), domain)
 
 
-def parse_domain_problem_pair_from_file(
+def parse_domain_problem_pair_from_files(
     domain_path: str | os.PathLike, problem_path: str | os.PathLike
 ) -> tuple[Domain, Problem]:
     domain = parse_domain_from_file(domain_path)

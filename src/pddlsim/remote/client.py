@@ -3,12 +3,13 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import NoReturn
 
-from pddlsim.rsp import (
+from pddlsim.ast import Domain, Problem
+from pddlsim.remote import (
     RSP_VERSION,
-    RSPMessageBridge,
     SessionTermination,
+    _RSPMessageBridge,
 )
-from pddlsim.rsp.message import (
+from pddlsim.remote._message import (
     Error,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
@@ -31,12 +32,12 @@ class SimulationClient:
     def __init__(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        self._bridge = RSPMessageBridge(
+        self._bridge = _RSPMessageBridge(
             reader,
             writer,
         )
 
-        self._domain_problem_pair: tuple[str, str] | None = None
+        self._domain_problem_pair: tuple[Domain, Problem] | None = None
         self._state: SimulationState | None = None
         self._grounded_actions: list[GroundedAction] | None = None
 
@@ -72,7 +73,7 @@ class SimulationClient:
         self, termination: SessionTermination
     ) -> NoReturn:
         if termination.source is TerminationSource.INTERNAL:
-            await self._send_message(termination.termination_payload)
+            await self._send_message(termination._termination_payload)
 
         self._termination = termination
 
@@ -90,7 +91,7 @@ class SimulationClient:
 
         _message = await self._receive_payload(SessionSetupResponse)
 
-    async def _get_problem_setup(self) -> tuple[str, str]:
+    async def _get_problem_setup(self) -> tuple[Domain, Problem]:
         self._assert_unterminated()
 
         if not self._domain_problem_pair:
@@ -105,11 +106,11 @@ class SimulationClient:
 
         return self._domain_problem_pair
 
-    async def get_domain(self) -> str:
+    async def get_domain(self) -> Domain:
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[0]
 
-    async def get_problem(self) -> str:
+    async def get_problem(self) -> Problem:
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[1]
 

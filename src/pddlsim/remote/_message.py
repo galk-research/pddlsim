@@ -1,7 +1,6 @@
+import inspect
 from abc import abstractmethod
-from collections.abc import MutableMapping
 from dataclasses import dataclass
-from inspect import isabstract
 from typing import Any, Self, TypedDict
 
 from koda_validate import (
@@ -16,17 +15,21 @@ from koda_validate import (
     Validator,
 )
 
-from pddlsim.ast import Object, Predicate
-from pddlsim.rsp.serde import Serdeable, SerdeableEnum
+from pddlsim._serde import (
+    Serdeable,
+    SerdeableEnum,
+)
+from pddlsim.ast import Domain, Object, Predicate, Problem
+from pddlsim.parser import parse_domain_problem_pair
 from pddlsim.simulation import GroundedAction
 
 
 class Payload[T](Serdeable[T]):
-    payloads: MutableMapping[str, type["Payload"]] = {}
+    payloads: dict[str, type["Payload"]] = {}
 
-    def __init_subclass__(cls: type["Payload"]) -> None:
-        if not isabstract(cls):
-            Payload.payloads[cls.type()] = cls
+    def __init_subclass__(cls) -> None:
+        if not inspect.isabstract(cls):
+            cls.payloads[cls.type()] = cls
 
         super().__init_subclass__()
 
@@ -37,7 +40,7 @@ class Payload[T](Serdeable[T]):
 
 
 @dataclass(frozen=True)
-class SessionSetupRequest(Payload):
+class SessionSetupRequest(Payload[int]):
     supported_rsp_version: int
 
     def serialize(self) -> int:
@@ -82,26 +85,35 @@ class ProblemSetupRequest(EmptyPayload):
         return "problem-setup-request"
 
 
-class DomainProblemPair(TypedDict):
+class SerializedProblemSetupResponse(TypedDict):
     domain: str
     problem: str
 
 
 @dataclass(frozen=True)
-class ProblemSetupResponse(Payload[DomainProblemPair]):
-    domain: str
-    problem: str
+class ProblemSetupResponse(Payload[SerializedProblemSetupResponse]):
+    domain: Domain
+    problem: Problem
 
-    def serialize(self) -> DomainProblemPair:
-        return DomainProblemPair(domain=self.domain, problem=self.problem)
+    def serialize(self) -> SerializedProblemSetupResponse:
+        return SerializedProblemSetupResponse(
+            domain=repr(self.domain),
+            problem=repr(self.problem),
+        )
 
     @classmethod
-    def validator(cls) -> Validator[DomainProblemPair]:
-        return TypedDictValidator(DomainProblemPair)
+    def validator(cls) -> Validator[SerializedProblemSetupResponse]:
+        return TypedDictValidator(SerializedProblemSetupResponse)
 
     @classmethod
-    def create(cls, value: DomainProblemPair) -> "ProblemSetupResponse":
-        return ProblemSetupResponse(value["domain"], value["problem"])
+    def create(
+        cls, value: SerializedProblemSetupResponse
+    ) -> "ProblemSetupResponse":
+        domain, problem = parse_domain_problem_pair(
+            value["domain"], value["problem"]
+        )
+
+        return ProblemSetupResponse(domain, problem)
 
     @classmethod
     def type(cls) -> str:
@@ -331,26 +343,26 @@ class Custom(TerminationPayload[str | None]):
         return self.reason if self.reason else "unknown"
 
 
-class TypePayloadPair(TypedDict):
+class SerializedMessage(TypedDict):
     type: str
     payload: Any
 
 
 @dataclass(frozen=True)
-class Message(Serdeable[TypePayloadPair]):
+class Message(Serdeable[SerializedMessage]):
     payload: Payload
 
-    def serialize(self) -> TypePayloadPair:
-        return TypePayloadPair(
+    def serialize(self) -> SerializedMessage:
+        return SerializedMessage(
             type=self.payload.type(), payload=self.payload.serialize()
         )
 
     @classmethod
-    def validator(cls) -> Validator[TypePayloadPair]:
-        return TypedDictValidator(TypePayloadPair)
+    def validator(cls) -> Validator[SerializedMessage]:
+        return TypedDictValidator(SerializedMessage)
 
     @classmethod
-    def create(cls, value: TypePayloadPair) -> "Message":
+    def create(cls, value: SerializedMessage) -> "Message":
         return Message(
             Payload.payloads[value["type"]].deserialize(value["payload"])
         )

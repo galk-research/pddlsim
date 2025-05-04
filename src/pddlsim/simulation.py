@@ -11,6 +11,7 @@ from typing import TypedDict, cast
 from clingo import Control
 from koda_validate import TypedDictValidator, Validator
 
+from pddlsim._serde import Serdeable
 from pddlsim.asp import (
     ASPPart,
     ASPPartKind,
@@ -43,7 +44,6 @@ from pddlsim.ast import (
     Type,
     Variable,
 )
-from pddlsim.rsp.serde import Serdeable
 from pddlsim.state import SimulationState
 
 
@@ -213,6 +213,14 @@ class Simulation:
                 for action_definition in domain.action_definitions.values()
             },
         )
+
+    @property
+    def domain(self) -> Domain:
+        return self._domain
+
+    @property
+    def problem(self) -> Problem:
+        return self._problem
 
     @property
     def state(self) -> SimulationState:

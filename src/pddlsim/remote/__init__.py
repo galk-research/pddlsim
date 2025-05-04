@@ -3,9 +3,10 @@ import logging
 
 import cbor2
 
-from pddlsim.rsp.message import (
+from pddlsim.remote._message import (
     Custom,
     Error,
+    GoalReached,
     Message,
     Payload,
     TerminationPayload,
@@ -26,11 +27,21 @@ class SessionTermination(Exception):
     ) -> None:
         super().__init__(termination_payload, *args)
 
-        self.termination_payload = termination_payload
+        self._termination_payload = termination_payload
         self.source = source
 
+    def is_goal_reached(self) -> bool:
+        return isinstance(self._termination_payload, GoalReached)
+
+    def is_error(self) -> bool:
+        return isinstance(self._termination_payload, Error)
+
+    @property
+    def payload(self) -> TerminationPayload:
+        return self._termination_payload
+
     def __str__(self):
-        description = self.termination_payload.description()
+        description = self._termination_payload.description()
 
         match self.source:
             case TerminationSource.INTERNAL:
@@ -39,7 +50,7 @@ class SessionTermination(Exception):
                 return f"session terminated externally: {description}"
 
 
-class RSPMessageBridge:
+class _RSPMessageBridge:
     def __init__(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:

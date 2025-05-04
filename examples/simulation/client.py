@@ -3,11 +3,12 @@ import logging
 import random
 from dataclasses import dataclass
 
-import pddlsim.rsp.client
-from pddlsim.rsp.client import (
+from pddlsim.remote.client import (
+    GiveUpAction,
     NextActionGetter,
     SimulationAction,
     SimulationClient,
+    act_in_simulation,
 )
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,7 +22,7 @@ class Agent:
 
     async def get_next_action(self) -> SimulationAction:
         if self.steps >= self.configuration.max_steps:
-            return pddlsim.rsp.client.GiveUpAction("max steps reached")
+            return GiveUpAction("max steps reached")
 
         self.steps += 1
 
@@ -45,7 +46,7 @@ class AgentConfiguration:
 
 async def main() -> None:
     port = int(input("What port to connect to? (0-65535): "))
-    termination = await pddlsim.rsp.client.act_in_simulation(
+    termination = await act_in_simulation(
         "127.0.0.1",
         port,
         AgentConfiguration(300).initialize,
@@ -54,4 +55,7 @@ async def main() -> None:
     print(f"Finished with: {termination}")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
+    asyncio.run(main())

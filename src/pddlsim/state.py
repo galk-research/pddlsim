@@ -18,7 +18,7 @@ from pddlsim.ast import (
 )
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class SimulationState:
     """
     Stores a state of the simulation, which is based on classical PDDL.
@@ -27,7 +27,13 @@ class SimulationState:
 
     _true_predicates: MutableSet[Predicate[Object]] = field(default_factory=set)
 
-    def does_atom_hold(self, atom: Atom[Object]) -> bool:
+    def _copy(self) -> "SimulationState":
+        """
+        Returns a copy of the current state.
+        """
+        return SimulationState(set(self._true_predicates))
+
+    def _does_atom_hold(self, atom: Atom[Object]) -> bool:
         match atom:
             case Predicate():
                 return atom in self._true_predicates
@@ -58,7 +64,7 @@ class SimulationState:
             case EqualityCondition(left_side, right_side):
                 return left_side == right_side
             case Predicate():
-                return self.does_atom_hold(condition)
+                return self._does_atom_hold(condition)
 
     def _make_effect_hold(self, effect: Effect[Object], rng: Random) -> None:
         match effect:
@@ -69,6 +75,15 @@ class SimulationState:
                 self._make_effect_hold(effect.choose_possibility(rng), rng)
             case Predicate() | NotPredicate():
                 self._make_atom_hold(effect)
+
+    def make_effect_hold(
+        self, effect: Effect[Object], rng: Random
+    ) -> "SimulationState":
+        new_state = self._copy()
+
+        new_state._make_effect_hold(effect, rng)
+
+        return new_state
 
     def true_predicates(self) -> Iterable[Predicate[Object]]:
         return iter(self._true_predicates)

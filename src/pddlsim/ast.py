@@ -5,19 +5,18 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Set
 from dataclasses import InitVar, dataclass, field
 from decimal import Decimal
+from enum import StrEnum
 from random import Random
 from typing import Any, TypedDict
 
 from koda_validate import (
-    AlwaysValid,
-    ListValidator,
     StringValidator,
     TypedDictValidator,
     Validator,
 )
 from lark.lexer import Token
 
-from pddlsim.rsp.serde import Serdeable, SerdeableEnum
+from pddlsim._serde import Serdeable
 
 
 class Location(ABC):
@@ -79,16 +78,19 @@ class Locationed(ABC):
         return self.location.as_str_with_value(self.as_str_without_location())
 
 
-class Requirement(SerdeableEnum):
+class Requirement(StrEnum):
     STRIPS = ":strips"
     TYPING = ":typing"
     DISJUNCTIVE_PRECONDITIONS = ":disjunctive-preconditions"
     EQUALITY = ":equality"
     PROBABILISTIC_EFFECTS = ":probabilistic-effects"
 
+    def __repr__(self) -> str:
+        return self.value
+
 
 @dataclass(frozen=True)
-class RequirementSet(Serdeable[list[Any]], Locationed):
+class RequirementSet(Locationed):
     requirements: set[Requirement]
 
     @classmethod
@@ -122,16 +124,8 @@ class RequirementSet(Serdeable[list[Any]], Locationed):
     def as_str_without_location(self) -> str:
         return "requirements section"
 
-    def serialize(self) -> list[Any]:
-        return [requirement.serialize() for requirement in self.requirements]
-
-    @classmethod
-    def validator(cls) -> Validator[list[Any]]:
-        return ListValidator(AlwaysValid())
-
-    @classmethod
-    def create(cls, value: list[Any]) -> "RequirementSet":
-        return RequirementSet({Requirement.deserialize(item) for item in value})
+    def __repr__(self) -> str:
+        return f"(:requirements {' '.join(map(repr, self.requirements))})"
 
 
 @dataclass(frozen=True)
@@ -152,36 +146,51 @@ class Identifier(Locationed, Serdeable[str]):
     def as_str_without_location(self) -> str:
         return self.value
 
+    def __repr__(self) -> str:
+        return self.as_str_without_location()
+
 
 @dataclass(frozen=True)
 class Variable(Identifier):
-    def as_str(self) -> str:
+    def as_str_without_location(self) -> str:
         return f"?{self.value}"
+
+    def __repr__(self) -> str:
+        return self.as_str_without_location()
 
 
 @dataclass(frozen=True)
 class CustomType(Identifier):
-    pass
+    def __repr__(self) -> str:
+        return self.value
 
 
 @dataclass(eq=True, frozen=True)
 class ObjectType:
-    def as_str(self) -> str:
+    def __repr__(self) -> str:
         return "object"
 
 
-Type = CustomType | ObjectType
+type Type = CustomType | ObjectType
 
 
 @dataclass(frozen=True)
 class Object(Identifier):
-    pass
+    def __repr__(self) -> str:
+        return self.value
 
 
 @dataclass(eq=True, frozen=True)
 class Typed[T]:
     value: T
     type: Type
+
+    def __repr__(self) -> str:
+        return f"{repr(self.value)} - {repr(self.type)}"
+
+
+def _as_typed_iter[T](mapping: Mapping[T, Type]) -> Iterator[Typed[T]]:
+    return (Typed(value, type) for value, type in mapping.items())
 
 
 @dataclass(frozen=True)
@@ -211,18 +220,12 @@ class TypeHierarchy(Locationed):
         return result
 
     def __iter__(self) -> Iterator[Typed[CustomType]]:
-        return (
-            Typed(subtype, supertype)
-            for subtype, supertype in self._supertypes.items()
-        )
+        return _as_typed_iter(self._supertypes)
 
     def supertype(self, custom_type: CustomType) -> Type:
         return self._supertypes[custom_type]
 
     def is_compatible(self, test_type: Type, tester_type: Type) -> bool:
-        # Technically speaking `is_compatible` implements the transitive closure
-        # of a DAG. Usually this DAG is fairly shallow, and so performance
-        # should be fine. Still, this could use some work.
         if test_type == tester_type:
             return True
         elif isinstance(test_type, CustomType):
@@ -235,6 +238,9 @@ class TypeHierarchy(Locationed):
 
     def as_str_without_location(self) -> str:
         return "types section"
+
+    def __repr__(self) -> str:
+        return f"(:types {' '.join(map(repr, self._supertypes))})"
 
 
 @dataclass(frozen=True)
@@ -270,6 +276,9 @@ class PredicateDefinition:
                     f"parameter {parameter.value} of predicate definition {self.name} is of undefined type {parameter.type}"  # noqa: E501
                 )
 
+    def __repr__(self) -> str:
+        return f"({repr(self.name)} {' '.join(map(repr, self.parameters))})"
+
 
 type Argument = Variable | Object
 
@@ -294,6 +303,9 @@ class AndCondition[A: Argument]:
                 type_hierarchy,
                 requirements,
             )
+
+    def __repr__(self) -> str:
+        return f"(and {' '.join(map(repr, self.subconditions))})"
 
 
 @dataclass(frozen=True)
@@ -325,6 +337,9 @@ class OrCondition[A: Argument](Locationed):
     def as_str_without_location(self) -> str:
         return "disjunction"
 
+    def __repr__(self) -> str:
+        return f"(or {' '.join(map(repr, self.subconditions))})"
+
 
 @dataclass(frozen=True)
 class NotCondition[A: Argument]:
@@ -345,6 +360,9 @@ class NotCondition[A: Argument]:
             type_hierarchy,
             requirements,
         )
+
+    def __repr__(self) -> str:
+        return f"(not {repr(self.base_condition)})"
 
 
 @dataclass(frozen=True)
@@ -384,43 +402,19 @@ class EqualityCondition[A: Argument](Locationed):
     def as_str_without_location(self) -> str:
         return "equality predicate"
 
+    def __repr__(self) -> str:
+        return f"(= {repr(self.left_side)} {repr(self.right_side)})"
 
-class PredicateAssignmentPair(TypedDict):
-    name: str
-    assignment: list[str]
+
+class SerializedPredicate(TypedDict):
+    name: Any
+    assignment: list[Any]
 
 
 @dataclass(frozen=True)
-class Predicate[A: Argument](Serdeable[PredicateAssignmentPair]):
+class Predicate[A: Argument](Serdeable[SerializedPredicate]):
     name: Identifier
     assignment: tuple[A, ...]
-
-    def serialize(self) -> PredicateAssignmentPair:
-        return PredicateAssignmentPair(
-            name=self.name.value,
-            assignment=[argument.value for argument in self.assignment],
-        )
-
-    @classmethod
-    def validator(cls) -> Validator[PredicateAssignmentPair]:
-        return TypedDictValidator(PredicateAssignmentPair)
-
-    @classmethod
-    def create(cls, value: PredicateAssignmentPair) -> "Predicate[A]":
-        return Predicate(
-            Identifier(value["name"]),
-            tuple(Object.deserialize(item) for item in value["assignment"]),
-        )
-
-    def __str__(self) -> str:
-        result = f"({self.name}"
-
-        for argument in self.assignment:
-            result += f" {argument}"
-
-        result += ")"
-
-        return result
 
     def _validate(
         self,
@@ -459,6 +453,29 @@ class Predicate[A: Argument](Serdeable[PredicateAssignmentPair]):
                     f"argument {argument} in {self.name} is of type {argument_type}, but is supposed to be of type {parameter.type}"  # noqa: E501
                 )
 
+    def serialize(self) -> SerializedPredicate:
+        return SerializedPredicate(
+            name=self.name.serialize(),
+            assignment=[argument.serialize() for argument in self.assignment],
+        )
+
+    @classmethod
+    def validator(cls) -> Validator[SerializedPredicate]:
+        return TypedDictValidator(SerializedPredicate)
+
+    @classmethod
+    def create(cls, value: SerializedPredicate) -> "Predicate[A]":
+        return Predicate(
+            Identifier.deserialize(value["name"]),
+            tuple(
+                Object.deserialize(argument)  # type: ignore
+                for argument in value["assignment"]
+            ),
+        )
+
+    def __repr__(self) -> str:
+        return f"({repr(self.name)} {' '.join(map(repr, self.assignment))})"
+
 
 type Condition[A: Argument] = (
     AndCondition[A]
@@ -489,6 +506,9 @@ class NotPredicate[A: Argument]:
             requirements,
         )
 
+    def __repr__(self) -> str:
+        return f"(not {repr(self.base_predicate)})"
+
 
 type Atom[A: Argument] = Predicate[A] | NotPredicate[A]
 
@@ -513,6 +533,9 @@ class AndEffect[A: Argument]:
                 type_hierarchy,
                 requirements,
             )
+
+    def __repr__(self) -> str:
+        return f"(and {' '.join(map(repr, self.subeffects))})"
 
 
 @dataclass(frozen=True)
@@ -594,6 +617,25 @@ class ProbabilisticEffect[A: Argument](Locationed):
     def as_str_without_location(self) -> str:
         return "probabilistic effect"
 
+    def __iter__(self) -> Iterator[tuple[Decimal, "Effect[A]"]]:
+        probabilities = itertools.chain(
+            (self._cummulative_probabilities[0],),
+            (
+                b - a
+                for a, b in itertools.pairwise(self._cummulative_probabilities)
+            ),
+        )
+
+        return zip(probabilities, self._possible_effects, strict=True)
+
+    def __repr__(self) -> str:
+        def repr_subeffect(
+            pair: tuple[Decimal, "Effect[A]"],
+        ) -> str:
+            return f"{pair[0]} {repr(pair[1])}"
+
+        return f"(probabilistic {' '.join(map(repr_subeffect, self))})"
+
 
 type Effect[A: Argument] = AndEffect[A] | ProbabilisticEffect[A] | Atom[A]
 
@@ -654,6 +696,12 @@ class ActionDefinition:
             type_hierarchy,
             requirements,
         )
+
+    def __repr__(self) -> str:
+        parameters = _as_typed_iter(self.variable_types)
+        parameters_section = f":parameters ({' '.join(map(repr, parameters))})"
+
+        return f"(:action {repr(self.name)} {parameters_section} :precondition {repr(self.precondition)} :effect {repr(self.effect)})"  # noqa: E501
 
 
 @dataclass(frozen=True)
@@ -761,34 +809,43 @@ class Domain:
         self._validate_predicate_definitions()
         self._validate_action_definitions()
 
+    def __repr__(self) -> str:
+        domain_name = f"(domain {repr(self.name)})"
+
+        predicate_definition_reprs = map(
+            repr, self.predicate_definitions.values()
+        )
+        predicates_setion = (
+            f"(:predicates {' '.join(predicate_definition_reprs)})"
+        )
+
+        action_definitions = " ".join(
+            map(repr, self.action_definitions.values())
+        )
+
+        return f"(define {domain_name} {repr(self.requirements)} {repr(self.type_hierarchy)} {predicates_setion} {action_definitions})"  # noqa: E501
+
 
 @dataclass(frozen=True)
-class RawProblemParts:
-    name: Identifier
-    used_domain_name: Identifier
-    objects: list[Typed[Object]]
-    initialization: list[Predicate[Object]]
-    goal_condition: Condition[Object]
-
-
-@dataclass(frozen=True)
-class Problem:
+class RawProblem:
     name: Identifier
     used_domain_name: Identifier
     object_types: Mapping[Object, Type]
     initialization: Set[Predicate[Object]]
     goal_condition: Condition[Object]
-    domain: InitVar[Domain]
 
     @classmethod
     def from_raw_parts(
         cls,
-        raw_parts: RawProblemParts,
-        domain: Domain,
-    ) -> "Problem":
+        name: Identifier,
+        used_domain_name: Identifier,
+        objects: list[Typed[Object]],
+        initialization: list[Predicate[Object]],
+        goal_condition: Condition[Object],
+    ) -> "RawProblem":
         object_types = {}
 
-        for object_ in raw_parts.objects:
+        for object_ in objects:
             if object_.value in object_types:
                 raise ValueError(
                     f"object {object_.value} is defined multiple times"
@@ -798,7 +855,7 @@ class Problem:
 
         true_predicates = set()
 
-        for predicate in raw_parts.initialization:
+        for predicate in initialization:
             if predicate in true_predicates:
                 raise ValueError(
                     f"predicate {predicate} appears in initialization multiple times"  # noqa: E501
@@ -806,14 +863,39 @@ class Problem:
 
             true_predicates.add(predicate)
 
-        return Problem(
-            raw_parts.name,
-            raw_parts.used_domain_name,
+        return RawProblem(
+            name,
+            used_domain_name,
             object_types,
             true_predicates,
-            raw_parts.goal_condition,
-            domain,
+            goal_condition,
         )
+
+
+@dataclass(frozen=True)
+class Problem:
+    _raw_problem: RawProblem
+    domain: InitVar[Domain]
+
+    @property
+    def name(self) -> Identifier:
+        return self._raw_problem.name
+
+    @property
+    def used_domain_name(self) -> Identifier:
+        return self._raw_problem.used_domain_name
+
+    @property
+    def object_types(self) -> Mapping[Object, Type]:
+        return self._raw_problem.object_types
+
+    @property
+    def initialization(self) -> Set[Predicate[Object]]:
+        return self._raw_problem.initialization
+
+    @property
+    def goal_condition(self) -> Condition[Object]:
+        return self._raw_problem.goal_condition
 
     def __post_init__(self, domain: Domain) -> None:
         self._validate(domain)
@@ -855,3 +937,18 @@ class Problem:
         self._validate_object_types(domain)
         self._validate_initialization(domain)
         self._validate_goal_condition(domain)
+
+    def __repr__(self) -> str:
+        problem_name = f"(problem {repr(self.name)})"
+        used_domain_name = f"(:domain {repr(self.used_domain_name)})"
+
+        object_type_pairs = _as_typed_iter(self.object_types)
+        objects_section = f"(:objects {' '.join(map(repr, object_type_pairs))})"
+
+        initialization_section = (
+            f"(:init {' '.join(map(repr, self.initialization))})"
+        )
+
+        goal_section = f"(:goal {repr(self.goal_condition)})"
+
+        return f"(define {problem_name} {used_domain_name} {objects_section} {initialization_section} {goal_section})"  # noqa: E501

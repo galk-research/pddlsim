@@ -1,4 +1,4 @@
-(define (domain gripper-strips)
+(define (domain gripper)
   (:requirements :equality :typing)
   (:types room ball gripper)
   (:predicates (at-robby ?r - room)

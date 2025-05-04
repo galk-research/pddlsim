@@ -2,7 +2,13 @@ from abc import ABC, ABCMeta, abstractmethod
 from enum import EnumType, StrEnum
 from typing import Any, Self
 
-from koda_validate import Choices, Invalid, StringValidator, Valid, Validator
+from koda_validate import (
+    Choices,
+    Invalid,
+    StringValidator,
+    Valid,
+    Validator,
+)
 
 
 class Serdeable[T](ABC):
@@ -21,13 +27,13 @@ class Serdeable[T](ABC):
         raise NotImplementedError
 
     @classmethod
-    def deserialize(cls, value: Any) -> Self:
-        match cls.validator()(value).map(cls.create):
+    def deserialize(cls, data: Any) -> Self:
+        match cls.validator()(data).map(cls.create):
             case Valid(deserialized_value):
                 return deserialized_value
             case Invalid():
                 raise ValueError(
-                    f"could not deserialize into {cls.__name__} from {value}"
+                    f"could not deserialize into {cls.__name__} from {data}"
                 )
 
 

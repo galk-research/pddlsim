@@ -1,22 +1,18 @@
 import asyncio
 import logging
 
-import pddlsim.rsp.server
-from pddlsim.parser import (
-    parse_domain_problem_pair_from_file,
-)
-
-logging.basicConfig(level=logging.DEBUG)
+import pddlsim.remote.server
 
 
 async def main() -> None:
-    await pddlsim.rsp.server.start_simulation_server(
-        *parse_domain_problem_pair_from_file(
-            "assets/problems/gripper/domain.pddl",
-            "assets/problems/gripper/instance.pddl",
-        ),
+    await pddlsim.remote.server.start_simulation_server_from_files(
+        "assets/problems/gripper/domain.pddl",
+        "assets/problems/gripper/instance.pddl",
         "127.0.0.1",
     )
 
 
-asyncio.run(main(), debug=True)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
+    asyncio.run(main(), debug=True)

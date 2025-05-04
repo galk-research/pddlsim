@@ -14,7 +14,7 @@ The simulator is run with PDDL[^1] domain and problem files. An agent can then c
 
 ## Documentation
 
-The documentation is maintained in the [PDDLSIM wiki](https://github.com/galk-research/pddlsim/wiki). To start, see [Getting Started](https://github.com/galk-research/pddlsim/wiki/Getting-Started). The documentation also includes usage guidelines, information about creating agents that interact with the simulator, and more.
+The documentation is maintained in the [PDDLSIM wiki](https://github.com/galk-research/pddlsim/wiki). To start, see [the tutorial](https://github.com/galk-research/pddlsim/wiki/Tutorial). The documentation also includes usage guidelines, information about creating agents that interact with the simulator, and more.
 
 ## Installation
 
