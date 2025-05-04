@@ -175,7 +175,11 @@ class Simulation:
 
     @classmethod
     def from_domain_and_problem(
-        cls, domain: Domain, problem: Problem, seed: int = 42
+        cls,
+        domain: Domain,
+        problem: Problem,
+        state_override: SimulationState | None = None,
+        seed: int | float | str | bytes | bytearray | None = None,
     ) -> "Simulation":
         object_name_id_allocator = IDAllocator[Object](ObjectNameID)
         predicate_id_allocator = IDAllocator[Identifier](PredicateID)
@@ -185,7 +189,9 @@ class Simulation:
             domain,
             problem,
             Random(seed),
-            SimulationState(
+            state_override
+            if state_override
+            else SimulationState(
                 {true_predicate for true_predicate in problem.initialization}
             ),
             object_name_id_allocator,
