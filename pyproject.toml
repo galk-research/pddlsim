@@ -18,7 +18,7 @@ dependencies = [
 ]
 requires-python = ">=3.12"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 keywords = ["PDDL", "agent", "simulator"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,11 +36,37 @@ Repository = "https://github.com/galk-research/pddlsim"
 Issues = "https://github.com/galk-research/pddlsim/issues"
 Documentation = "https://github.com/galk-research/pddlsim/wiki"
 
+[dependency-groups]
+dev = ["pytest>=8.3.5", "pytest-benchmark[histogram]>=5.1.0"]
+doc = ["pdoc>=15.0.3"]
+lint = ["mypy>=1.15.0", "ruff>=0.11.8"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests/unit/*.py", "tests/integration/*.py", "tests/benches/*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
 addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"
 
-[dependency-groups]
-dev = ["mypy>=1.15.0", "pytest>=8.3.5", "pytest-benchmark[histogram]>=5.1.0"]
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
