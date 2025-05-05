@@ -82,6 +82,7 @@ class Requirement(StrEnum):
     STRIPS = ":strips"
     TYPING = ":typing"
     DISJUNCTIVE_PRECONDITIONS = ":disjunctive-preconditions"
+    NEGATIVE_PRECONDITIONS = ":negative-preconditions"
     EQUALITY = ":equality"
     PROBABILISTIC_EFFECTS = ":probabilistic-effects"
 
@@ -342,7 +343,7 @@ class OrCondition[A: Argument](Locationed):
 
 
 @dataclass(frozen=True)
-class NotCondition[A: Argument]:
+class NotCondition[A: Argument](Locationed):
     base_condition: "Condition[A]"
 
     def _validate(
@@ -353,6 +354,11 @@ class NotCondition[A: Argument]:
         type_hierarchy: TypeHierarchy,
         requirements: RequirementSet,
     ) -> None:
+        if Requirement.NEGATIVE_PRECONDITIONS not in requirements:
+            raise ValueError(
+                f"{self} used in condition, but `{Requirement.NEGATIVE_PRECONDITIONS}` is not in {requirements}"  # noqa: E501
+            )
+
         self.base_condition._validate(
             variable_types,
             object_types,
@@ -360,6 +366,9 @@ class NotCondition[A: Argument]:
             type_hierarchy,
             requirements,
         )
+
+    def as_str_without_location(self) -> str:
+        return "negation"
 
     def __repr__(self) -> str:
         return f"(not {repr(self.base_condition)})"

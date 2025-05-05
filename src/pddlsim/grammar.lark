@@ -18,6 +18,7 @@ _domain_name: "(" "domain" IDENTIFIER ")"
 requirement: ":strips"                    -> strips_requirement
            | ":typing"                    -> typing_requirement
            | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
+           | ":negative-preconditions" -> negative_preconditions_requirement
            | ":equality"                  -> equality_requirement
            | ":probabilistic-effects"     -> probabilistic_effects_requirement
 // We need the location of the requirements section, so this is separate

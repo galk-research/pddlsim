@@ -67,6 +67,9 @@ class PDDLTransformer(Transformer):
     def disjunctive_preconditions_requirement(self) -> Requirement:
         return Requirement.DISJUNCTIVE_PRECONDITIONS
 
+    def negative_preconditions_requirement(self) -> Requirement:
+        return Requirement.NEGATIVE_PRECONDITIONS
+
     def equality_requirement(self) -> Requirement:
         return Requirement.EQUALITY
 
