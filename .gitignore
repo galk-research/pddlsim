@@ -13,12 +13,5 @@ uv.lock
 # JetBrains specific
 .idea/
 
-# PDDLSIM specific
-tmp_problem_generation
-multiple_goal_temp.pddl
-
-# Ruff specific
-ruff.toml
-
 # Mypy specific
 .mypy_cache/
