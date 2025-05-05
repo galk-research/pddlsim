@@ -45,7 +45,7 @@ class Agent:
             plan_steps = deque(
                 GroundedAction(
                     Identifier(action_instance.action.name),
-                    tuple(
+                    list(
                         Object(parameter.object().name)
                         for parameter in action_instance.actual_parameters
                     ),
