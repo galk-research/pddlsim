@@ -1,3 +1,4 @@
+import itertools
 import os
 from collections import defaultdict
 from collections.abc import (
@@ -250,7 +251,12 @@ class Simulation:
             state_override._copy()
             if state_override
             else SimulationState(
-                {true_predicate for true_predicate in problem.initialization}
+                {
+                    true_predicate
+                    for true_predicate in itertools.chain(
+                        problem.initialization, domain.initialization
+                    )
+                }
             ),
             reached_goal_indices,
             set(range(len(problem.goal_conditions))) - reached_goal_indices,

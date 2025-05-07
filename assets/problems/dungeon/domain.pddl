@@ -1,9 +1,11 @@
 (define (domain dungeon)
         (:requirements :equality :typing :negative-preconditions :disjunctive-preconditions)
         (:types locationed room - object person switch - locationed)
+        (:constants no-switch - switch)
         (:predicates (connected ?a ?b - room ?s - switch)
                      (at ?l - locationed ?r - room)
                      (on ?s - switch))
+        (:init (on no-switch))
         (:action move
         :parameters (?p - person ?from ?to - room ?s - switch)
         :precondition (and (at ?p ?from)

@@ -239,6 +239,7 @@ class _PDDLTransformer(Transformer):
         type_hierarchy: TypeHierarchy | None,
         constants: list[Typed[Object]] | None,
         predicate_definitions: list[PredicateDefinition] | None,
+        initialization: list[Predicate[Object]] | None,
         action_definitions: list[ActionDefinition] | None,
     ) -> Domain:
         return Domain.from_raw_parts(
@@ -247,6 +248,7 @@ class _PDDLTransformer(Transformer):
             type_hierarchy,
             constants if constants else [],
             predicate_definitions if predicate_definitions else [],
+            initialization if initialization else [],
             action_definitions if action_definitions else [],
         )
 
@@ -310,8 +312,8 @@ class _PDDLTransformer(Transformer):
         objects: list[Typed[Object]] | None,
         fallible_actions: ActionFallibilitySet | None,
         revealables: RevealableSet | None,
-        initialization: list[Predicate[Object]],
-        goal_conditions: list[Condition[Object]],
+        initialization: list[Predicate[Object]] | None,
+        goal_conditions: list[Condition[Object]] | None,
     ) -> RawProblem:
         return RawProblem.from_raw_parts(
             name,
@@ -320,8 +322,8 @@ class _PDDLTransformer(Transformer):
             objects if objects else [],
             fallible_actions,
             revealables,
-            initialization,
-            goal_conditions,
+            initialization if initialization else [],
+            goal_conditions if goal_conditions else [],
         )
 
 

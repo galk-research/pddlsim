@@ -726,6 +726,7 @@ class Domain:
     _type_hierarchy: InitVar[TypeHierarchy | None]
     constant_types: dict[Object, Type]
     predicate_definitions: Mapping[Identifier, PredicateDefinition]
+    initialization: Set[Predicate[Object]]
     action_definitions: Mapping[Identifier, ActionDefinition]
 
     @classmethod
@@ -736,6 +737,7 @@ class Domain:
         type_hierarchy: TypeHierarchy | None,
         constants: Iterable[Typed[Object]],
         predicate_definitions: Iterable[PredicateDefinition],
+        initialization: list[Predicate[Object]],
         action_definitions: Iterable[ActionDefinition],
     ) -> "Domain":
         constant_types = {}
@@ -760,6 +762,16 @@ class Domain:
                 predicate_definition
             )
 
+        true_predicates = set()
+
+        for predicate in initialization:
+            if predicate in true_predicates:
+                raise ValueError(
+                    f"predicate {predicate} appears in initialization multiple times"  # noqa: E501
+                )
+
+            true_predicates.add(predicate)
+
         action_definition_map = {}
 
         for action_definition in action_definitions:
@@ -775,6 +787,7 @@ class Domain:
             type_hierarchy,
             constant_types,
             predicate_definition_map,
+            true_predicates,
             action_definition_map,
         )
 
@@ -801,12 +814,22 @@ class Domain:
         for constant, type in self.constant_types.items():
             if isinstance(type, CustomType) and type not in self.type_hierarchy:
                 raise ValueError(
-                    f"constant {constant} is of undefined type {type}"  # noqa: E501
+                    f"constant {constant} is of undefined type {type}"
                 )
 
     def _validate_predicate_definitions(self) -> None:
         for predicate_definition in self.predicate_definitions.values():
             predicate_definition._validate(self.type_hierarchy)
+
+    def _validate_initialization(self) -> None:
+        for predicate in self.initialization:
+            predicate._validate(
+                {},
+                self.constant_types,
+                self.predicate_definitions,
+                self.type_hierarchy,
+                self.requirements,
+            )
 
     def _validate_action_definitions(self) -> None:
         for action_definition in self.action_definitions.values():
@@ -821,10 +844,13 @@ class Domain:
         self._validate_type_hierarchy(type_hierarchy)
         self._validate_constant_types()
         self._validate_predicate_definitions()
+        self._validate_initialization()
         self._validate_action_definitions()
 
     def __repr__(self) -> str:
         domain_name = f"(domain {self.name!r})"
+
+        constants_section = f"(:constants {' '.join(map(repr, _as_typed_iter(self.constant_types)))})"  # noqa: E501
 
         predicate_definition_reprs = map(
             repr, self.predicate_definitions.values()
@@ -833,11 +859,15 @@ class Domain:
             f"(:predicates {' '.join(predicate_definition_reprs)})"
         )
 
+        initialization_section = (
+            f"(:init {' '.join(map(repr, self.initialization))})"
+        )
+
         action_definitions = " ".join(
             map(repr, self.action_definitions.values())
         )
 
-        return f"(define {domain_name} {self.requirements!r} {self.type_hierarchy!r} {predicates_setion} {action_definitions})"  # noqa: E501
+        return f"(define {domain_name} {self.requirements!r} {self.type_hierarchy!r} {constants_section} {predicates_setion} {initialization_section} {action_definitions})"  # noqa: E501
 
 
 @dataclass(frozen=True, eq=True)
@@ -1095,6 +1125,11 @@ class Problem:
 
     def _validate_initialization(self, domain: Domain) -> None:
         for predicate in self.initialization:
+            if predicate in domain.initialization:
+                raise ValueError(
+                    f"predicate {predicate.name} also appears in initialization of domain"  # noqa: E501
+                )
+
             predicate._validate(
                 {},
                 ChainMap(self.object_types, domain.constant_types),
