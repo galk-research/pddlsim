@@ -5,11 +5,13 @@
               room-top
               room-left
               goal-room - room
+              dummy-switch
               switch-right
               goal-switch - switch
               bob - person)
     (:init (at bob start-room)
-           (connected start-room room-right no-switch)
+           (on dummy-switch)
+           (connected start-room room-right dummy-switch)
            (at switch-right room-right)
            (connected start-room room-top switch-right)
            (connected start-room room-left switch-right)

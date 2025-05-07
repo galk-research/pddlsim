@@ -239,7 +239,6 @@ class _PDDLTransformer(Transformer):
         type_hierarchy: TypeHierarchy | None,
         constants: list[Typed[Object]] | None,
         predicate_definitions: list[PredicateDefinition] | None,
-        initialization: list[Predicate[Object]] | None,
         action_definitions: list[ActionDefinition] | None,
     ) -> Domain:
         return Domain.from_raw_parts(
@@ -248,7 +247,6 @@ class _PDDLTransformer(Transformer):
             type_hierarchy,
             constants if constants else [],
             predicate_definitions if predicate_definitions else [],
-            initialization if initialization else [],
             action_definitions if action_definitions else [],
         )
 
