@@ -4,10 +4,6 @@ version = "0.2.0"
 description = "PDDL-based simulator for the BIU course \"Introduction to Intelligent, Knowledge-Based and Cognitive Systems\""
 authors = [
     { name = "Gal A. Kaminka", email = "galk@cs.biu.ac.il" },
-    { name = "Micha S. Molko", email = "michamolko@gmail.com" },
-    { name = "Ron Shemesh", email = "ron.shemesh98@gmail.com" },
-    { name = "Eyal Weiss", email = "eweiss@campus.technion.ac.il" },
-    { name = "Mika Barkan", email = "mika.barkan4@gmail.com" },
     { name = "Yoav Grimland", email = "miestrode@proton.me" },
 ]
 dependencies = [
@@ -40,6 +36,7 @@ Documentation = "https://github.com/galk-research/pddlsim/wiki"
 dev = ["pytest>=8.3.5", "pytest-benchmark[histogram]>=5.1.0"]
 doc = ["pdoc>=15.0.3"]
 lint = ["mypy>=1.15.0", "ruff>=0.11.8"]
+examples = ["unified-planning[fast-downward]>=1.2.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit/*.py", "tests/integration/*.py", "tests/benches/*.py"]
@@ -67,6 +64,16 @@ select = [
     "B",
     # flake8-simplify
     "SIM",
+    # PEP8 naming
+    "N",
+    # Perflint
+    "PERF",
+    # pydocstyle
+    "D",
+    # refurb
+    "FURB",
+    # Ruff-specific rules
+    "RUF",
     # isort
     "I",
 ]

@@ -21,7 +21,7 @@ class Agent:
         self, grounded_action: GroundedAction
     ) -> bool:
         simulation = Simulation.from_domain_and_problem(
-            self.domain, self.problem, await self.client.get_state()
+            self.domain, self.problem, await self.client.get_perceived_state()
         )
         simulation.apply_grounded_action(grounded_action)
 
@@ -43,6 +43,6 @@ class Agent:
 
         picked_action = random.choice(possibilities)
 
-        self.previous_state = await self.client.get_state()
+        self.previous_state = await self.client.get_perceived_state()
 
         return picked_action

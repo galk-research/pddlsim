@@ -1,4 +1,4 @@
-(define (problem two-rooms)
+(define (problem two-balls)
     (:domain gripper)
     (:objects rooma roomb - room ball1 ball2 - ball left right - gripper)
     (:init (at-robby rooma)

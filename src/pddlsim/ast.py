@@ -2,6 +2,7 @@ import bisect
 import itertools
 import operator
 from abc import ABC, abstractmethod
+from collections import ChainMap
 from collections.abc import Iterable, Iterator, Mapping, Set
 from dataclasses import InitVar, dataclass, field
 from decimal import Decimal
@@ -86,6 +87,10 @@ class Requirement(StrEnum):
     EQUALITY = ":equality"
     PROBABILISTIC_EFFECTS = ":probabilistic-effects"
 
+    FALLIBLE_ACTIONS = ":fallible-actions"
+    REVEALABLES = ":revealables"
+    MULTIPLE_GOALS = ":multiple-goals"
+
     def __repr__(self) -> str:
         return self.value
 
@@ -129,7 +134,7 @@ class RequirementSet(Locationed):
         return f"(:requirements {' '.join(map(repr, self.requirements))})"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class Identifier(Locationed, Serdeable[str]):
     value: str
 
@@ -151,7 +156,7 @@ class Identifier(Locationed, Serdeable[str]):
         return self.as_str_without_location()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class Variable(Identifier):
     def as_str_without_location(self) -> str:
         return f"?{self.value}"
@@ -160,10 +165,10 @@ class Variable(Identifier):
         return self.as_str_without_location()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class CustomType(Identifier):
     def __repr__(self) -> str:
-        return self.value
+        return self.as_str_without_location()
 
 
 @dataclass(eq=True, frozen=True)
@@ -175,10 +180,10 @@ class ObjectType:
 type Type = CustomType | ObjectType
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class Object(Identifier):
     def __repr__(self) -> str:
-        return self.value
+        return self.as_str_without_location()
 
 
 @dataclass(eq=True, frozen=True)
@@ -241,7 +246,7 @@ class TypeHierarchy(Locationed):
         return "types section"
 
     def __repr__(self) -> str:
-        return f"(:types {' '.join(map(repr, self._supertypes))})"
+        return f"(:types {' '.join(map(repr, self))})"
 
 
 @dataclass(frozen=True)
@@ -402,7 +407,7 @@ class EqualityCondition[A: Argument](Locationed):
                 case Object():
                     if argument not in object_types:
                         raise ValueError(
-                            f"constant {argument} in {self} is undefined"
+                            f"object {argument} in {self} is undefined"
                         )
 
         validate_argument(self.left_side)
@@ -431,7 +436,7 @@ class Predicate[A: Argument](Serdeable[SerializedPredicate]):
         object_types: Mapping[Object, Type],
         predicate_definitions: Mapping[Identifier, PredicateDefinition],
         type_hierarchy: TypeHierarchy,
-        _requirements: RequirementSet,
+        requirements: RequirementSet,
     ) -> None:
         if self.name not in predicate_definitions:
             raise ValueError(f"predicate {self.name} is undefined")
@@ -445,14 +450,14 @@ class Predicate[A: Argument](Serdeable[SerializedPredicate]):
                 case Variable():
                     if argument not in variable_types:
                         raise ValueError(
-                            f"variable {argument} in {self.name} is undefined"  # noqa: E501
+                            f"variable {argument} in {self.name} is undefined"
                         )
 
                     argument_type = variable_types[argument]  # type: ignore
                 case Object():
                     if argument not in object_types:
                         raise ValueError(
-                            f"constant {argument} in {self.name} is undefined"  # noqa: E501
+                            f"object {argument} in {self.name} is undefined"
                         )
 
                     argument_type = object_types[argument]  # type: ignore
@@ -516,7 +521,7 @@ class NotPredicate[A: Argument]:
         )
 
     def __repr__(self) -> str:
-        return f"(not {repr(self.base_predicate)})"
+        return f"(not {self.base_predicate!r})"
 
 
 type Atom[A: Argument] = Predicate[A] | NotPredicate[A]
@@ -719,7 +724,7 @@ class Domain:
     requirements: RequirementSet
     type_hierarchy: TypeHierarchy = field(init=False)
     _type_hierarchy: InitVar[TypeHierarchy | None]
-    constant_types: Mapping[Object, Type]
+    constant_types: dict[Object, Type]
     predicate_definitions: Mapping[Identifier, PredicateDefinition]
     action_definitions: Mapping[Identifier, ActionDefinition]
 
@@ -819,7 +824,7 @@ class Domain:
         self._validate_action_definitions()
 
     def __repr__(self) -> str:
-        domain_name = f"(domain {repr(self.name)})"
+        domain_name = f"(domain {self.name!r})"
 
         predicate_definition_reprs = map(
             repr, self.predicate_definitions.values()
@@ -832,32 +837,134 @@ class Domain:
             map(repr, self.action_definitions.values())
         )
 
-        return f"(define {domain_name} {repr(self.requirements)} {repr(self.type_hierarchy)} {predicates_setion} {action_definitions})"  # noqa: E501
+        return f"(define {domain_name} {self.requirements!r} {self.type_hierarchy!r} {predicates_setion} {action_definitions})"  # noqa: E501
+
+
+@dataclass(frozen=True, eq=True)
+class ActionFallibility:
+    action_name: Identifier
+    condition: Condition[Object]
+    with_probability: Decimal = field(
+        default=Decimal("1"), compare=False, hash=False
+    )
+
+    def __post_init__(self) -> None:
+        if not (0 <= self.with_probability <= 1):
+            raise ValueError(
+                f"fallible action {self.action_name} is with impossible probability {self.with_probability}"  # noqa: E501
+            )
+
+
+@dataclass(frozen=True)
+class ActionFallibilitySet(Locationed):
+    fallible_actions: Set[ActionFallibility] = field(default_factory=set)
+
+    @classmethod
+    def from_raw_parts(
+        cls,
+        fallibilities: Iterable[ActionFallibility],
+        *,
+        location: Location | None = None,
+    ) -> "ActionFallibilitySet":
+        action_fallibilities_set = set()
+
+        for action_fallibility in fallibilities:
+            if action_fallibility in action_fallibilities_set:
+                raise ValueError(
+                    f"{action_fallibility} is defined multiple times"
+                )
+
+            action_fallibilities_set.add(action_fallibility)
+
+        return ActionFallibilitySet(
+            action_fallibilities_set,
+            location=location if location else EmptyLocation(),
+        )
+
+    def as_str_without_location(self) -> str:
+        return "action fallibilities section"
+
+    def __iter__(self) -> Iterator[ActionFallibility]:
+        return iter(self.fallible_actions)
+
+
+@dataclass(frozen=True, eq=True)
+class Revealable:
+    effect: Effect[Object]
+    condition: Condition[Object]
+    with_probability: Decimal = field(
+        default=Decimal("1"), compare=False, hash=False
+    )
+
+    def __post_init__(self) -> None:
+        if not (0 <= self.with_probability <= 1):
+            raise ValueError(
+                f"{self} is with impossible probability {self.with_probability}"
+            )
+
+
+@dataclass(frozen=True)
+class RevealableSet(Locationed):
+    revealables: Set[Revealable] = field(default_factory=set)
+
+    @classmethod
+    def from_raw_parts(
+        cls,
+        revealables: Iterable[Revealable],
+        *,
+        location: Location | None = None,
+    ) -> "RevealableSet":
+        revealable_set = set()
+
+        for revealable in revealables:
+            if revealable in revealable_set:
+                raise ValueError(f"{revealable} is defined multiple times")
+
+            revealable_set.add(revealable)
+
+        return RevealableSet(
+            revealable_set,
+            location=location if location else EmptyLocation(),
+        )
+
+    def as_str_without_location(self) -> str:
+        return "revealables section"
+
+    def __iter__(self) -> Iterator[Revealable]:
+        return iter(self.revealables)
 
 
 @dataclass(frozen=True)
 class RawProblem:
     name: Identifier
     used_domain_name: Identifier
-    object_types: Mapping[Object, Type]
+    requirements: RequirementSet
+    object_types: dict[Object, Type]
+    action_fallibilities: ActionFallibilitySet = field(init=False)
+    _action_fallibilities: InitVar[ActionFallibilitySet | None]
+    revealables: RevealableSet = field(init=False)
+    _revealables: InitVar[RevealableSet | None]
     initialization: Set[Predicate[Object]]
-    goal_condition: Condition[Object]
+    goal_conditions: list[Condition[Object]]
 
     @classmethod
     def from_raw_parts(
         cls,
         name: Identifier,
         used_domain_name: Identifier,
+        requirements: RequirementSet,
         objects: list[Typed[Object]],
+        action_fallibilities: ActionFallibilitySet | None,
+        revealables: RevealableSet | None,
         initialization: list[Predicate[Object]],
-        goal_condition: Condition[Object],
+        goal_conditions: list[Condition[Object]],
     ) -> "RawProblem":
         object_types = {}
 
         for object_ in objects:
             if object_.value in object_types:
                 raise ValueError(
-                    f"object {object_.value} is defined multiple times"
+                    f"object with name {object_.value} is defined multiple times"  # noqa: E501
                 )
 
             object_types[object_.value] = object_.type
@@ -875,9 +982,41 @@ class RawProblem:
         return RawProblem(
             name,
             used_domain_name,
+            requirements,
             object_types,
+            action_fallibilities,
+            revealables,
             true_predicates,
-            goal_condition,
+            goal_conditions,
+        )
+
+    def __post_init__(
+        self,
+        action_fallibilities: ActionFallibilitySet | None,
+        revealables: RevealableSet | None,
+    ) -> None:
+        if (
+            action_fallibilities
+            and Requirement.FALLIBLE_ACTIONS not in self.requirements
+        ):
+            raise ValueError(
+                f"{action_fallibilities} defined, but `{Requirement.FALLIBLE_ACTIONS}` does not appear in {self.requirements}"  # noqa: E501
+            )
+
+        if revealables and Requirement.REVEALABLES not in self.requirements:
+            raise ValueError(
+                f"{revealables} defined, but `{Requirement.REVEALABLES}` does not appear in {self.requirements}"  # noqa: E501
+            )
+
+        object.__setattr__(
+            self,
+            "action_fallibilities",
+            action_fallibilities
+            if action_fallibilities
+            else ActionFallibilitySet(),
+        )
+        object.__setattr__(
+            self, "revealables", revealables if revealables else RevealableSet()
         )
 
 
@@ -895,16 +1034,28 @@ class Problem:
         return self._raw_problem.used_domain_name
 
     @property
-    def object_types(self) -> Mapping[Object, Type]:
+    def requirements(self) -> RequirementSet:
+        return self._raw_problem.requirements
+
+    @property
+    def object_types(self) -> dict[Object, Type]:
         return self._raw_problem.object_types
+
+    @property
+    def action_fallibilities(self) -> ActionFallibilitySet:
+        return self._raw_problem.action_fallibilities
+
+    @property
+    def revealables(self) -> RevealableSet:
+        return self._raw_problem.revealables
 
     @property
     def initialization(self) -> Set[Predicate[Object]]:
         return self._raw_problem.initialization
 
     @property
-    def goal_condition(self) -> Condition[Object]:
-        return self._raw_problem.goal_condition
+    def goal_conditions(self) -> list[Condition[Object]]:
+        return self._raw_problem.goal_conditions
 
     def __post_init__(self, domain: Domain) -> None:
         self._validate(domain)
@@ -922,34 +1073,70 @@ class Problem:
                     f"object {object_} is of an undefined type {type}"
                 )
 
-    def _validate_initialization(self, domain: Domain) -> None:
-        for predicate in self.initialization:
-            predicate._validate(
+            if object_ in domain.constant_types:
+                raise ValueError(
+                    f"object with name {object_} is also defined in domain"
+                )
+
+    def _validate_action_fallibilities(self, domain: Domain) -> None:
+        for fallibility in self.action_fallibilities:
+            if fallibility.action_name not in domain.action_definitions:
+                raise ValueError(
+                    f"{fallibility} uses an undefined action {fallibility.action_name}"  # noqa: E501
+                )
+
+            fallibility.condition._validate(
                 {},
-                self.object_types,
+                ChainMap(self.object_types, domain.constant_types),
                 domain.predicate_definitions,
                 domain.type_hierarchy,
                 domain.requirements,
             )
 
-    def _validate_goal_condition(self, domain: Domain) -> None:
-        self.goal_condition._validate(
-            {},
-            self.object_types,
-            domain.predicate_definitions,
-            domain.type_hierarchy,
-            domain.requirements,
-        )
+    def _validate_initialization(self, domain: Domain) -> None:
+        for predicate in self.initialization:
+            predicate._validate(
+                {},
+                ChainMap(self.object_types, domain.constant_types),
+                domain.predicate_definitions,
+                domain.type_hierarchy,
+                domain.requirements,
+            )
+
+    def _validate_goal_conditions(self, domain: Domain) -> None:
+        if (
+            len(self.goal_conditions) != 1
+            and Requirement.MULTIPLE_GOALS not in self.requirements
+        ):
+            raise ValueError(
+                f"number of goals is {len(self.goal_conditions)} (not one), but `{Requirement.MULTIPLE_GOALS}` does not appear in {self.requirements}"  # noqa: E501
+            )
+
+        for goal_condition in self.goal_conditions:
+            goal_condition._validate(
+                {},
+                ChainMap(self.object_types, domain.constant_types),
+                domain.predicate_definitions,
+                domain.type_hierarchy,
+                domain.requirements,
+            )
 
     def _validate(self, domain: Domain) -> None:
         self._validate_used_domain_name(domain)
         self._validate_object_types(domain)
         self._validate_initialization(domain)
-        self._validate_goal_condition(domain)
+        self._validate_goal_conditions(domain)
 
     def __repr__(self) -> str:
+        # NOTE: We purposefully don't include the revealables and
+        # fallible actions, as these are considered hidden information.
+
         problem_name = f"(problem {repr(self.name)})"
         used_domain_name = f"(:domain {repr(self.used_domain_name)})"
+
+        requirements_section = (
+            f"(:requirements {' '.join(map(repr, self.requirements))})"
+        )
 
         object_type_pairs = _as_typed_iter(self.object_types)
         objects_section = f"(:objects {' '.join(map(repr, object_type_pairs))})"
@@ -958,6 +1145,6 @@ class Problem:
             f"(:init {' '.join(map(repr, self.initialization))})"
         )
 
-        goal_section = f"(:goal {repr(self.goal_condition)})"
+        goal_section = f"(:goal {' '.join(map(repr, self.goal_conditions))})"
 
-        return f"(define {problem_name} {used_domain_name} {objects_section} {initialization_section} {goal_section})"  # noqa: E501
+        return f"(define {problem_name} {used_domain_name} {requirements_section} {objects_section} {initialization_section} {goal_section})"  # noqa: E501

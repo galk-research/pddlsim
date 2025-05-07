@@ -1,4 +1,4 @@
-from collections.abc import Iterable, MutableSet
+from collections.abc import Iterable, Iterator, MutableSet
 from dataclasses import dataclass, field
 from random import Random
 
@@ -20,17 +20,9 @@ from pddlsim.ast import (
 
 @dataclass(eq=True, frozen=True)
 class SimulationState:
-    """
-    Stores a state of the simulation, which is based on classical PDDL.
-    Therefore, a state is a set of true predicates.
-    """
-
     _true_predicates: MutableSet[Predicate[Object]] = field(default_factory=set)
 
     def _copy(self) -> "SimulationState":
-        """
-        Returns a copy of the current state.
-        """
         return SimulationState(set(self._true_predicates))
 
     def _does_atom_hold(self, atom: Atom[Object]) -> bool:
@@ -85,5 +77,5 @@ class SimulationState:
 
         return new_state
 
-    def true_predicates(self) -> Iterable[Predicate[Object]]:
+    def __iter__(self) -> Iterator[Predicate[Object]]:
         return iter(self._true_predicates)

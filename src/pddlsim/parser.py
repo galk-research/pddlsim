@@ -9,6 +9,8 @@ from lark import Lark, Token, Transformer, v_args
 from pddlsim import _RESOURCES
 from pddlsim.ast import (
     ActionDefinition,
+    ActionFallibility,
+    ActionFallibilitySet,
     AndCondition,
     AndEffect,
     Argument,
@@ -32,6 +34,8 @@ from pddlsim.ast import (
     RawProblem,
     Requirement,
     RequirementSet,
+    Revealable,
+    RevealableSet,
     Type,
     Typed,
     TypeHierarchy,
@@ -40,14 +44,14 @@ from pddlsim.ast import (
 
 
 @v_args(inline=True)
-class PDDLTransformer(Transformer):
-    def NUMBER(self, token: Token) -> Decimal:
+class _PDDLTransformer(Transformer):
+    def NUMBER(self, token: Token) -> Decimal:  # noqa: N802
         return Decimal(token)
 
-    def IDENTIFIER(self, token: Token) -> Identifier:
+    def IDENTIFIER(self, token: Token) -> Identifier:  # noqa: N802
         return Identifier(str(token), location=FileLocation.from_token(token))
 
-    def VARIABLE(self, token: Token) -> Variable:
+    def VARIABLE(self, token: Token) -> Variable:  # noqa: N802
         return Variable(token[1:], location=FileLocation.from_token(token))
 
     @v_args(inline=False)
@@ -76,7 +80,16 @@ class PDDLTransformer(Transformer):
     def probabilistic_effects(self) -> Requirement:
         return Requirement.PROBABILISTIC_EFFECTS
 
-    def REQUIREMENTS_KEYWORD(self, token: Token) -> Location:
+    def fallible_actions_requirement(self) -> Requirement:
+        return Requirement.FALLIBLE_ACTIONS
+
+    def revealables_requirement(self) -> Requirement:
+        return Requirement.REVEALABLES
+
+    def multiple_goals_requirement(self) -> Requirement:
+        return Requirement.MULTIPLE_GOALS
+
+    def REQUIREMENTS_KEYWORD(self, token: Token) -> Location:  # noqa: N802
         return FileLocation.from_token(token)
 
     def requirements_section(
@@ -105,7 +118,7 @@ class PDDLTransformer(Transformer):
     ) -> Iterable[Typed[T]]:
         return chain(head, tail) if tail else head
 
-    def TYPES_KEYWORD(self, token: Token) -> Location:
+    def TYPES_KEYWORD(self, token: Token) -> Location:  # noqa: N802
         return FileLocation.from_token(token)
 
     def types_section(
@@ -146,7 +159,7 @@ class PDDLTransformer(Transformer):
     ) -> AndCondition[A]:
         return AndCondition(operands)
 
-    def OR_KEYWORD(self, token: Token) -> Location:
+    def OR_KEYWORD(self, token: Token) -> Location:  # noqa: N802
         return FileLocation.from_token(token)
 
     def or_condition[A: Argument](
@@ -154,12 +167,15 @@ class PDDLTransformer(Transformer):
     ) -> OrCondition[A]:
         return OrCondition(operands, location=location)
 
-    def not_condition[A: Argument](
-        self, operand: Condition[A]
-    ) -> NotCondition[A]:
-        return NotCondition(operand)
+    def NOT_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation.from_token(token)
 
-    def EQUALS_SIGN(self, token: Token) -> Location:
+    def not_condition[A: Argument](
+        self, location: Location, operand: Condition[A]
+    ) -> NotCondition[A]:
+        return NotCondition(operand, location=location)
+
+    def EQUALS_SIGN(self, token: Token) -> Location:  # noqa: N802
         return FileLocation.from_token(token)
 
     def equality_condition[A: Argument](
@@ -185,7 +201,7 @@ class PDDLTransformer(Transformer):
     ) -> tuple[Decimal, Effect[A]]:
         return (probability, effect)
 
-    def PROBABILISTIC_KEYWORD(self, token: Token) -> Location:
+    def PROBABILISTIC_KEYWORD(self, token: Token) -> Location:  # noqa: N802
         return FileLocation.from_token(token)
 
     def probabilistic_effect[A: Argument](
@@ -239,6 +255,48 @@ class PDDLTransformer(Transformer):
     ) -> list[Typed[Object]]:
         return objects
 
+    def action_fallibility(
+        self,
+        action_name: Identifier,
+        with_probability: Decimal | None,
+        condition: Condition[Object],
+    ) -> ActionFallibility:
+        return ActionFallibility(
+            action_name,
+            condition,
+            with_probability if with_probability else Decimal(value=1),
+        )
+
+    def FAIL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation.from_token(token)
+
+    def action_fallibilities_section(
+        self, location: Location, fallibilities: list[ActionFallibility]
+    ) -> ActionFallibilitySet:
+        return ActionFallibilitySet.from_raw_parts(
+            fallibilities, location=location
+        )
+
+    def revealable(
+        self,
+        with_probability: Decimal | None,
+        condition: Condition[Object],
+        effect: Effect[Object],
+    ) -> Revealable:
+        return Revealable(
+            effect,
+            condition,
+            with_probability if with_probability else Decimal(value=1),
+        )
+
+    def REVEAL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation.from_token(token)
+
+    def revealables_section(
+        self, location: Location, revealables: list[Revealable]
+    ) -> RevealableSet:
+        return RevealableSet.from_raw_parts(revealables, location=location)
+
     def initialization_section(
         self, predicates: list[Predicate[Object]]
     ) -> list[Predicate[Object]]:
@@ -248,16 +306,22 @@ class PDDLTransformer(Transformer):
         self,
         name: Identifier,
         used_domain_name: Identifier,
+        requirements: RequirementSet,
         objects: list[Typed[Object]] | None,
+        fallible_actions: ActionFallibilitySet | None,
+        revealables: RevealableSet | None,
         initialization: list[Predicate[Object]],
-        goal_condition: Condition[Object],
+        goal_conditions: list[Condition[Object]],
     ) -> RawProblem:
         return RawProblem.from_raw_parts(
             name,
             used_domain_name,
+            requirements,
             objects if objects else [],
+            fallible_actions,
+            revealables,
             initialization,
-            goal_condition,
+            goal_conditions,
         )
 
 
@@ -266,7 +330,7 @@ _PDDL_PARSER = Lark(
     _RESOURCES.joinpath("grammar.lark").read_text(),
     parser="lalr",
     cache=True,
-    transformer=PDDLTransformer(),
+    transformer=_PDDLTransformer(),
     start=["domain", "problem"],
 )
 

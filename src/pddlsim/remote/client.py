@@ -14,6 +14,8 @@ from pddlsim.remote._message import (
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
+    GoalTrackingRequest,
+    GoalTrackingResponse,
     Payload,
     PerceptionRequest,
     PerceptionResponse,
@@ -40,6 +42,9 @@ class SimulationClient:
         self._domain_problem_pair: tuple[Domain, Problem] | None = None
         self._state: SimulationState | None = None
         self._grounded_actions: list[GroundedAction] | None = None
+        self._reached_and_unreached_goal_indices: (
+            tuple[list[int], list[int]] | None
+        ) = None
 
         self._termination: SessionTermination | None = None
 
@@ -114,7 +119,30 @@ class SimulationClient:
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[1]
 
-    async def get_state(self) -> SimulationState:
+    async def _get_reached_and_unreached_goals(
+        self,
+    ) -> tuple[list[int], list[int]]:
+        self._assert_unterminated()
+
+        if not self._reached_and_unreached_goal_indices:
+            await self._send_message(GoalTrackingRequest())
+
+            payload = await self._receive_payload(GoalTrackingResponse)
+
+            self._reached_and_unreached_goal_indices = (
+                payload.reached_goal_indices,
+                payload.unreached_goal_indices,
+            )
+
+        return self._reached_and_unreached_goal_indices
+
+    async def get_reached_goal_indices(self) -> Sequence[int]:
+        return (await self._get_reached_and_unreached_goals())[0]
+
+    async def get_unreached_goal_indices(self) -> Sequence[int]:
+        return (await self._get_reached_and_unreached_goals())[1]
+
+    async def get_perceived_state(self) -> SimulationState:
         self._assert_unterminated()
 
         if not self._state:
@@ -145,6 +173,7 @@ class SimulationClient:
 
         self._state = None
         self._grounded_actions = None
+        self._reached_and_unreached_goal_indices = None
 
         await self._send_message(PerformGroundedActionRequest(grounded_action))
         await self._receive_payload(PerformGroundedActionResponse)

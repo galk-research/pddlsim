@@ -6,8 +6,8 @@ import pddlsim.remote.server
 
 async def main() -> None:
     await pddlsim.remote.server.start_simulation_server_from_files(
-        "assets/problems/gripper/domain.pddl",
-        "assets/problems/gripper/instance.pddl",
+        "assets/problems/dungeon/domain.pddl",
+        "assets/problems/dungeon/instance-1-reveal.pddl",
         "127.0.0.1",
     )
 

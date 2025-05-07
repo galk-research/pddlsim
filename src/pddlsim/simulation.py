@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from collections.abc import (
     Generator,
     Iterable,
@@ -12,8 +13,7 @@ from typing import TypedDict, cast
 from clingo import Control
 from koda_validate import TypedDictValidator, Validator
 
-from pddlsim._serde import Serdeable
-from pddlsim.asp import (
+from pddlsim._asp import (
     ASPPart,
     ASPPartKind,
     IDAllocator,
@@ -25,8 +25,10 @@ from pddlsim.asp import (
     objects_asp_part,
     simulation_state_asp_part,
 )
+from pddlsim._serde import Serdeable
 from pddlsim.ast import (
     ActionDefinition,
+    ActionFallibility,
     AndCondition,
     AndEffect,
     Argument,
@@ -42,6 +44,7 @@ from pddlsim.ast import (
     Predicate,
     ProbabilisticEffect,
     Problem,
+    Revealable,
     Type,
     Variable,
 )
@@ -125,28 +128,28 @@ def _ground_effect(
             )
 
 
-class ActionGroundingPair(TypedDict):
+class _ActionGroundingPair(TypedDict):
     name: str
     grounding: list[str]
 
 
 @dataclass(frozen=True)
-class GroundedAction(Serdeable[ActionGroundingPair]):
+class GroundedAction(Serdeable[_ActionGroundingPair]):
     name: Identifier
     grounding: list[Object]
 
-    def serialize(self) -> ActionGroundingPair:
-        return ActionGroundingPair(
+    def serialize(self) -> _ActionGroundingPair:
+        return _ActionGroundingPair(
             name=self.name.value,
             grounding=[object_.value for object_ in self.grounding],
         )
 
     @classmethod
-    def validator(cls) -> Validator[ActionGroundingPair]:
-        return TypedDictValidator(ActionGroundingPair)
+    def validator(cls) -> Validator[_ActionGroundingPair]:
+        return TypedDictValidator(_ActionGroundingPair)
 
     @classmethod
-    def create(cls, value: ActionGroundingPair) -> "GroundedAction":
+    def create(cls, value: _ActionGroundingPair) -> "GroundedAction":
         return GroundedAction(
             Identifier(value["name"]),
             [Object(object_) for object_ in value["grounding"]],
@@ -157,13 +160,18 @@ class SimulationCompletedError(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Simulation:
-    _domain: Domain
-    _problem: Problem
+    domain: Domain
+    problem: Problem
 
     _rng: Random
+
     _state: SimulationState
+    _reached_goal_indices: set[int]
+    _unreached_goal_indices: set[int]
+
+    _unactivated_revealables: set[Revealable]
 
     @cached_property
     def _object_name_id_allocator(self) -> IDAllocator[Object]:
@@ -176,6 +184,17 @@ class Simulation:
     @cached_property
     def _type_name_id_allocator(self) -> IDAllocator[Type]:
         return IDAllocator(TypeNameID)
+
+    @cached_property
+    def _action_fallibilities(
+        self,
+    ) -> Mapping[Identifier, Iterable[ActionFallibility]]:
+        fallibilities = defaultdict(list)
+
+        for fallibility in self.problem.action_fallibilities:
+            fallibilities[fallibility.action_name].append(fallibility)
+
+        return fallibilities
 
     @cached_property
     def _objects_asp_part(self) -> ASPPart:
@@ -210,8 +229,15 @@ class Simulation:
         domain: Domain,
         problem: Problem,
         state_override: SimulationState | None = None,
+        reached_goal_indices_override: Iterable[int] | None = None,
         seed: int | float | str | bytes | bytearray | None = None,
     ) -> "Simulation":
+        reached_goal_indices = (
+            set(reached_goal_indices_override)
+            if reached_goal_indices_override
+            else set()
+        )
+
         return Simulation(
             domain,
             problem,
@@ -226,27 +252,76 @@ class Simulation:
             else SimulationState(
                 {true_predicate for true_predicate in problem.initialization}
             ),
+            reached_goal_indices,
+            set(range(len(problem.goal_conditions))) - reached_goal_indices,
+            set(problem.revealables),
         )
 
-    @property
-    def domain(self) -> Domain:
-        return self._domain
+    def __post_init__(self) -> None:
+        self._update_reached_goals()
+        self._update_revealables()
 
-    @property
-    def problem(self) -> Problem:
-        return self._problem
+    def _update_reached_goals(self) -> None:
+        newly_reached_goals = set()
+
+        for goal_index in self._unreached_goal_indices:
+            if self.state.does_condition_hold(
+                self.problem.goal_conditions[goal_index]
+            ):
+                self._reached_goal_indices.add(goal_index)
+                newly_reached_goals.add(goal_index)
+
+        self._unreached_goal_indices.difference_update(newly_reached_goals)
+
+    def _update_revealables(self) -> None:
+        newly_active_revealables = set()
+
+        while True:
+            for revealable in self._unactivated_revealables:
+                if self.state.does_condition_hold(revealable.condition):
+                    should_reveal = (
+                        self._rng.random() < revealable.with_probability
+                    )
+
+                    if should_reveal:
+                        self.state._make_effect_hold(
+                            revealable.effect, self._rng
+                        )
+                        newly_active_revealables.add(revealable)
+
+            if newly_active_revealables:
+                self._unactivated_revealables.difference_update(
+                    newly_active_revealables
+                )
+
+                newly_active_revealables.clear()
+            else:
+                break
 
     @property
     def state(self) -> SimulationState:
         return self._state
 
+    @property
+    def reached_goal_indices(self) -> list[int]:
+        return list(self._reached_goal_indices)
+
+    @property
+    def unreached_goal_indices(self) -> list[int]:
+        return list(self._unreached_goal_indices)
+
     def apply_grounded_action(self, grounded_action: GroundedAction) -> None:
         if self.is_solved():
             raise SimulationCompletedError
 
-        action_definition = self._domain.action_definitions[
-            grounded_action.name
-        ]
+        for fallibility in self._action_fallibilities[grounded_action.name]:
+            if self.state.does_condition_hold(fallibility.condition):
+                does_fail = self._rng.random() < fallibility.with_probability
+
+                if does_fail:
+                    return
+
+        action_definition = self.domain.action_definitions[grounded_action.name]
         grounding = {
             variable: object_
             for variable, object_ in zip(
@@ -263,6 +338,9 @@ class Simulation:
                 _ground_effect(action_definition.effect, grounding),
                 self._rng,
             )
+
+            self._update_reached_goals()
+            self._update_revealables()
         else:
             raise ValueError("grounded action doesn't satisfy precondition")
 
@@ -323,18 +401,20 @@ class Simulation:
 
     def get_grounded_actions(self) -> Iterable[GroundedAction]:
         state_part = simulation_state_asp_part(
-            self._state,
+            self.state,
             self._predicate_id_allocator,
             self._object_name_id_allocator,
         )
 
         return (
             grounded_action
-            for action_definition in self._domain.action_definitions.values()
+            for action_definition in self.domain.action_definitions.values()
             for grounded_action in self._get_grounded_actions(
                 action_definition, state_part
             )
         )
 
     def is_solved(self) -> bool:
-        return self.state.does_condition_hold(self._problem.goal_condition)
+        return len(self._reached_goal_indices) == len(
+            self.problem.goal_conditions
+        )

@@ -1,15 +1,9 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "pddlsim @ file://${PROJECT_ROOT}/",
-#     "unified-planning[fast-downward]>=1.2.0",
-# ]
-# ///
 from collections import deque
 from dataclasses import dataclass
+from typing import ClassVar
 
-import unified_planning.shortcuts as ups
-from unified_planning.io import PDDLReader
+import unified_planning.shortcuts as ups  # type: ignore
+from unified_planning.io import PDDLReader  # type: ignore
 
 from pddlsim.ast import Identifier, Object, Requirement
 from pddlsim.remote.client import (
@@ -26,14 +20,31 @@ class Agent:
     client: SimulationClient
     plan_steps: deque[GroundedAction]
 
+    UNSUPPORTED_DOMAIN_REQUIREMENTS: ClassVar = {
+        Requirement.PROBABILISTIC_EFFECTS
+    }
+    UNSUPPORTED_PROBLEM_REQUIREMENTS: ClassVar = {
+        Requirement.FALLIBLE_ACTIONS,
+        Requirement.MULTIPLE_GOALS,
+        Requirement.REVEALABLES,
+    }
+
     @classmethod
     async def from_client(cls, client: SimulationClient) -> NextActionGetter:
         domain = await client.get_domain()
-
-        if Requirement.PROBABILISTIC_EFFECTS in domain.requirements:
-            raise ValueError("probabilistic effects are not supported")
-
         problem = await client.get_problem()
+
+        for requirement in cls.UNSUPPORTED_DOMAIN_REQUIREMENTS:
+            if requirement in domain.requirements:
+                raise ValueError(
+                    f"`{requirement}` requirement is not supported"
+                )
+
+        for requirement in cls.UNSUPPORTED_PROBLEM_REQUIREMENTS:
+            if requirement in problem.requirements:
+                raise ValueError(
+                    f"`{requirement}` requirement are not supported"
+                )
 
         up_problem: ups.Problem = PDDLReader().parse_problem_string(
             repr(domain), repr(problem)

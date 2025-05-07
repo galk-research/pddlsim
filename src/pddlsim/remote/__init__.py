@@ -6,7 +6,7 @@ import cbor2
 from pddlsim.remote._message import (
     Custom,
     Error,
-    GoalReached,
+    GoalsReached,
     Message,
     Payload,
     TerminationPayload,
@@ -31,7 +31,7 @@ class SessionTermination(Exception):
         self.source = source
 
     def is_goal_reached(self) -> bool:
-        return isinstance(self._termination_payload, GoalReached)
+        return isinstance(self._termination_payload, GoalsReached)
 
     def is_error(self) -> bool:
         return isinstance(self._termination_payload, Error)
@@ -64,6 +64,8 @@ class _RSPMessageBridge:
         data = cbor2.dumps(serialized_message)
 
         try:
+            # If the amount of bytes doesn't fit in the 32-bit unsigned integer,
+            # an overflow error is raised, so an invalid message is never sent
             self.writer.write(len(data).to_bytes(MAXIMUM_VALUE_BITS_BYTES))
             self.writer.write(data)
             await self.writer.drain()

@@ -148,6 +148,43 @@ class PerceptionResponse(Payload[list[Any]]):
         return "perception-response"
 
 
+class GoalTrackingRequest(EmptyPayload):
+    @classmethod
+    def type(cls) -> str:
+        return "goal-tracking-request"
+
+
+class SerializedGoalTrackingResponse(TypedDict):
+    reached: list[int]
+    unreached: list[int]
+
+
+@dataclass(frozen=True)
+class GoalTrackingResponse(Payload[SerializedGoalTrackingResponse]):
+    reached_goal_indices: list[int]
+    unreached_goal_indices: list[int]
+
+    def serialize(self) -> SerializedGoalTrackingResponse:
+        return SerializedGoalTrackingResponse(
+            reached=self.reached_goal_indices,
+            unreached=self.unreached_goal_indices,
+        )
+
+    @classmethod
+    def validator(cls) -> Validator[SerializedGoalTrackingResponse]:
+        return TypedDictValidator(SerializedGoalTrackingResponse)
+
+    @classmethod
+    def create(
+        cls, value: SerializedGoalTrackingResponse
+    ) -> "GoalTrackingResponse":
+        return GoalTrackingResponse(value["reached"], value["unreached"])
+
+    @classmethod
+    def type(cls) -> str:
+        return "goal-tracking-response"
+
+
 class GetGroundedActionsRequest(EmptyPayload):
     @classmethod
     def type(cls) -> str:
@@ -211,13 +248,13 @@ class TerminationPayload[T](Payload[T]):
         raise NotImplementedError
 
 
-class GoalReached(EmptyPayload, TerminationPayload):
+class GoalsReached(EmptyPayload, TerminationPayload):
     @classmethod
     def type(cls) -> str:
-        return "goal-reached"
+        return "goals-reached"
 
     def description(self) -> str:
-        return "goal reached"
+        return "goals reached"
 
 
 class TerminationSource(SerdeableEnum):

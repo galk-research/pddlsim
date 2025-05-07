@@ -16,7 +16,9 @@ from pddlsim.remote._message import (
     Error,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
-    GoalReached,
+    GoalsReached,
+    GoalTrackingRequest,
+    GoalTrackingResponse,
     Payload,
     PerceptionRequest,
     PerceptionResponse,
@@ -72,8 +74,16 @@ async def _problem_setup(
 async def _perception(
     simulation: Simulation, bridge: _RSPMessageBridge
 ) -> None:
+    await bridge.send_message(PerceptionResponse(list(simulation.state)))
+
+
+async def _goal_tracking(
+    simulation: Simulation, bridge: _RSPMessageBridge
+) -> None:
     await bridge.send_message(
-        PerceptionResponse(list(simulation.state.true_predicates()))
+        GoalTrackingResponse(
+            simulation.reached_goal_indices, simulation.unreached_goal_indices
+        )
     )
 
 
@@ -108,6 +118,8 @@ async def _handle_requests(
                 await _problem_setup(simulation, bridge)
             case PerceptionRequest():
                 await _perception(simulation, bridge)
+            case GoalTrackingRequest():
+                await _goal_tracking(simulation, bridge)
             case GetGroundedActionsRequest():
                 await _get_grounded_actions(simulation, bridge)
             case PerformGroundedActionRequest(grounded_action):
@@ -125,7 +137,7 @@ async def _handle_requests(
                     TerminationSource.INTERNAL,
                 )
 
-    raise SessionTermination(GoalReached(), TerminationSource.INTERNAL)
+    raise SessionTermination(GoalsReached(), TerminationSource.INTERNAL)
 
 
 async def _operate_session(

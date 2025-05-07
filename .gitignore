@@ -13,5 +13,8 @@ uv.lock
 # JetBrains specific
 .idea/
 
+# Ruff specific
+.ruff_cache/
+
 # Mypy specific
 .mypy_cache/

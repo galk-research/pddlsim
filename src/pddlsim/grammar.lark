@@ -15,15 +15,20 @@ nonempty_list{item}: item+
 
 _domain_name: "(" "domain" IDENTIFIER ")"
 
-requirement: ":strips"                    -> strips_requirement
-           | ":typing"                    -> typing_requirement
-           | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
-           | ":negative-preconditions" -> negative_preconditions_requirement
-           | ":equality"                  -> equality_requirement
-           | ":probabilistic-effects"     -> probabilistic_effects_requirement
+domain_requirement: ":strips"                    -> strips_requirement
+                  | ":typing"                    -> typing_requirement
+                  | ":disjunctive-preconditions" -> disjunctive_preconditions_requirement
+                  | ":negative-preconditions"    -> negative_preconditions_requirement
+                  | ":equality"                  -> equality_requirement
+                  | ":probabilistic-effects"     -> probabilistic_effects_requirement
+
+problem_requirement: ":fallible-actions" -> fallible_actions_requirement
+                   | ":revealables"      -> revealables_requirement
+                   | ":multiple-goals"   -> multiple_goals_requirement
+
 // We need the location of the requirements section, so this is separate
 REQUIREMENTS_KEYWORD: ":requirements"
-requirements_section: "(" REQUIREMENTS_KEYWORD nonempty_list{requirement} ")"
+requirements_section{requirement}: "(" REQUIREMENTS_KEYWORD nonempty_list{requirement} ")"
 
 custom_type: IDENTIFIER
 
@@ -51,11 +56,13 @@ predicate{argument}: "(" IDENTIFIER list_{argument} ")"
 
 // We need the location of or-conditions in case `:disjunctive-preconditions` is not enabled
 OR_KEYWORD: "or"
+// We need the location of not-conditions in case `:negation-preconditions` is not enabled
+NOT_KEYWORD: "not"
 // We need the location of equality predicates in case `:equality` is not enabled
 EQUALS_SIGN: "="
 ?condition{argument}: "(" "and" list_{condition{argument}} ")" -> and_condition
                     | "(" OR_KEYWORD list_{condition{argument}} ")"  -> or_condition
-                    | "(" "not" condition{argument} ")"  -> not_condition
+                    | "(" NOT_KEYWORD condition{argument} ")"  -> not_condition
                     | "(" EQUALS_SIGN argument argument ")"      -> equality_condition
                     | predicate{argument}
 
@@ -66,8 +73,7 @@ _atom{argument}: predicate{argument}
 probabilistic_effect_pair{argument}: NUMBER effect{argument}
 // We need the location of probabilistic effects in case `:probabilistic-effects` was not enabled
 PROBABILISTIC_KEYWORD: "probabilistic"
-?effect{argument}: "(" "and" list_{effect{argument}} ")"                              -> and_effect
-                // Using `*` is intentional: `(probabilistic)` implies no effect
+?effect{argument}: "(" "and" list_{effect{argument}} ")"                                   -> and_effect
                 | "(" PROBABILISTIC_KEYWORD list_{probabilistic_effect_pair{argument}} ")" -> probabilistic_effect
                 | _atom{argument}
 
@@ -77,7 +83,7 @@ _argument: VARIABLE
 action_definition: "(" ":action" IDENTIFIER ":parameters" "(" typed_list{VARIABLE} ")" [":precondition" condition{_argument}] [":effect" effect{_argument}] ")"
 actions_section: list_{action_definition}
 
-domain: "(" "define" _domain_name [requirements_section] [types_section] [constants_section] [predicates_section] actions_section ")"
+domain: "(" "define" _domain_name [requirements_section{domain_requirement}] [types_section] [constants_section] [predicates_section] actions_section ")"
 
 _problem_name: "(" "problem" IDENTIFIER ")"
 
@@ -85,8 +91,16 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
 objects_section: "(" ":objects" typed_list{object_} ")"
 
+action_fallibility: "(" IDENTIFIER ":on" [NUMBER] condition{object_} ")"
+FAIL_KEYWORD: ":fails"
+action_fallibilities_section: "(" FAIL_KEYWORD list_{action_fallibility} ")"
+
+revealable: "(" "when" [NUMBER] condition{object_} effect{object_} ")"
+REVEAL_KEYWORD: ":reveals"
+revealables_section: "(" REVEAL_KEYWORD list_{revealable} ")"
+
 initialization_section: "(" ":init" list_{predicate{object_}} ")"
 
-_goal_section: "(" ":goal" condition{object_} ")"
+_goal_section: "(" ":goal" list_{condition{object_}} ")"
 
-problem: "(" "define" _problem_name _used_domain_name [objects_section] initialization_section _goal_section ")"
+problem: "(" "define" _problem_name _used_domain_name [[requirements_section{problem_requirement}]] [objects_section] [action_fallibilities_section] [revealables_section] initialization_section _goal_section ")"
