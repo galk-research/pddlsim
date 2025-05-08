@@ -63,7 +63,7 @@ class SessionTermination(Exception):  # noqa: N818
                 return f"session terminated externally: {description}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class _RSPMessageBridge:
     _reader: asyncio.StreamReader
     _writer: asyncio.StreamWriter
