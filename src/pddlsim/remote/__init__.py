@@ -9,6 +9,7 @@ and creating agents
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import override
 
 import cbor2
@@ -62,12 +63,10 @@ class SessionTermination(Exception):  # noqa: N818
                 return f"session terminated externally: {description}"
 
 
+@dataclass
 class _RSPMessageBridge:
-    def __init__(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        self.reader = reader
-        self.writer = writer
+    _reader: asyncio.StreamReader
+    _writer: asyncio.StreamWriter
 
     async def send_message(self, payload: Payload) -> None:
         serialized_message = Message(payload).serialize()
@@ -78,9 +77,9 @@ class _RSPMessageBridge:
         try:
             # If the amount of bytes doesn't fit in the 32-bit unsigned integer,
             # an overflow error is raised, so an invalid message is never sent
-            self.writer.write(len(data).to_bytes(_FRAME_LENGTH_BYTES))
-            self.writer.write(data)
-            await self.writer.drain()
+            self._writer.write(len(data).to_bytes(_FRAME_LENGTH_BYTES))
+            self._writer.write(data)
+            await self._writer.drain()
         except ConnectionResetError as exception:
             raise SessionTermination(
                 Custom.from_communication_channel_closed(),
@@ -90,9 +89,9 @@ class _RSPMessageBridge:
     async def receive_payload(self) -> Payload:
         try:
             byte_size = int.from_bytes(
-                await self.reader.readexactly(_FRAME_LENGTH_BYTES)
+                await self._reader.readexactly(_FRAME_LENGTH_BYTES)
             )
-            value_bytes: bytes = await self.reader.readexactly(byte_size)
+            value_bytes: bytes = await self._reader.readexactly(byte_size)
         except (asyncio.IncompleteReadError, ConnectionResetError) as exception:
             raise SessionTermination(
                 Custom.from_communication_channel_closed(),
