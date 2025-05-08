@@ -1,3 +1,5 @@
+"""Contains utilities to construct `Domain` and `Problem` objects from text."""
+
 import os
 from collections.abc import Iterable
 from decimal import Decimal
@@ -20,6 +22,7 @@ from pddlsim.ast import (
     Effect,
     EqualityCondition,
     FileLocation,
+    GoalList,
     Identifier,
     Location,
     NotCondition,
@@ -49,10 +52,10 @@ class _PDDLTransformer(Transformer):
         return Decimal(token)
 
     def IDENTIFIER(self, token: Token) -> Identifier:  # noqa: N802
-        return Identifier(str(token), location=FileLocation.from_token(token))
+        return Identifier(str(token), location=FileLocation._from_token(token))
 
     def VARIABLE(self, token: Token) -> Variable:  # noqa: N802
-        return Variable(token[1:], location=FileLocation.from_token(token))
+        return Variable(token[1:], location=FileLocation._from_token(token))
 
     @v_args(inline=False)
     def list_[T](self, items: list[T]) -> list[T]:
@@ -90,7 +93,7 @@ class _PDDLTransformer(Transformer):
         return Requirement.MULTIPLE_GOALS
 
     def REQUIREMENTS_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def requirements_section(
         self, location: Location, requirements: list[Requirement]
@@ -119,7 +122,7 @@ class _PDDLTransformer(Transformer):
         return chain(head, tail) if tail else head
 
     def TYPES_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def types_section(
         self, location: Location, types: Iterable[Typed[CustomType]]
@@ -160,7 +163,7 @@ class _PDDLTransformer(Transformer):
         return AndCondition(operands)
 
     def OR_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def or_condition[A: Argument](
         self, location: Location, operands: list[Condition[A]]
@@ -168,7 +171,7 @@ class _PDDLTransformer(Transformer):
         return OrCondition(operands, location=location)
 
     def NOT_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def not_condition[A: Argument](
         self, location: Location, operand: Condition[A]
@@ -176,7 +179,7 @@ class _PDDLTransformer(Transformer):
         return NotCondition(operand, location=location)
 
     def EQUALS_SIGN(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def equality_condition[A: Argument](
         self,
@@ -202,7 +205,7 @@ class _PDDLTransformer(Transformer):
         return (probability, effect)
 
     def PROBABILISTIC_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def probabilistic_effect[A: Argument](
         self,
@@ -268,7 +271,7 @@ class _PDDLTransformer(Transformer):
         )
 
     def FAIL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def action_fallibilities_section(
         self, location: Location, fallibilities: list[ActionFallibility]
@@ -290,7 +293,7 @@ class _PDDLTransformer(Transformer):
         )
 
     def REVEAL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
-        return FileLocation.from_token(token)
+        return FileLocation._from_token(token)
 
     def revealables_section(
         self, location: Location, revealables: list[Revealable]
@@ -302,6 +305,14 @@ class _PDDLTransformer(Transformer):
     ) -> list[Predicate[Object]]:
         return predicates
 
+    def GOALS_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation._from_token(token)
+
+    def goals_section(
+        self, location: Location, goals: list[Condition[Object]]
+    ) -> GoalList:
+        return GoalList(goals, location=location)
+
     def problem(
         self,
         name: Identifier,
@@ -311,7 +322,7 @@ class _PDDLTransformer(Transformer):
         fallible_actions: ActionFallibilitySet | None,
         revealables: RevealableSet | None,
         initialization: list[Predicate[Object]] | None,
-        goal_conditions: list[Condition[Object]] | None,
+        goal_conditions: GoalList | Condition[Object],
     ) -> RawProblem:
         return RawProblem.from_raw_parts(
             name,
@@ -321,7 +332,7 @@ class _PDDLTransformer(Transformer):
             fallible_actions,
             revealables,
             initialization if initialization else [],
-            goal_conditions if goal_conditions else [],
+            goal_conditions,
         )
 
 
@@ -336,10 +347,17 @@ _PDDL_PARSER = Lark(
 
 
 def parse_domain(text: str) -> Domain:
+    """Construct a `pddlsim.ast.Domain` from PDDL text."""
     return cast(Domain, _PDDL_PARSER.parse(text, "domain"))
 
 
 def parse_problem(text: str, domain: Domain) -> Problem:
+    """Construct a `pddlsim.ast.Problem` from PDDL text.
+
+    Due to validation concerns, this function requires an existing
+    `pddlsim.ast.Domain` object, corresponding to the domain used
+    in the problem.
+    """
     return Problem(
         cast(
             RawProblem,
@@ -352,6 +370,11 @@ def parse_problem(text: str, domain: Domain) -> Problem:
 def parse_domain_problem_pair(
     domain_text: str, problem_text: str
 ) -> tuple[Domain, Problem]:
+    """Construct a `pddlsim.ast.Domain` and a `pddlsim.ast.Problem` from text.
+
+    This is a convenience function to avoid manually passing a
+    `pddlsim.ast.Domain` into `parse_problem`.
+    """
     domain = parse_domain(domain_text)
     problem = parse_problem(problem_text, domain)
 
@@ -359,11 +382,21 @@ def parse_domain_problem_pair(
 
 
 def parse_domain_from_file(path: str | os.PathLike) -> Domain:
+    """Construct a `pddlsim.ast.Domain` from the path to a file.
+
+    This is a convenience function to avoid manual I/O.
+    """
     with open(path) as file:
         return parse_domain(file.read())
 
 
 def parse_problem_from_file(path: str | os.PathLike, domain: Domain) -> Problem:
+    """Construct a `pddlsim.ast.Problem` from the path to a file.
+
+    This is a convenience function to avoid manual I/O. Like `parse_problem`, it
+    requires manually passing the `pddlsim.ast.Domain` object corresponding to
+    the domain used in the problem, for validation of the problem.
+    """
     with open(path) as file:
         return parse_problem(file.read(), domain)
 
@@ -371,6 +404,12 @@ def parse_problem_from_file(path: str | os.PathLike, domain: Domain) -> Problem:
 def parse_domain_problem_pair_from_files(
     domain_path: str | os.PathLike, problem_path: str | os.PathLike
 ) -> tuple[Domain, Problem]:
+    """Construct a `pddlsim.ast.Domain` and a `pddlsim.ast.Problem` from paths.
+
+    This is a convenience function to avoid manual I/O. Like
+    `parse_domain_problem_pair`, it mainly exists to avoid passing a
+    `pddlsim.ast.Domain` manually into `parse_problem_from_file`.
+    """
     domain = parse_domain_from_file(domain_path)
     problem = parse_problem_from_file(problem_path, domain)
 

@@ -1,4 +1,10 @@
-import itertools
+"""Items directly related to simulation, and low-level simulation APIs.
+
+> [!TIP]
+> This is a low-level API. If you want to interface with agents, `pddlsim.local`
+> or `pddlsim.remote.server` may be a better fit.
+"""
+
 import os
 from collections import defaultdict
 from collections.abc import (
@@ -9,7 +15,7 @@ from collections.abc import (
 from dataclasses import dataclass
 from functools import cached_property
 from random import Random
-from typing import TypedDict, cast
+from typing import TypedDict, cast, override
 
 from clingo import Control
 from koda_validate import TypedDictValidator, Validator
@@ -136,9 +142,18 @@ class _ActionGroundingPair(TypedDict):
 
 @dataclass(frozen=True)
 class GroundedAction(Serdeable[_ActionGroundingPair]):
+    """Stores a grounded action: the action name, and a parameter assignment.
+
+    Used to represent actions by the agent that can change the simulation
+    (like actions in a PDDL domain). When creating an agent, this is the
+    principal value to use to indicate it is performing an action in
+    the environment.
+    """
+
     name: Identifier
     grounding: list[Object]
 
+    @override
     def serialize(self) -> _ActionGroundingPair:
         return _ActionGroundingPair(
             name=self.name.value,
@@ -146,32 +161,55 @@ class GroundedAction(Serdeable[_ActionGroundingPair]):
         )
 
     @classmethod
-    def validator(cls) -> Validator[_ActionGroundingPair]:
+    @override
+    def _validator(cls) -> Validator[_ActionGroundingPair]:
         return TypedDictValidator(_ActionGroundingPair)
 
     @classmethod
-    def create(cls, value: _ActionGroundingPair) -> "GroundedAction":
+    def _create(cls, value: _ActionGroundingPair) -> "GroundedAction":
         return GroundedAction(
             Identifier(value["name"]),
             [Object(object_) for object_ in value["grounding"]],
         )
 
 
-class SimulationCompletedError(Exception):
-    pass
-
-
 @dataclass(frozen=True)
 class Simulation:
+    """Low-level interface for PDDL simulation, backed by `SimulationState`.
+
+    > [!NOTE]
+    > For simply running simulations, locally, or with a server, prefer using
+    > `pddlsim.remote.server`, or `pddlsim.local` for local simulations.
+
+    `Simulation` provides additional functionality over `SimulationState`, such
+    as getting all possible actions (`Simulation.get_grounded_actions`),
+    checking if the problem has been solved (`Simulation.is_solved`), etc.
+
+    `Simulation` is the low-level basis for other simulation interfaces
+    in PDDLSIM. When interfacing with a full agent is undesired, it be a more
+    lightweight alternative.
+
+    The main way to construct a `Simulation` is via
+    `Simulation.from_domain_and_problem`.
+    """
+
     domain: Domain
+    """The domain used in the simulation.
+    
+    Used in methods such as `Simulation.get_grounded_actions`.
+    """
     problem: Problem
+    """The problem used in the simulation.
+
+    Used in methods such as `Simulation.is_solved`.
+    """
+    state: SimulationState
+    """The current state of the simulation."""
 
     _rng: Random
 
-    _state: SimulationState
     _reached_goal_indices: set[int]
     _unreached_goal_indices: set[int]
-
     _unactivated_revealables: set[Revealable]
 
     @cached_property
@@ -193,7 +231,7 @@ class Simulation:
         fallibilities = defaultdict(list)
 
         for fallibility in self.problem.action_fallibilities:
-            fallibilities[fallibility.action_name].append(fallibility)
+            fallibilities[fallibility.name].append(fallibility)
 
         return fallibilities
 
@@ -233,6 +271,14 @@ class Simulation:
         reached_goal_indices_override: Iterable[int] | None = None,
         seed: int | float | str | bytes | bytearray | None = None,
     ) -> "Simulation":
+        """Construct a new `Simulation` from a domain and a problem.
+
+        Additionally, the initial state for the simulation, as well as
+        the already reached goals can be overrided. Finally, a seed for
+        randomness in the simulation may be provided. When applying
+        actions with probabilistic effects the seed is used for choosing
+        a subeffect.
+        """
         reached_goal_indices = (
             set(reached_goal_indices_override)
             if reached_goal_indices_override
@@ -242,23 +288,28 @@ class Simulation:
         return Simulation(
             domain,
             problem,
-            # Technically speaking, the seed could be cracked under very
-            # specific circumstances (system time is known and is used
-            # for randomness), but in practice, this is fine, and shouldn't
-            # be exploited.
-            Random(seed),
             # Internally, we mutate the state, so copying is needed
             state_override._copy()
             if state_override
             else SimulationState(
                 {true_predicate for true_predicate in problem.initialization}
             ),
+            # Technically speaking, the seed could be cracked under very
+            # specific circumstances (system time is known and is used
+            # for randomness), but in practice, this is fine, and shouldn't
+            # be exploited.
+            Random(seed),
             reached_goal_indices,
-            set(range(len(problem.goal_conditions))) - reached_goal_indices,
+            set(range(len(problem.goals))) - reached_goal_indices,
             set(problem.revealables),
         )
 
     def __post_init__(self) -> None:
+        """Run update procedures that normally run on a successful action.
+
+        These should also be run on the first state of the simulation
+        (revealables, reached goals, etc.)
+        """
         self._update_reached_goals()
         self._update_revealables()
 
@@ -267,7 +318,7 @@ class Simulation:
 
         for goal_index in self._unreached_goal_indices:
             if self.state.does_condition_hold(
-                self.problem.goal_conditions[goal_index]
+                self.problem.goals.get_goal(goal_index)
             ):
                 self._reached_goal_indices.add(goal_index)
                 newly_reached_goals.add(goal_index)
@@ -300,21 +351,23 @@ class Simulation:
                 break
 
     @property
-    def state(self) -> SimulationState:
-        return self._state
-
-    @property
     def reached_goal_indices(self) -> list[int]:
+        """Indices of completed problem goals, from 0, in definition order."""
         return list(self._reached_goal_indices)
 
     @property
     def unreached_goal_indices(self) -> list[int]:
+        """Indices of uncompleted problem goals, from 0, in definition order."""
         return list(self._unreached_goal_indices)
 
     def apply_grounded_action(self, grounded_action: GroundedAction) -> None:
-        if self.is_solved():
-            raise SimulationCompletedError
+        """Apply a grounded action to the `Simulation`, affecting its state.
 
+        If the problem the simulation has any action fallibilities, these may
+        apply, making the action have no effect. If the action has as a
+        subeffect a probabilistic one, a subeffect is chosen at random based on
+        the simulation's random number generator.
+        """
         for fallibility in self._action_fallibilities[grounded_action.name]:
             if self.state.does_condition_hold(fallibility.condition):
                 does_fail = self._rng.random() < fallibility.with_probability
@@ -401,6 +454,7 @@ class Simulation:
         )
 
     def get_grounded_actions(self) -> Iterable[GroundedAction]:
+        """Get possible grounded actions for the current simulation state."""
         state_part = simulation_state_asp_part(
             self.state,
             self._predicate_id_allocator,
@@ -416,6 +470,5 @@ class Simulation:
         )
 
     def is_solved(self) -> bool:
-        return len(self._reached_goal_indices) == len(
-            self.problem.goal_conditions
-        )
+        """Check if all goals of the problem have been achieved."""
+        return len(self._reached_goal_indices) == len(self.problem.goals)

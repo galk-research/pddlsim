@@ -102,6 +102,8 @@ revealables_section: "(" REVEAL_KEYWORD list_{revealable} ")"
 
 initialization_section: "(" ":init" list_{predicate{object_}} ")"
 
-_goal_section: "(" ":goal" list_{condition{object_}} ")"
+_goal_section: "(" ":goal" condition{object_} ")"
+GOALS_KEYWORD: ":goals"
+goals_section: "(" GOALS_KEYWORD list_{condition{object_}} ")"
 
-problem: "(" "define" _problem_name _used_domain_name [[requirements_section{problem_requirement}]] [objects_section] [action_fallibilities_section] [revealables_section] [initialization_section] [_goal_section] ")"
+problem: "(" "define" _problem_name _used_domain_name [[requirements_section{problem_requirement}]] [objects_section] [action_fallibilities_section] [revealables_section] [initialization_section] (_goal_section | goals_section) ")"

@@ -18,17 +18,17 @@ class Serdeable[T](ABC):
 
     @classmethod
     @abstractmethod
-    def validator(cls) -> Validator[T]:
+    def _validator(cls) -> Validator[T]:
         raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    def create(cls, value: T) -> Self:
+    def _create(cls, value: T) -> Self:
         raise NotImplementedError
 
     @classmethod
     def deserialize(cls, data: Any) -> Self:
-        match cls.validator()(data).map(cls.create):
+        match cls._validator()(data).map(cls._create):
             case Valid(deserialized_value):
                 return deserialized_value
             case Invalid():
@@ -46,9 +46,9 @@ class SerdeableEnum(Serdeable[str], StrEnum, metaclass=ABCEnum):
         return self.value
 
     @classmethod
-    def validator(cls) -> Validator[str]:
+    def _validator(cls) -> Validator[str]:
         return StringValidator(Choices({source.value for source in cls}))
 
     @classmethod
-    def create(cls, value: str) -> Self:
+    def _create(cls, value: str) -> Self:
         return cls(value)

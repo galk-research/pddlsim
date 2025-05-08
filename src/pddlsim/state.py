@@ -1,4 +1,6 @@
-from collections.abc import Iterable, Iterator, MutableSet
+"""Items related to storing the state of a PDDLSIM simulation, in predicates."""
+
+from collections.abc import Iterator, MutableSet
 from dataclasses import dataclass, field
 from random import Random
 
@@ -20,6 +22,17 @@ from pddlsim.ast import (
 
 @dataclass(eq=True, frozen=True)
 class SimulationState:
+    """Data structure storing the environment state of a PDDLSIM simulation.
+
+    As PDDLSIM is PDDL based, the state is a set of true grounded predicates.
+    `SimulationState` is immutable, meaning methods that "modify" it, actually
+    return a new state (e.g., `SimulationState.make_effect_hold`).
+
+    Constructing a `SimulationState` is done by passing to the constructor
+    a set of predicates, or calling it with no parameters, returning an
+    empty state.
+    """
+
     _true_predicates: MutableSet[Predicate[Object]] = field(default_factory=set)
 
     def _copy(self) -> "SimulationState":
@@ -40,6 +53,7 @@ class SimulationState:
                 self._true_predicates.remove(base_predicate)
 
     def does_condition_hold(self, condition: Condition[Object]) -> bool:
+        """Check if the given grounded condition holds in the state."""
         match condition:
             case AndCondition(subconditions):
                 return all(
@@ -69,13 +83,21 @@ class SimulationState:
                 self._make_atom_hold(effect)
 
     def make_effect_hold(
-        self, effect: Effect[Object], rng: Random
+        self, effect: Effect[Object], rng: Random | None = None
     ) -> "SimulationState":
+        """Make the effect hold in a new returned state.
+
+        Constructs a new state in which the given effect holds,
+        while choosing subeffects in probabilistic junctions
+        (`pddlsim.ast.ProbabilisticEffect`) randomly, and based
+        on a `random.Random` object, if passed.
+        """
         new_state = self._copy()
 
-        new_state._make_effect_hold(effect, rng)
+        new_state._make_effect_hold(effect, rng if rng else Random())
 
         return new_state
 
     def __iter__(self) -> Iterator[Predicate[Object]]:
+        """Return an iterator over all grounded predicates in the state."""
         return iter(self._true_predicates)

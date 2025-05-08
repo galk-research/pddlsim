@@ -2,7 +2,7 @@ import random
 from collections.abc import Sequence
 
 from pddlsim.remote.client import (
-    DeadEndAction,
+    GiveUpAction,
     SimulationAction,
     SimulationClient,
     with_no_initializer,
@@ -21,7 +21,7 @@ async def get_next_action(simulation: SimulationClient) -> SimulationAction:
 
     match len(options):
         case 0:
-            return DeadEndAction()
+            return GiveUpAction.from_dead_end()
         case 1:
             return options[0]
         case _:

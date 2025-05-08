@@ -1,3 +1,5 @@
+"""Interface for interacting with simulations, and code to connect to them."""
+
 import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -5,7 +7,7 @@ from typing import NoReturn
 
 from pddlsim.ast import Domain, Problem
 from pddlsim.remote import (
-    RSP_VERSION,
+    _RSP_VERSION,
     SessionTermination,
     _RSPMessageBridge,
 )
@@ -30,23 +32,29 @@ from pddlsim.remote._message import (
 from pddlsim.simulation import GroundedAction, SimulationState
 
 
+@dataclass
 class SimulationClient:
-    def __init__(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        self._bridge = _RSPMessageBridge(
-            reader,
-            writer,
+    """Interface with a remote simulation."""
+
+    _bridge: _RSPMessageBridge
+    _state: SimulationState | None = None
+    _domain_problem_pair: tuple[Domain, Problem] | None = None
+    _grounded_actions: list[GroundedAction] | None = None
+    _reached_and_unreached_goal_indices: tuple[list[int], list[int]] | None = (
+        None
+    )
+    _termination: SessionTermination | None = None
+
+    @classmethod
+    def _from_reader_and_writer(
+        cls, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> "SimulationClient":
+        return SimulationClient(
+            _RSPMessageBridge(
+                reader,
+                writer,
+            )
         )
-
-        self._domain_problem_pair: tuple[Domain, Problem] | None = None
-        self._state: SimulationState | None = None
-        self._grounded_actions: list[GroundedAction] | None = None
-        self._reached_and_unreached_goal_indices: (
-            tuple[list[int], list[int]] | None
-        ) = None
-
-        self._termination: SessionTermination | None = None
 
     async def _receive_payload[P: Payload](
         self, expected_payload_type: type[P]
@@ -92,7 +100,7 @@ class SimulationClient:
             raise self._termination  # type: ignore
 
     async def _start_session(self) -> None:
-        await self._send_message(SessionSetupRequest(RSP_VERSION))
+        await self._send_message(SessionSetupRequest(_RSP_VERSION))
 
         _message = await self._receive_payload(SessionSetupResponse)
 
@@ -112,10 +120,16 @@ class SimulationClient:
         return self._domain_problem_pair
 
     async def get_domain(self) -> Domain:
+        """Get the domain used in the simulation."""
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[0]
 
     async def get_problem(self) -> Problem:
+        """Get the problem used in the simulation.
+
+        "Hidden information", in particular revealables
+        and action fallibilities, are redacted.
+        """
         # This is not wasteful thanks to caching
         return (await self._get_problem_setup())[1]
 
@@ -137,12 +151,33 @@ class SimulationClient:
         return self._reached_and_unreached_goal_indices
 
     async def get_reached_goal_indices(self) -> Sequence[int]:
+        """Get the indices of the problem goals that have been reached.
+
+        By using `pddlsim.ast.GoalList.get_goal` on the problem's
+        `pddlsim.ast.Problem.goals` one can see the condition corresponding to
+        the index.
+        """
         return (await self._get_reached_and_unreached_goals())[0]
 
     async def get_unreached_goal_indices(self) -> Sequence[int]:
+        """Get the indices of the problem goals that have yet to be reached.
+
+        By using `pddlsim.ast.GoalList.get_goal` on the problem's
+        `pddlsim.ast.Problem.goals` one can see the condition corresponding to
+        the index.
+        """
         return (await self._get_reached_and_unreached_goals())[1]
 
     async def get_perceived_state(self) -> SimulationState:
+        """Get the current state, as perceived by the agent.
+
+        > [!NOTE]
+        > This state can differ than the one obtained by using
+        > `SimulationClient.get_domain` and `SimulationClient.get_problem`
+        > and simulating changes to the state manually, as the problem
+        > has its action fallibilities and revealables removed, as these
+        > are considered hidden information.
+        """
         self._assert_unterminated()
 
         if not self._state:
@@ -155,6 +190,15 @@ class SimulationClient:
         return self._state
 
     async def get_grounded_actions(self) -> Sequence[GroundedAction]:
+        """Get all grounded actions  for the agent in the current state.
+
+        > [!NOTE]
+        > These actions can differ from those obtained by using
+        > `SimulationClient.get_domain` and `SimulationClient.get_problem`
+        > and simulating the problem manually, as the problem has its action
+        > fallibilities and revealables removed, as these are considered hidden
+        > information.
+        """
         self._assert_unterminated()
 
         if not self._grounded_actions:
@@ -188,26 +232,55 @@ class SimulationClient:
 
 @dataclass(frozen=True)
 class GiveUpAction:
+    """`SimulationAction` representing that the agent has given up.
+
+    After making this action. the simulation will terminate.
+    """
+
     reason: str | None = None
 
-
-class DeadEndAction(GiveUpAction):
-    def __init__(self) -> None:
-        super().__init__("dead end")
+    @classmethod
+    def from_dead_end(cls) -> "GiveUpAction":
+        """Construct a `GiveUpAction` which is due to a dead end."""
+        return GiveUpAction("dead end")
 
 
 type SimulationAction = GiveUpAction | GroundedAction
+"""An interaction of the agent with a simulation.
 
+This can be a `pddlsim.simulation.GroundedAction`, which will affect the
+state of the simulation, an indication by the agent that it is giving up
+on the simulation, etc.
+"""
 
 type NextActionGetter = Callable[[], Awaitable[SimulationAction]]
+"""A simple model of an agent, sequentially returning `SimulationAction`s.
+
+The callable is async as the agent may need to use the `SimulationClient`,
+which may involve communication with the simulation server.
+"""
 type AgentInitializer = Callable[
     [SimulationClient], Awaitable[NextActionGetter]
 ]
+"""An agent initializer, allowing the agent to setup, and then returning it.
+
+This acts as an "agent constructor", in such a way that the agent is expected
+to store the `SimulationClient` handle it receives. Finally, assuming
+initialization involves using the `SimulationClient`, the callable is
+async.
+"""
 
 
 def with_no_initializer(
     get_next_action: Callable[[SimulationClient], Awaitable[SimulationAction]],
 ) -> AgentInitializer:
+    """Wrap stateless agents into initializers.
+
+    Most of PDDLSIM's API expects `AgentInitializer`s, so this function is
+    useful for quickly making "dummy initializers" for stateless agents,
+    while avoiding boilerplate.
+    """
+
     async def no_op_initializer(client: SimulationClient) -> NextActionGetter:
         return lambda: get_next_action(client)
 
@@ -219,9 +292,17 @@ async def act_in_simulation(
     port: int,
     initializer: AgentInitializer,
 ) -> SessionTermination:
+    """Connect to the remote simulation and run the agent on it.
+
+    The remote simulation to connect to is specified as a `host` and
+    `port` pair, where `host` is generally an IP address.
+
+    The returned object (`SessionTermination`) represents how the simulation
+    session ended.
+    """
     reader, writer = await asyncio.open_connection(host, port)
 
-    client = SimulationClient(reader, writer)
+    client = SimulationClient._from_reader_and_writer(reader, writer)
 
     try:
         await client._start_session()

@@ -47,11 +47,11 @@ class SessionSetupRequest(Payload[int]):
         return self.supported_rsp_version
 
     @classmethod
-    def validator(cls) -> Validator[int]:
+    def _validator(cls) -> Validator[int]:
         return IntValidator(Min(1))
 
     @classmethod
-    def create(cls, value: int) -> "SessionSetupRequest":
+    def _create(cls, value: int) -> "SessionSetupRequest":
         return SessionSetupRequest(value)
 
     @classmethod
@@ -65,11 +65,11 @@ class EmptyPayload(Payload[None]):
         return None
 
     @classmethod
-    def validator(cls) -> Validator[None]:
+    def _validator(cls) -> Validator[None]:
         return NoneValidator()
 
     @classmethod
-    def create(cls, _value: None) -> Self:
+    def _create(cls, _value: None) -> Self:
         return cls()
 
 
@@ -102,11 +102,11 @@ class ProblemSetupResponse(Payload[SerializedProblemSetupResponse]):
         )
 
     @classmethod
-    def validator(cls) -> Validator[SerializedProblemSetupResponse]:
+    def _validator(cls) -> Validator[SerializedProblemSetupResponse]:
         return TypedDictValidator(SerializedProblemSetupResponse)
 
     @classmethod
-    def create(
+    def _create(
         cls, value: SerializedProblemSetupResponse
     ) -> "ProblemSetupResponse":
         domain, problem = parse_domain_problem_pair(
@@ -134,11 +134,11 @@ class PerceptionResponse(Payload[list[Any]]):
         return [predicate.serialize() for predicate in self.true_predicates]
 
     @classmethod
-    def validator(cls) -> Validator[list[Any]]:
+    def _validator(cls) -> Validator[list[Any]]:
         return ListValidator(AlwaysValid())
 
     @classmethod
-    def create(cls, value: list[Any]) -> "PerceptionResponse":
+    def _create(cls, value: list[Any]) -> "PerceptionResponse":
         return PerceptionResponse(
             [Predicate[Object].deserialize(item) for item in value]
         )
@@ -171,11 +171,11 @@ class GoalTrackingResponse(Payload[SerializedGoalTrackingResponse]):
         )
 
     @classmethod
-    def validator(cls) -> Validator[SerializedGoalTrackingResponse]:
+    def _validator(cls) -> Validator[SerializedGoalTrackingResponse]:
         return TypedDictValidator(SerializedGoalTrackingResponse)
 
     @classmethod
-    def create(
+    def _create(
         cls, value: SerializedGoalTrackingResponse
     ) -> "GoalTrackingResponse":
         return GoalTrackingResponse(value["reached"], value["unreached"])
@@ -202,11 +202,11 @@ class GetGroundedActionsResponse(Payload[list[Any]]):
         ]
 
     @classmethod
-    def validator(cls) -> Validator[list[Any]]:
+    def _validator(cls) -> Validator[list[Any]]:
         return ListValidator(AlwaysValid())
 
     @classmethod
-    def create(cls, value: list[Any]) -> "GetGroundedActionsResponse":
+    def _create(cls, value: list[Any]) -> "GetGroundedActionsResponse":
         return GetGroundedActionsResponse(
             [GroundedAction.deserialize(item) for item in value]
         )
@@ -224,11 +224,11 @@ class PerformGroundedActionRequest(Payload[Any]):
         return self.grounded_action.serialize()
 
     @classmethod
-    def validator(cls) -> Validator[Any]:
+    def _validator(cls) -> Validator[Any]:
         return AlwaysValid()
 
     @classmethod
-    def create(cls, value: Any) -> "PerformGroundedActionRequest":
+    def _create(cls, value: Any) -> "PerformGroundedActionRequest":
         return PerformGroundedActionRequest(GroundedAction.deserialize(value))
 
     @classmethod
@@ -287,11 +287,11 @@ class Error(TerminationPayload[ErrorReason]):
         return ErrorReason(source=self.source.serialize(), reason=self.reason)
 
     @classmethod
-    def validator(cls) -> Validator[ErrorReason]:
+    def _validator(cls) -> Validator[ErrorReason]:
         return TypedDictValidator(ErrorReason)
 
     @classmethod
-    def create(cls, value: ErrorReason) -> "Error":
+    def _create(cls, value: ErrorReason) -> "Error":
         return Error(
             TerminationSource.deserialize(value["source"]), value["reason"]
         )
@@ -334,11 +334,11 @@ class GiveUp(TerminationPayload[str | None]):
         return self.reason
 
     @classmethod
-    def validator(cls) -> Validator[str | None]:
+    def _validator(cls) -> Validator[str | None]:
         return OptionalValidator(StringValidator())
 
     @classmethod
-    def create(cls, value: str | None) -> "GiveUp":
+    def _create(cls, value: str | None) -> "GiveUp":
         return GiveUp(value)
 
     @classmethod
@@ -365,11 +365,11 @@ class Custom(TerminationPayload[str | None]):
         return self.reason
 
     @classmethod
-    def validator(cls) -> Validator[str | None]:
+    def _validator(cls) -> Validator[str | None]:
         return OptionalValidator(StringValidator())
 
     @classmethod
-    def create(cls, value: str | None) -> "Custom":
+    def _create(cls, value: str | None) -> "Custom":
         return Custom(value)
 
     @classmethod
@@ -395,11 +395,11 @@ class Message(Serdeable[SerializedMessage]):
         )
 
     @classmethod
-    def validator(cls) -> Validator[SerializedMessage]:
+    def _validator(cls) -> Validator[SerializedMessage]:
         return TypedDictValidator(SerializedMessage)
 
     @classmethod
-    def create(cls, value: SerializedMessage) -> "Message":
+    def _create(cls, value: SerializedMessage) -> "Message":
         return Message(
             Payload.payloads[value["type"]].deserialize(value["payload"])
         )

@@ -1,5 +1,15 @@
+"""Items for creating simulators and interacting with them over the internet.
+
+This module contains two main submodules:
+
+- `remote.client` contains items related to interfacing with simulations
+and creating agents
+- `remote.server` contains items related to create a simulator server
+"""
+
 import asyncio
 import logging
+from typing import override
 
 import cbor2
 
@@ -13,33 +23,35 @@ from pddlsim.remote._message import (
     TerminationSource,
 )
 
-RSP_VERSION = 1
+_RSP_VERSION = 1
 
-MAXIMUM_VALUE_BITS_BYTES = 4
+_FRAME_LENGTH_BYTES = 4
 
 
-class SessionTermination(Exception):
+class SessionTermination(Exception):  # noqa: N818
+    """Represents the way in which a simulation session terminated."""
+
     def __init__(
         self,
         termination_payload: TerminationPayload,
         source: TerminationSource,
         *args: object,
     ) -> None:
+        """Construct a `SessionTermination` from a payload and a source."""
         super().__init__(termination_payload, *args)
 
         self._termination_payload = termination_payload
         self.source = source
 
-    def is_goal_reached(self) -> bool:
+    def is_goals_reached(self) -> bool:
+        """Check if the session terminated as all goals have been reached."""
         return isinstance(self._termination_payload, GoalsReached)
 
     def is_error(self) -> bool:
+        """Check if the session has been terminated due to an error."""
         return isinstance(self._termination_payload, Error)
 
-    @property
-    def payload(self) -> TerminationPayload:
-        return self._termination_payload
-
+    @override
     def __str__(self):
         description = self._termination_payload.description()
 
@@ -66,7 +78,7 @@ class _RSPMessageBridge:
         try:
             # If the amount of bytes doesn't fit in the 32-bit unsigned integer,
             # an overflow error is raised, so an invalid message is never sent
-            self.writer.write(len(data).to_bytes(MAXIMUM_VALUE_BITS_BYTES))
+            self.writer.write(len(data).to_bytes(_FRAME_LENGTH_BYTES))
             self.writer.write(data)
             await self.writer.drain()
         except ConnectionResetError as exception:
@@ -78,7 +90,7 @@ class _RSPMessageBridge:
     async def receive_payload(self) -> Payload:
         try:
             byte_size = int.from_bytes(
-                await self.reader.readexactly(MAXIMUM_VALUE_BITS_BYTES)
+                await self.reader.readexactly(_FRAME_LENGTH_BYTES)
             )
             value_bytes: bytes = await self.reader.readexactly(byte_size)
         except (asyncio.IncompleteReadError, ConnectionResetError) as exception:

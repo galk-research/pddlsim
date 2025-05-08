@@ -1,3 +1,5 @@
+"""Code for opening a simulation server accessible by the internet."""
+
 import asyncio
 import logging
 import os
@@ -8,7 +10,7 @@ from typing import NoReturn
 from pddlsim.ast import Domain, Problem
 from pddlsim.parser import parse_domain_problem_pair_from_files
 from pddlsim.remote import (
-    RSP_VERSION,
+    _RSP_VERSION,
     SessionTermination,
     _RSPMessageBridge,
 )
@@ -51,7 +53,7 @@ async def _receive_message[T: Payload](
 async def _start_session(bridge: _RSPMessageBridge) -> None:
     message = await _receive_message(SessionSetupRequest, bridge)
 
-    if message.supported_rsp_version != RSP_VERSION:
+    if message.supported_rsp_version != _RSP_VERSION:
         session_unsupported = SessionUnsupported()
 
         await bridge.send_message(session_unsupported)
@@ -224,6 +226,11 @@ class _SimulationServer:
 async def start_simulation_server(
     domain: Domain, problem: Problem, host: str, port: int | None = None
 ) -> None:
+    """Open a simulation server for a domain and problem.
+
+    `host` and `port` form a pair, specifying the network interface
+    to open the server on. If the port is unspecified, it is chosen by the OS.
+    """
     server = await _SimulationServer.from_host_and_port(
         domain, problem, host, port
     )
@@ -237,6 +244,11 @@ async def start_simulation_server_from_files(
     host: str,
     port: int | None = None,
 ) -> None:
+    """Open a simulation server for a domain and problem, specified by path.
+
+    `host` and `port` form a pair, specifying the network interface
+    to open the server on. If the port is unspecified, it is chosen by the OS.
+    """
     domain, problem = parse_domain_problem_pair_from_files(
         domain_path, problem_path
     )
