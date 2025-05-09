@@ -92,7 +92,7 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
 objects_section: "(" ":objects" typed_list{object_} ")"
 
-action_fallibility: "(" IDENTIFIER ":on" [NUMBER] condition{object_} ")"
+action_fallibility: "(" ":action" IDENTIFIER ":on" [NUMBER] condition{object_} ")"
 FAIL_KEYWORD: ":fails"
 action_fallibilities_section: "(" FAIL_KEYWORD list_{action_fallibility} ")"
 
