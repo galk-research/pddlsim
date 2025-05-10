@@ -1073,6 +1073,23 @@ class GroundedActionSchematic[G: Grounder]:
     grounding: list[G]
     """The action's grounding."""
 
+    def does_match(self, grounded_action: "GroundedAction") -> bool:
+        """Check if the grounded action matches the schematic.
+
+        This means that for each non-placeholder grounder, it matches
+        the object at the grounded action in that position.
+        """
+        for grounder, object_ in zip(
+            self.grounding, grounded_action.grounding, strict=True
+        ):
+            match grounder:
+                case Placeholder():
+                    pass
+                case Object() if grounder != object_:
+                    return False
+
+        return True
+
 
 class _SerializedGroundedAction(TypedDict):
     name: Any

@@ -337,7 +337,9 @@ class Simulation:
         the simulation's random number generator.
         """
         for fallibility in self._action_fallibilities[grounded_action.name]:
-            if self.state.does_condition_hold(fallibility.condition):
+            if fallibility.grounded_action_schematic.does_match(
+                grounded_action
+            ) and self.state.does_condition_hold(fallibility.condition):
                 does_fail = self._rng.random() < fallibility.with_probability
 
                 if does_fail:
