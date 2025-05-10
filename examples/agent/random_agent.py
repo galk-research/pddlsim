@@ -1,13 +1,13 @@
 import random
 from collections.abc import Sequence
 
+from pddlsim.ast import GroundedAction
 from pddlsim.remote.client import (
     GiveUpAction,
     SimulationAction,
     SimulationClient,
     with_no_initializer,
 )
-from pddlsim.simulation import GroundedAction
 
 
 def pick_grounded_action(

@@ -3,6 +3,7 @@ import logging
 import random
 from collections.abc import Sequence
 
+from pddlsim.ast import GroundedAction
 from pddlsim.local import simulate_domain_problem_pair_from_files
 from pddlsim.remote.client import (
     GiveUpAction,
@@ -10,7 +11,6 @@ from pddlsim.remote.client import (
     SimulationClient,
     with_no_initializer,
 )
-from pddlsim.simulation import GroundedAction
 
 
 def pick_grounded_action(

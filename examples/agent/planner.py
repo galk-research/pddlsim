@@ -5,14 +5,13 @@ from typing import ClassVar
 import unified_planning.shortcuts as ups  # type: ignore
 from unified_planning.io import PDDLReader  # type: ignore
 
-from pddlsim.ast import Identifier, Object, Requirement
+from pddlsim.ast import GroundedAction, Identifier, Object, Requirement
 from pddlsim.remote.client import (
     GiveUpAction,
     NextActionGetter,
     SimulationAction,
     SimulationClient,
 )
-from pddlsim.simulation import GroundedAction
 
 
 @dataclass

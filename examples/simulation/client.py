@@ -3,7 +3,7 @@ import logging
 import random
 from dataclasses import dataclass
 
-from pddlsim.ast import Domain, Problem
+from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.remote.client import (
     GiveUpAction,
     NextActionGetter,
@@ -11,7 +11,7 @@ from pddlsim.remote.client import (
     SimulationClient,
     act_in_simulation,
 )
-from pddlsim.simulation import GroundedAction, Simulation
+from pddlsim.simulation import Simulation
 from pddlsim.state import SimulationState
 
 
