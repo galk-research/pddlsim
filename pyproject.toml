@@ -1,6 +1,6 @@
 [project]
 name = "pddlsim"
-version = "0.2.0"
+version = "0.2.0.dev0"
 description = "PDDL-based simulator for the BIU course \"Introduction to Intelligent, Knowledge-Based and Cognitive Systems\""
 authors = [
     { name = "Gal A. Kaminka", email = "galk@cs.biu.ac.il" },
@@ -14,7 +14,7 @@ dependencies = [
 ]
 requires-python = ">=3.12"
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 keywords = ["PDDL", "agent", "simulator"]
 classifiers = [
     "Development Status :: 3 - Alpha",
