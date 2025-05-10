@@ -214,15 +214,15 @@ class Simulation:
 
     @cached_property
     def _object_name_id_allocator(self) -> IDAllocator[Object]:
-        return IDAllocator(ObjectNameID)
+        return IDAllocator.from_id_constructor(ObjectNameID)
 
     @cached_property
     def _predicate_id_allocator(self) -> IDAllocator[Identifier]:
-        return IDAllocator(PredicateID)
+        return IDAllocator.from_id_constructor(PredicateID)
 
     @cached_property
     def _type_name_id_allocator(self) -> IDAllocator[Type]:
-        return IDAllocator(TypeNameID)
+        return IDAllocator.from_id_constructor(TypeNameID)
 
     @cached_property
     def _action_fallibilities(
@@ -252,7 +252,9 @@ class Simulation:
             action_definition.name: (
                 action_definition_asp_part(
                     action_definition,
-                    variable_id_allocator := IDAllocator[Variable](VariableID),
+                    variable_id_allocator := IDAllocator[
+                        Variable
+                    ].from_id_constructor(VariableID),
                     self._object_name_id_allocator,
                     self._predicate_id_allocator,
                     self._type_name_id_allocator,

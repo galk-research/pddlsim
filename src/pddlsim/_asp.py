@@ -89,12 +89,18 @@ class TemporaryID(ID):
         return "T"
 
 
+@dataclass
 class IDAllocator[T]:
-    def __init__(self, new_id: Callable[[int], ID]) -> None:
-        self._previous_id = -1
-        self._new_id = new_id
-        self._ids: MutableMapping[T, ID] = {}
-        self._values: MutableMapping[ID, T] = {}
+    _previous_id: int
+    _new_id: Callable[[int], ID]
+    _ids: MutableMapping[T, ID]
+    _values: MutableMapping[ID, T]
+
+    @classmethod
+    def from_id_constructor(
+        cls, new_id: Callable[[int], ID]
+    ) -> "IDAllocator[T]":
+        return IDAllocator(-1, new_id, {}, {})
 
     def next_id(self) -> ID:
         self._previous_id += 1
@@ -333,7 +339,9 @@ def _add_condition_to_asp_part(
     object_id_allocator: IDAllocator[Object],
     predicate_id_allocator: IDAllocator[Identifier],
 ) -> ID:
-    temporary_id_allocator = IDAllocator[Variable](TemporaryID)
+    temporary_id_allocator = IDAllocator[Variable].from_id_constructor(
+        TemporaryID
+    )
 
     def argument_to_asp(argument: Argument) -> ArgumentAST:
         match argument:
@@ -475,7 +483,7 @@ def action_definition_asp_part(
     precondition_id = _add_condition_to_asp_part(
         action_definition.precondition,
         part,
-        IDAllocator(RuleID),
+        IDAllocator.from_id_constructor(RuleID),
         variable_id_allocator,
         object_id_allocator,
         predicate_id_allocator,
