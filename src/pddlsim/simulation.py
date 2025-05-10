@@ -227,6 +227,14 @@ class Simulation:
             for action_definition in self.domain.actions_section
         }
 
+    @cached_property
+    def _state_asp_part(self) -> ASPPart:
+        return simulation_state_asp_part(
+            self.state,
+            self._predicate_id_allocator,
+            self._object_name_id_allocator,
+        )
+
     @classmethod
     def from_domain_and_problem(
         cls,
@@ -363,13 +371,14 @@ class Simulation:
                 self._rng,
             )
 
+            del self._state_asp_part  # Regenerate the cached state ASP part
             self._update_reached_goals()
             self._update_revealables()
         else:
             raise ValueError("grounded action doesn't satisfy precondition")
 
     def _get_groundings(
-        self, action_definition: ActionDefinition, state_part: ASPPart
+        self, action_definition: ActionDefinition
     ) -> Generator[Mapping[Variable, Object]]:
         action_definition_asp_part, variable_id_allocator = (
             self._action_definition_asp_parts[action_definition.name]
@@ -387,7 +396,7 @@ class Simulation:
         control.configuration.solve.models = 0  # type: ignore
 
         self._objects_asp_part.add_to_control(control)
-        state_part.add_to_control(control)
+        self._state_asp_part.add_to_control(control)
         action_definition_asp_part.add_to_control(control)
 
         control.ground(
@@ -410,7 +419,7 @@ class Simulation:
                 }
 
     def _get_grounded_actions(
-        self, action_definition: ActionDefinition, state_part: ASPPart
+        self, action_definition: ActionDefinition
     ) -> Iterable[GroundedAction]:
         return (
             GroundedAction(
@@ -420,23 +429,15 @@ class Simulation:
                     for parameter in action_definition.parameters
                 ],
             )
-            for grounding in self._get_groundings(action_definition, state_part)
+            for grounding in self._get_groundings(action_definition)
         )
 
     def get_grounded_actions(self) -> Iterable[GroundedAction]:
         """Get possible grounded actions for the current simulation state."""
-        state_part = simulation_state_asp_part(
-            self.state,
-            self._predicate_id_allocator,
-            self._object_name_id_allocator,
-        )
-
         return (
             grounded_action
             for action_definition in self.domain.actions_section
-            for grounded_action in self._get_grounded_actions(
-                action_definition, state_part
-            )
+            for grounded_action in self._get_grounded_actions(action_definition)
         )
 
     def is_solved(self) -> bool:
