@@ -16,6 +16,8 @@ The simulator is run with PDDL[^1] domain and problem files. An agent can then c
 
 The documentation is maintained in the [PDDLSIM wiki](https://github.com/galk-research/pddlsim/wiki). To start, see [the tutorial](https://github.com/galk-research/pddlsim/wiki/Tutorial). The documentation also includes usage guidelines, information about creating agents that interact with the simulator, and more.
 
+Beyond the wiki, PDDLSIM also has an [online API reference](https://galk-research.github.io/pddlsim).
+
 ## Installation
 
 PDDLSIM is available on [PyPI](https://pypi.org/project/pddlsim/), requiring no external dependencies. PDDLSIM requires Python 3.12 or later. Earlier, legacy versions of PDDLSIM are also available on PyPI, but these have a vastly different API than current PDDLSIM, and are unsupported, as these use Python 2.7.
