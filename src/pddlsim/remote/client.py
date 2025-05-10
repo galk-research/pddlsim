@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import NoReturn
 
-from pddlsim.ast import Domain, Problem
+from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.remote import (
     _RSP_VERSION,
     SessionTermination,
@@ -29,7 +29,7 @@ from pddlsim.remote._message import (
     SessionSetupResponse,
     TerminationSource,
 )
-from pddlsim.simulation import GroundedAction, SimulationState
+from pddlsim.simulation import SimulationState
 
 
 @dataclass

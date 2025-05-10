@@ -1,7 +1,7 @@
 import inspect
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Self, TypedDict
+from typing import Any, ClassVar, Self, TypedDict
 
 from koda_validate import (
     AlwaysValid,
@@ -25,7 +25,7 @@ from pddlsim.simulation import GroundedAction
 
 
 class Payload[T](Serdeable[T]):
-    payloads: dict[str, type["Payload"]] = {}
+    payloads: ClassVar[dict[str, type["Payload"]]] = {}
 
     def __init_subclass__(cls) -> None:
         if not inspect.isabstract(cls):

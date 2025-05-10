@@ -1,4 +1,4 @@
-"""Definitions for the AST PDDLSIM uses for representing PDDL definitions."""
+"""Definitions for AST data types used for representing PDDL definitions."""
 
 import bisect
 import itertools
@@ -18,7 +18,13 @@ from dataclasses import InitVar, dataclass, field
 from decimal import Decimal
 from enum import StrEnum
 from random import Random
-from typing import Any, ClassVar, TypedDict, override
+from typing import (
+    Any,
+    ClassVar,
+    Self,
+    TypedDict,
+    override,
+)
 
 from koda_validate import (
     StringValidator,
@@ -88,9 +94,7 @@ class EmptyLocation(Location):
 
 
 @dataclass(frozen=True, eq=True)
-class Locationed(ABC):
-    """Base class for an AST item with a location attached."""
-
+class _Locationed(ABC):
     location: Location = field(
         hash=False,
         compare=False,
@@ -101,12 +105,131 @@ class Locationed(ABC):
 
     @abstractmethod
     def _as_str_without_location(self) -> str:
-        """Return a string of the AST item, without location information."""
         raise NotImplementedError
 
     @override
     def __str__(self) -> str:
         return self.location.as_str_with_value(self._as_str_without_location())
+
+
+@dataclass(frozen=True)
+class _LocationedSet[T](Iterable[T], Container, _Locationed):
+    _items: Set[T] = field(default_factory=set)
+
+    @classmethod
+    def from_raw_parts(
+        cls,
+        items: Iterable[T],
+        *,
+        location: Location | None = None,
+    ) -> Self:
+        item_set = set()
+
+        for item in items:
+            if item in item_set:
+                raise ValueError(f"{item} is defined multiple times")
+
+            item_set.add(item)
+
+        return cls(
+            item_set,
+            location=location if location else EmptyLocation(),
+        )
+
+    @override
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._items)
+
+    @override
+    def __contains__(self, item: object) -> bool:
+        return item in self._items
+
+
+@dataclass(frozen=True)
+class _LocationedList[T](Iterable[T], Sized, _Locationed):
+    _items: list[T] = field(default_factory=list)
+
+    @override
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._items)
+
+    def __getitem__(self, index: int) -> T:
+        return self._items[index]
+
+    @override
+    def __len__(self) -> int:
+        return len(self._items)
+
+
+@dataclass(frozen=True)
+class _LocationedItems[T, U, ID](Iterable[T], Container, _Locationed):
+    _items: dict[ID, U] = field(default_factory=dict)
+
+    @classmethod
+    def from_raw_parts(
+        cls,
+        items: Iterable[T],
+        *,
+        location: Location | None = None,
+    ) -> Self:
+        item_map = dict()
+
+        for item in items:
+            name = cls._get_id(item)
+
+            if name in item_map:
+                raise ValueError(
+                    f"{cls._item_name()} with name {name} is defined multiple times"  # noqa: E501
+                )
+
+            item_map[name] = cls._get_value(item)
+
+        return cls(
+            item_map,
+            location=location if location else EmptyLocation(),
+        )
+
+    @classmethod
+    @abstractmethod
+    def _item_name(cls) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _get_id(cls, item: T) -> ID:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _get_value(cls, item: T) -> U:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _into_item(cls, id: ID, value: U) -> T:
+        raise NotImplementedError
+
+    @override
+    def __iter__(self) -> Iterator[T]:
+        return (self._into_item(id, value) for id, value in self._items.items())
+
+    def __getitem__(self, id: ID) -> U:
+        return self._items[id]
+
+    @override
+    def __contains__(self, item: object) -> bool:
+        return item in self._items
+
+
+@dataclass(frozen=True)
+class _LocationedIDedItems[T, ID](_LocationedItems[T, T, ID]):
+    @classmethod
+    def _get_value(cls, item: T) -> T:
+        return item
+
+    @classmethod
+    def _into_item(cls, id: ID, value: T) -> T:
+        return value
 
 
 class Requirement(StrEnum):
@@ -138,41 +261,8 @@ class Requirement(StrEnum):
 
 
 @dataclass(frozen=True)
-class RequirementSet(Iterable, Container, Locationed):
+class RequirementsSection(_LocationedSet[Requirement]):
     """Represents a set of requirements, specified for domains and problems."""
-
-    requirements: set[Requirement]
-
-    @classmethod
-    def from_raw_parts(
-        cls,
-        requirements: Iterable[Requirement],
-        *,
-        location: Location | None = None,
-    ) -> "RequirementSet":
-        """Construct a `RequirementSet` from subnodes received from a parser."""
-        requirement_set = set[Requirement]()
-        result = RequirementSet(
-            requirement_set, location=location if location else EmptyLocation()
-        )
-
-        for requirement in requirements:
-            if requirement in requirement_set:
-                raise ValueError(
-                    f"requirement {requirement} appears multiple times in {result}"  # noqa: E501
-                )
-
-            requirement_set.add(requirement)
-
-        return result
-
-    @override
-    def __iter__(self) -> Iterator[Requirement]:
-        return iter(self.requirements)
-
-    @override
-    def __contains__(self, value: Any) -> bool:
-        return value in self.requirements
 
     @override
     def _as_str_without_location(self) -> str:
@@ -180,11 +270,11 @@ class RequirementSet(Iterable, Container, Locationed):
 
     @override
     def __repr__(self) -> str:
-        return f"(:requirements {' '.join(map(repr, self.requirements))})"
+        return f"(:requirements {' '.join(map(repr, self._items))})"
 
 
 @dataclass(frozen=True, eq=True)
-class Identifier(Locationed, Serdeable[str]):
+class Identifier(_Locationed, Serdeable[str]):
     """Represents a PDDL identifier."""
 
     value: str
@@ -255,15 +345,6 @@ type Type = CustomType | ObjectType
 """Represents the type of a PDDL object/variable."""
 
 
-@dataclass(frozen=True, eq=True)
-class Object(Identifier):
-    """Represents the name of an object in PDDL."""
-
-    @override
-    def __repr__(self) -> str:
-        return self._as_str_without_location()
-
-
 @dataclass(eq=True, frozen=True)
 class Typed[T]:
     """Represents an AST item with a type attached."""
@@ -278,49 +359,44 @@ class Typed[T]:
         return f"{self.value!r} - {self.type!r}"
 
 
-def _as_typed_iter[T](mapping: Mapping[T, Type]) -> Iterator[Typed[T]]:
-    return (Typed(value, type) for value, type in mapping.items())
+@dataclass(frozen=True)
+class _LocationedTypedItems[T](_LocationedItems[Typed[T], Type, T]):
+    @classmethod
+    @override
+    def _get_id(cls, item: Typed[T]) -> T:
+        return item.value
+
+    @classmethod
+    @override
+    def _get_value(cls, item: Typed[T]) -> Type:
+        return item.type
+
+    @classmethod
+    @override
+    def _into_item(cls, id: T, value: Type) -> Typed[T]:
+        return Typed(id, value)
+
+    def _validate(self, domain: "Domain") -> None:
+        for item in self:
+            if (
+                isinstance(item.type, CustomType)
+                and item.type not in domain.types_section
+            ):
+                raise ValueError(
+                    f"{self._item_name()} {item.value} is of undefined type {item.type}"  # noqa: E501
+                )
 
 
 @dataclass(frozen=True)
-class TypeHierarchy(Iterable, Container, Locationed):
+class TypesSection(_LocationedTypedItems[CustomType]):
     """Represents the `:types` section in PDDL."""
-
-    _supertypes: Mapping[CustomType, Type] = field(default_factory=dict)
-
-    @classmethod
-    def from_raw_parts(
-        cls,
-        custom_types: Iterable[Typed[CustomType]],
-        *,
-        location: Location | None = None,
-    ) -> "TypeHierarchy":
-        """Construct a `TypeHierarchy` from subnodes received from a parser."""
-        supertypes: dict[CustomType, Type] = {}
-        result = TypeHierarchy(
-            supertypes, location=location if location else EmptyLocation()
-        )
-
-        for custom_type in custom_types:
-            if custom_type.value in supertypes:
-                raise ValueError(
-                    f"type {custom_type.value} is defined multiple times in {result}"  # noqa: E501
-                )
-
-            supertypes[custom_type.value] = custom_type.type
-
-        return result
-
-    @override
-    def __iter__(self) -> Iterator[Typed[CustomType]]:
-        return _as_typed_iter(self._supertypes)
 
     def supertype(self, custom_type: CustomType) -> Type:
         """Return the immediate supertype of the provided type.
 
         The passed value is a `CustomType`, as `ObjectType` has no supertype.
         """
-        return self._supertypes[custom_type]
+        return self._items[custom_type]
 
     def is_compatible(self, test_type: Type, tester_type: Type) -> bool:
         """Check if `test_type` is a subtype of `tester_type`.
@@ -335,9 +411,10 @@ class TypeHierarchy(Iterable, Container, Locationed):
         else:
             return False
 
+    @classmethod
     @override
-    def __contains__(self, item: Any) -> bool:
-        return item in self._supertypes
+    def _item_name(cls) -> str:
+        return "type"
 
     @override
     def _as_str_without_location(self) -> str:
@@ -348,33 +425,36 @@ class TypeHierarchy(Iterable, Container, Locationed):
         return f"(:types {' '.join(map(repr, self))})"
 
 
+class Parameters(_LocationedTypedItems[Variable]):
+    """Represents action and predicate definition parameters in PDDL."""
+
+    @classmethod
+    @override
+    def _item_name(cls) -> str:
+        return "parameter"
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "parameters"
+
+
 @dataclass(frozen=True)
 class PredicateDefinition:
     """Represents a predicate definition (in domain's `:predicates` section)."""
 
     name: Identifier
-    parameters: list[Typed[Variable]]
+    parameters: Parameters
 
     @classmethod
     def from_raw_parts(
         cls,
         name: Identifier,
-        parameters: list[Typed[Variable]],
+        parameters: Parameters,
     ) -> "PredicateDefinition":
         """Construct a `PredicateDefinition` from subnodes returned by a parser."""  # noqa: E501
-        variables = set()
-
-        for parameter in parameters:
-            if parameter.value in variables:
-                raise ValueError(
-                    f"parameter {parameter.value} defined multiple times in predicate definition {name}"  # noqa: E501
-                )
-
-            variables.add(parameter.value)
-
         return PredicateDefinition(name, parameters)
 
-    def _validate(self, type_hierarchy: TypeHierarchy) -> None:
+    def _validate(self, type_hierarchy: TypesSection) -> None:
         for parameter in self.parameters:
             if (
                 isinstance(parameter.type, CustomType)
@@ -389,6 +469,15 @@ class PredicateDefinition:
         return f"({self.name!r} {' '.join(map(repr, self.parameters))})"
 
 
+@dataclass(frozen=True, eq=True)
+class Object(Identifier):
+    """Represents the name of an object in PDDL."""
+
+    @override
+    def __repr__(self) -> str:
+        return self._as_str_without_location()
+
+
 type Argument = Variable | Object
 
 
@@ -401,20 +490,12 @@ class AndCondition[A: Argument]:
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
         for subcondition in self.subconditions:
-            subcondition._validate(
-                variable_types,
-                object_types,
-                predicate_definitions,
-                type_hierarchy,
-                requirements,
-            )
+            subcondition._validate(parameters, objects, domain)
 
     @override
     def __repr__(self) -> str:
@@ -422,7 +503,7 @@ class AndCondition[A: Argument]:
 
 
 @dataclass(frozen=True)
-class OrCondition[A: Argument](Locationed):
+class OrCondition[A: Argument](_Locationed):
     """Represents a disjunction (`or`) of PDDL conditions."""
 
     subconditions: list["Condition[A]"]
@@ -430,25 +511,12 @@ class OrCondition[A: Argument](Locationed):
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        if Requirement.DISJUNCTIVE_PRECONDITIONS not in requirements:
-            raise ValueError(
-                f"{self} used in condition, but `{Requirement.DISJUNCTIVE_PRECONDITIONS}` is not in {requirements}"  # noqa: E501
-            )
-
         for subcondition in self.subconditions:
-            subcondition._validate(
-                variable_types,
-                object_types,
-                predicate_definitions,
-                type_hierarchy,
-                requirements,
-            )
+            subcondition._validate(parameters, objects, domain)
 
     @override
     def _as_str_without_location(self) -> str:
@@ -460,7 +528,7 @@ class OrCondition[A: Argument](Locationed):
 
 
 @dataclass(frozen=True)
-class NotCondition[A: Argument](Locationed):
+class NotCondition[A: Argument](_Locationed):
     """Represents the negation (`not`) of a PDDL condition."""
 
     base_condition: "Condition[A]"
@@ -468,24 +536,19 @@ class NotCondition[A: Argument](Locationed):
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        if Requirement.NEGATIVE_PRECONDITIONS not in requirements:
+        if (
+            Requirement.NEGATIVE_PRECONDITIONS
+            not in domain.requirements_section
+        ):
             raise ValueError(
-                f"{self} used in condition, but `{Requirement.NEGATIVE_PRECONDITIONS}` is not in {requirements}"  # noqa: E501
+                f"{self} used in condition, but `{Requirement.NEGATIVE_PRECONDITIONS}` is not in {domain.requirements_section}"  # noqa: E501
             )
 
-        self.base_condition._validate(
-            variable_types,
-            object_types,
-            predicate_definitions,
-            type_hierarchy,
-            requirements,
-        )
+        self.base_condition._validate(parameters, objects, domain)
 
     @override
     def _as_str_without_location(self) -> str:
@@ -497,7 +560,7 @@ class NotCondition[A: Argument](Locationed):
 
 
 @dataclass(frozen=True)
-class EqualityCondition[A: Argument](Locationed):
+class EqualityCondition[A: Argument](_Locationed):
     """Represents an equality predicate (`=`) in PDDL."""
 
     left_side: A
@@ -507,26 +570,24 @@ class EqualityCondition[A: Argument](Locationed):
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        _predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        _type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        if Requirement.EQUALITY not in requirements:
+        if Requirement.EQUALITY not in domain.requirements_section:
             raise ValueError(
-                f"{self} used in condition, but `{Requirement.EQUALITY}` is not in {requirements}"  # noqa: E501
+                f"{self} used in condition, but `{Requirement.EQUALITY}` is not in {domain.requirements_section}"  # noqa: E501
             )
 
         def validate_argument(argument: A) -> None:
             match argument:
                 case Variable():
-                    if argument not in variable_types:
+                    if argument not in parameters:
                         raise ValueError(
                             f"variable {argument} in {self} is undefined"
                         )
                 case Object():
-                    if argument not in object_types:
+                    if argument not in objects:
                         raise ValueError(
                             f"object {argument} in {self} is undefined"
                         )
@@ -559,37 +620,37 @@ class Predicate[A: Argument](Serdeable[_SerializedPredicate]):
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        _requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        if self.name not in predicate_definitions:
+        if self.name not in domain.predicates_section:
             raise ValueError(f"predicate {self.name} is undefined")
 
-        predicate_definition = predicate_definitions[self.name]
+        predicate_definition = domain.predicates_section[self.name]
 
         for parameter, argument in zip(
             predicate_definition.parameters, self.assignment, strict=True
         ):
             match argument:
                 case Variable():
-                    if argument not in variable_types:
+                    if argument not in parameters:
                         raise ValueError(
                             f"variable {argument} in {self.name} is undefined"
                         )
 
-                    argument_type = variable_types[argument]  # type: ignore
+                    argument_type = parameters[argument]  # type: ignore
                 case Object():
-                    if argument not in object_types:
+                    if argument not in objects:
                         raise ValueError(
                             f"object {argument} in {self.name} is undefined"
                         )
 
-                    argument_type = object_types[argument]  # type: ignore
+                    argument_type = objects[argument]  # type: ignore
 
-            if not type_hierarchy.is_compatible(argument_type, parameter.type):
+            if not domain.types_section.is_compatible(
+                argument_type, parameter.type
+            ):
                 raise ValueError(
                     f"argument {argument} in {self.name} is of type {argument_type}, but is supposed to be of type {parameter.type}"  # noqa: E501
                 )
@@ -641,19 +702,11 @@ class NotPredicate[A: Argument]:
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        self.base_predicate._validate(
-            variable_types,
-            object_types,
-            predicate_definitions,
-            type_hierarchy,
-            requirements,
-        )
+        self.base_predicate._validate(parameters, objects, domain)
 
     @override
     def __repr__(self) -> str:
@@ -673,20 +726,12 @@ class AndEffect[A: Argument]:
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
         for subeffect in self.subeffects:
-            subeffect._validate(
-                variable_types,
-                object_types,
-                predicate_definitions,
-                type_hierarchy,
-                requirements,
-            )
+            subeffect._validate(parameters, objects, domain)
 
     @override
     def __repr__(self) -> str:
@@ -694,7 +739,7 @@ class AndEffect[A: Argument]:
 
 
 @dataclass(frozen=True)
-class ProbabilisticEffect[A: Argument](Iterable, Locationed):
+class ProbabilisticEffect[A: Argument](Iterable, _Locationed):
     """Represents a probabilistic effect, choosing a subeffect at random.
 
     The primary constructor for this class is
@@ -762,25 +807,17 @@ class ProbabilisticEffect[A: Argument](Iterable, Locationed):
 
     def _validate(
         self,
-        variable_types: Mapping[Variable, Type],
-        object_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
     ) -> None:
-        if Requirement.PROBABILISTIC_EFFECTS not in requirements:
+        if Requirement.PROBABILISTIC_EFFECTS not in domain.requirements_section:
             raise ValueError(
-                f"{self} used in action, but `{Requirement.PROBABILISTIC_EFFECTS}` does not appear in {requirements}"  # noqa: E501
+                f"{self} used in action, but `{Requirement.PROBABILISTIC_EFFECTS}` does not appear in {domain.requirements_section}"  # noqa: E501
             )
 
-        for effect in self._possible_effects:
-            effect._validate(
-                variable_types,
-                object_types,
-                predicate_definitions,
-                type_hierarchy,
-                requirements,
-            )
+        for subeffect in self._possible_effects:
+            subeffect._validate(parameters, objects, domain)
 
     @override
     def _as_str_without_location(self) -> str:
@@ -818,7 +855,7 @@ class ActionDefinition:
 
     name: Identifier
     """The name of the action."""
-    variable_types: dict[Variable, Type]
+    parameters: Parameters
     """The type of each parameter."""
     precondition: Condition[Argument]
     """The precondition of the action."""
@@ -829,59 +866,99 @@ class ActionDefinition:
     def from_raw_parts(
         cls,
         name: Identifier,
-        parameters: list[Typed[Variable]],
+        parameters: Parameters,
         precondition: Condition[Argument],
         effect: Effect[Argument],
     ) -> "ActionDefinition":
         """Construct an `ActionDefinition` from subnodes returned from a parser."""  # noqa: E501
-        variable_types = {}
+        return ActionDefinition(name, parameters, precondition, effect)
 
-        for parameter in parameters:
-            if parameter.value in variable_types:
-                raise ValueError(
-                    f"parameter with name {parameter.value} is defined in action definition {name} multiple times"  # noqa: E501
-                )
-
-            # The dictionary is insertion ordered, so this is fine
-            variable_types[parameter.value] = parameter.type
-
-        return ActionDefinition(name, variable_types, precondition, effect)
-
-    def _validate(
-        self,
-        constant_types: Mapping[Object, Type],
-        predicate_definitions: Mapping[Identifier, PredicateDefinition],
-        type_hierarchy: TypeHierarchy,
-        requirements: RequirementSet,
-    ) -> None:
-        # The dictionary is insertion ordered, so this is fine
-        for variable, type in self.variable_types.items():
-            if isinstance(type, CustomType) and type not in type_hierarchy:
-                raise ValueError(
-                    f"parameter {variable} of action definition {self.name} is of an undefined type {type}"  # noqa: E501
-                )
+    def _validate(self, domain: "Domain") -> None:
+        self.parameters._validate(domain)
 
         self.precondition._validate(
-            self.variable_types,
-            constant_types,
-            predicate_definitions,
-            type_hierarchy,
-            requirements,
+            self.parameters, domain.constants_section._items, domain
         )
         self.effect._validate(
-            self.variable_types,
-            constant_types,
-            predicate_definitions,
-            type_hierarchy,
-            requirements,
+            self.parameters, domain.constants_section._items, domain
         )
 
     @override
     def __repr__(self) -> str:
-        parameters = _as_typed_iter(self.variable_types)
-        parameters_section = f":parameters ({' '.join(map(repr, parameters))})"
+        parameters_section = (
+            f":parameters ({' '.join(map(repr, self.parameters))})"
+        )
 
         return f"(:action {self.name!r} {parameters_section} :precondition {self.precondition!r} :effect {self.effect!r})"  # noqa: E501
+
+
+class ConstantsSection(_LocationedTypedItems[Object]):
+    """Represents the constants section of a PDDL domain."""
+
+    @classmethod
+    @override
+    def _item_name(cls) -> str:
+        return "constant"
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "constants section"
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:constants {' '.join(map(repr, self))})"
+
+
+class PredicatesSection(_LocationedIDedItems[PredicateDefinition, Identifier]):
+    """Represents the predicates section of a PDDL domain."""
+
+    @classmethod
+    @override
+    def _get_id(cls, item: PredicateDefinition) -> Identifier:
+        return item.name
+
+    @classmethod
+    @override
+    def _item_name(cls) -> str:
+        return "predicate"
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "predicates section"
+
+    def _validate(self, domain: "Domain") -> None:
+        for predicate_definition in self:
+            predicate_definition._validate(domain.types_section)
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:predicates {' '.join(map(repr, self))})"
+
+
+class ActionsSection(_LocationedIDedItems[ActionDefinition, Identifier]):
+    """Represents the actions section of a PDDL domain."""
+
+    @classmethod
+    @override
+    def _get_id(cls, item: ActionDefinition) -> Identifier:
+        return item.name
+
+    @classmethod
+    @override
+    def _item_name(cls) -> str:
+        return "action"
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "actions section"
+
+    def _validate(self, domain: "Domain") -> None:
+        for action_definition in self:
+            action_definition._validate(domain)
+
+    @override
+    def __repr__(self) -> str:
+        return " ".join(map(repr, self))
 
 
 @dataclass(frozen=True)
@@ -890,130 +967,155 @@ class Domain:
 
     name: Identifier
     """The name of the domain."""
-    requirements: RequirementSet
+    requirements_section: RequirementsSection
     """The domain's requirements"""
-    type_hierarchy: TypeHierarchy
+    types_section: TypesSection
     """The domain's type hierarchy."""
-    constant_types: dict[Object, Type]
+    constants_section: ConstantsSection
     """The domain's constants, and their types."""
-    predicate_definitions: Mapping[Identifier, PredicateDefinition]
+    predicates_section: PredicatesSection
     """The domain's predicate definitions."""
-    action_definitions: Mapping[Identifier, ActionDefinition]
+    actions_section: ActionsSection
     """The domain's action definitions."""
 
     @classmethod
     def from_raw_parts(
         cls,
         name: Identifier,
-        requirements: RequirementSet,
-        type_hierarchy: TypeHierarchy | None,
-        constants: Iterable[Typed[Object]],
-        predicate_definitions: Iterable[PredicateDefinition],
-        action_definitions: Iterable[ActionDefinition],
+        requirements_section: RequirementsSection,
+        types_section: TypesSection | None,
+        constants_section: ConstantsSection,
+        predicates_section: PredicatesSection,
+        actions_section: ActionsSection,
     ) -> "Domain":
         """Construct a `Domain` from the subnodes returned by a parser."""
         if (
-            Requirement.TYPING not in requirements
-            and type_hierarchy is not None
+            Requirement.TYPING not in requirements_section
+            and types_section is not None
         ):
             raise ValueError(
-                f"{type_hierarchy} is defined in domain, but `{Requirement.TYPING}` does not appear in {requirements}"  # noqa: E501
+                f"{types_section} is defined in domain, but `{Requirement.TYPING}` does not appear in {requirements_section}"  # noqa: E501
             )
 
-        constant_types = {}
-
-        for constant in constants:
-            if constant.value in constant_types:
-                raise ValueError(
-                    f"constant with name {constant.value} is defined multiple times"  # noqa: E501
-                )
-
-            constant_types[constant.value] = constant.type
-
-        predicate_definition_map = {}
-
-        for predicate_definition in predicate_definitions:
-            if predicate_definition.name in predicate_definition_map:
-                raise ValueError(
-                    f"predicate with name {predicate_definition.name} is defined multiple times"  # noqa: E501
-                )
-
-            predicate_definition_map[predicate_definition.name] = (
-                predicate_definition
-            )
-
-        action_definition_map = {}
-
-        for action_definition in action_definitions:
-            if action_definition.name in action_definition_map:
-                raise ValueError(
-                    f"action with name {action_definition.name} is defined multiple times"  # noqa: E501
-                )
-
-            action_definition_map[action_definition.name] = action_definition
         return Domain(
             name,
-            requirements,
-            type_hierarchy if type_hierarchy else TypeHierarchy(),
-            constant_types,
-            predicate_definition_map,
-            action_definition_map,
+            requirements_section,
+            types_section if types_section else TypesSection(),
+            constants_section,
+            predicates_section,
+            actions_section,
         )
 
     def __post_init__(self) -> None:
         """Validate the domain (e.g., make sure all referenced types exist)."""
         self._validate()
 
-    def _validate_constant_types(self) -> None:
-        for constant, type in self.constant_types.items():
-            if isinstance(type, CustomType) and type not in self.type_hierarchy:
-                raise ValueError(
-                    f"constant {constant} is of undefined type {type}"
-                )
-
-    def _validate_predicate_definitions(self) -> None:
-        for predicate_definition in self.predicate_definitions.values():
-            predicate_definition._validate(self.type_hierarchy)
-
-    def _validate_action_definitions(self) -> None:
-        for action_definition in self.action_definitions.values():
-            action_definition._validate(
-                self.constant_types,
-                self.predicate_definitions,
-                self.type_hierarchy,
-                self.requirements,
-            )
-
     def _validate(self) -> None:
-        self._validate_constant_types()
-        self._validate_predicate_definitions()
-        self._validate_action_definitions()
+        self.constants_section._validate(self)
+        self.predicates_section._validate(self)
+        self.actions_section._validate(self)
 
     @override
     def __repr__(self) -> str:
         domain_name = f"(domain {self.name!r})"
 
-        constants_section = f"(:constants {' '.join(map(repr, _as_typed_iter(self.constant_types)))})"  # noqa: E501
+        return f"(define {domain_name} {self.requirements_section!r} {self.types_section!r} {self.constants_section!r} {self.predicates_section!r} {self.actions_section!r})"  # noqa: E501
 
-        predicate_definition_reprs = map(
-            repr, self.predicate_definitions.values()
-        )
-        predicates_setion = (
-            f"(:predicates {' '.join(predicate_definition_reprs)})"
+
+class ObjectsSection(_LocationedTypedItems[Object]):
+    """Represents the objects section of a PDDL problem."""
+
+    @classmethod
+    @override
+    def _item_name(cls) -> str:
+        return "object"
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "objects section"
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:objects {' '.join(map(repr, self))})"
+
+    def _validate(self, domain: Domain) -> None:
+        for object_ in self:
+            if object_.type not in domain.types_section:
+                raise ValueError(
+                    f"object {object_.value} is of an undefined type {object_.type}"  # noqa: E501
+                )
+
+            if object_ in domain.constants_section:
+                raise ValueError(
+                    f"object with name {object_} is also defined in domain"
+                )
+
+
+@dataclass(frozen=True, eq=True)
+class Placeholder:
+    """Specifies any object can replace it as grounder in a grounded action."""
+
+
+type Grounder = Object | Placeholder
+"""Assignment to a parameter of an action when specifying a grounded action."""
+
+
+@dataclass(frozen=True)
+class GroundedActionSchematic[G: Grounder]:
+    """Stores a partially grounded action: the action name, and grounding.
+
+    Used to represent an action schematic in an `ActionFallibility`.
+    These are used to declare which grounded actions the fallibility applies to.
+    """
+
+    name: Identifier
+    """The name of the action."""
+    grounding: list[G]
+    """The action's grounding."""
+
+
+class _SerializedGroundedAction(TypedDict):
+    name: Any
+    grounding: list[Any]
+
+
+@dataclass(frozen=True)
+class GroundedAction(
+    GroundedActionSchematic[Object], Serdeable[_SerializedGroundedAction]
+):
+    """Stores a grounded action: the action name, and grounding.
+
+    Used to represent actions by the agent that can change the simulation
+    (like actions in a PDDL domain). When creating an agent, this is
+    the principal value to use to indicate it is performing an action
+    in the environment.
+    """
+
+    @override
+    def serialize(self) -> _SerializedGroundedAction:
+        return _SerializedGroundedAction(
+            name=self.name.serialize(),
+            grounding=[object_.serialize() for object_ in self.grounding],
         )
 
-        action_definitions = " ".join(
-            map(repr, self.action_definitions.values())
-        )
+    @classmethod
+    @override
+    def _validator(cls) -> Validator[_SerializedGroundedAction]:
+        return TypedDictValidator(_SerializedGroundedAction)
 
-        return f"(define {domain_name} {self.requirements!r} {self.type_hierarchy!r} {constants_section} {predicates_setion} {action_definitions})"  # noqa: E501
+    @classmethod
+    def _create(cls, value: _SerializedGroundedAction) -> "GroundedAction":
+        return GroundedAction(
+            Identifier.deserialize(value["name"]),
+            [Object.deserialize(object_) for object_ in value["grounding"]],
+        )
 
 
 @dataclass(frozen=True, eq=True)
 class ActionFallibility:
     """Represents an [action fallibility](https://github.com/galk-research/pddlsim/wiki/Fallible-Actions)."""
 
-    name: Identifier
+    grounded_action_schematic: GroundedActionSchematic
     """The name of the action."""
     condition: Condition[Object]
     """The failure condition of the action."""
@@ -1026,46 +1128,33 @@ class ActionFallibility:
         """Make sure the specified probability is a valid probability."""
         if not (0 <= self.with_probability <= 1):
             raise ValueError(
-                f"fallible action {self.name} is with impossible probability {self.with_probability}"  # noqa: E501
+                f"fallible action {self.grounded_action_schematic.name} is with impossible probability {self.with_probability}"  # noqa: E501
             )
+
+    @override
+    def __str__(self) -> str:
+        return "action fallibility"
+
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        if self.grounded_action_schematic.name not in domain.actions_section:
+            raise ValueError(
+                f"{self} uses an undefined action {self.grounded_action_schematic.name}"  # noqa: E501
+            )
+
+        self.condition._validate(Parameters(), objects, domain)
 
 
 @dataclass(frozen=True)
-class ActionFallibilitySet(Iterable, Locationed):
+class ActionFallibilitiesSection(_LocationedSet[ActionFallibility]):
     """Represents the `:fails` section of a PDDL problem."""
-
-    _fallible_actions: Set[ActionFallibility] = field(default_factory=set)
-
-    @classmethod
-    def from_raw_parts(
-        cls,
-        fallibilities: Iterable[ActionFallibility],
-        *,
-        location: Location | None = None,
-    ) -> "ActionFallibilitySet":
-        """Construct an `ActionFallibilitySet` from the subnodes returned by a parser."""  # noqa: E501
-        action_fallibilities_set = set()
-
-        for action_fallibility in fallibilities:
-            if action_fallibility in action_fallibilities_set:
-                raise ValueError(
-                    f"{action_fallibility} is defined multiple times"
-                )
-
-            action_fallibilities_set.add(action_fallibility)
-
-        return ActionFallibilitySet(
-            action_fallibilities_set,
-            location=location if location else EmptyLocation(),
-        )
 
     @override
     def _as_str_without_location(self) -> str:
         return "action fallibilities section"
 
-    @override
-    def __iter__(self) -> Iterator[ActionFallibility]:
-        return iter(self._fallible_actions)
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        for fallibility in self:
+            fallibility._validate(objects, domain)
 
 
 @dataclass(frozen=True, eq=True)
@@ -1088,63 +1177,61 @@ class Revealable:
                 f"{self} is with impossible probability {self.with_probability}"
             )
 
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        self.condition._validate(Parameters(), objects, domain)
+        self.effect._validate(Parameters(), objects, domain)
+
+    @override
+    def __str__(self) -> str:
+        return "revealable"
+
 
 @dataclass(frozen=True)
-class RevealableSet(Iterable, Locationed):
-    """Represents the `:reveals` section of a PDDL problem."""
-
-    _revealables: Set[Revealable] = field(default_factory=set)
-
-    @classmethod
-    def from_raw_parts(
-        cls,
-        revealables: Iterable[Revealable],
-        *,
-        location: Location | None = None,
-    ) -> "RevealableSet":
-        """Construct a `RevealableSet` from the subnodes returned by a parser."""  # noqa: E501
-        revealable_set = set()
-
-        for revealable in revealables:
-            if revealable in revealable_set:
-                raise ValueError(f"{revealable} is defined multiple times")
-
-            revealable_set.add(revealable)
-
-        return RevealableSet(
-            revealable_set,
-            location=location if location else EmptyLocation(),
-        )
+class RevealablesSection(_LocationedSet):
+    """Represents the revealables section of a PDDL problem."""
 
     @override
     def _as_str_without_location(self) -> str:
         return "revealables section"
 
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        for fallibility in self:
+            fallibility._validate(objects, domain)
+
+
+class InitializationSection(_LocationedSet[Predicate[Object]]):
+    """Represents the initialization section of a PDDL problem."""
+
     @override
-    def __iter__(self) -> Iterator[Revealable]:
-        return iter(self._revealables)
+    def _as_str_without_location(self) -> str:
+        return "initialization section"
+
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        for predicate in self:
+            predicate._validate(Parameters(), objects, domain)
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:init {' '.join(map(repr, self))})"
 
 
 @dataclass(frozen=True)
-class GoalList(Iterable, Sized, Locationed):
-    """Represents the `:goals`/`:goal` section of the PDDL problem."""
+class GoalsSection(_LocationedList[Condition[Object]]):
+    """Represents the `:goals`/`:goal` section of a PDDL problem."""
 
-    _goals: list[Condition[Object]] = field(default_factory=list)
-
+    @override
     def _as_str_without_location(self) -> str:
         return "goal conditions"
 
-    @override
-    def __iter__(self) -> Iterator[Condition[Object]]:
-        return iter(self._goals)
-
-    def get_goal(self, goal_index: int) -> Condition[Object]:
-        """Return the goal associated with the index."""
-        return self._goals[goal_index]
+    def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
+        for condition in self:
+            condition._validate(Parameters(), objects, domain)
 
     @override
-    def __len__(self) -> int:
-        return len(self._goals)
+    def __repr__(self) -> str:
+        keyword = ":goal" if len(self) == 1 else ":goals"
+
+        return f"({keyword} {' '.join(map(repr, self))})"
 
 
 @dataclass(frozen=True)
@@ -1155,17 +1242,17 @@ class RawProblem:
     """The problem's name."""
     used_domain_name: Identifier
     """The name of the domain used by the problem."""
-    requirements: RequirementSet
+    requirements_section: RequirementsSection
     """The problem's requirements."""
-    object_types: dict[Object, Type]
+    objects_section: ObjectsSection
     """The objects of the PDDL problem (and their types)."""
-    action_fallibilities: ActionFallibilitySet
+    action_fallibilities_section: ActionFallibilitiesSection
     """The action fallibilities of the problem."""
-    revealables: RevealableSet
+    revealables_section: RevealablesSection
     """The revealables of the problem."""
-    initialization: Set[Predicate[Object]]
+    initialization_section: InitializationSection
     """The problem's initialization."""
-    goals: GoalList
+    goals_section: GoalsSection
     """The problem's goal conditions."""
 
     @classmethod
@@ -1173,68 +1260,51 @@ class RawProblem:
         cls,
         name: Identifier,
         used_domain_name: Identifier,
-        requirements: RequirementSet,
-        objects: list[Typed[Object]],
-        action_fallibilities: ActionFallibilitySet | None,
-        revealables: RevealableSet | None,
-        initialization: list[Predicate[Object]],
-        goal_conditions: GoalList | Condition[Object],
+        requirements_section: RequirementsSection,
+        objects_section: ObjectsSection,
+        action_fallibilities_section: ActionFallibilitiesSection | None,
+        revealables_section: RevealablesSection | None,
+        initialization_section: InitializationSection,
+        goal: GoalsSection | Condition[Object],
     ) -> "RawProblem":
         """Construct a `RawProblem` from the subnodes returned by a parser."""
-        object_types = {}
-
-        for object_ in objects:
-            if object_.value in object_types:
-                raise ValueError(
-                    f"object with name {object_.value} is defined multiple times"  # noqa: E501
-                )
-
-            object_types[object_.value] = object_.type
-
         if (
-            action_fallibilities
-            and Requirement.FALLIBLE_ACTIONS not in requirements
+            action_fallibilities_section
+            and Requirement.FALLIBLE_ACTIONS not in requirements_section
         ):
             raise ValueError(
-                f"{action_fallibilities} defined, but `{Requirement.FALLIBLE_ACTIONS}` does not appear in {requirements}"  # noqa: E501
+                f"{action_fallibilities_section} defined, but `{Requirement.FALLIBLE_ACTIONS}` does not appear in {requirements_section}"  # noqa: E501
             )
-
-        if revealables and Requirement.REVEALABLES not in requirements:
-            raise ValueError(
-                f"{revealables} defined, but `{Requirement.REVEALABLES}` does not appear in {requirements}"  # noqa: E501
-            )
-
-        true_predicates = set()
-
-        for predicate in initialization:
-            if predicate in true_predicates:
-                raise ValueError(
-                    f"predicate {predicate} appears in initialization multiple times"  # noqa: E501
-                )
-
-            true_predicates.add(predicate)
 
         if (
-            not isinstance(goal_conditions, GoalList)
-            and Requirement.MULTIPLE_GOALS not in requirements
+            revealables_section
+            and Requirement.REVEALABLES not in requirements_section
         ):
             raise ValueError(
-                f"{goal_conditions} defined, but `{Requirement.REVEALABLES}` does not appear in {requirements}"  # noqa: E501
+                f"{revealables_section} defined, but `{Requirement.REVEALABLES}` does not appear in {requirements_section}"  # noqa: E501
+            )
+
+        if (
+            isinstance(goal, GoalsSection)
+            and Requirement.MULTIPLE_GOALS not in requirements_section
+        ):
+            raise ValueError(
+                f"{goal} defined, but `{Requirement.MULTIPLE_GOALS}` does not appear in {requirements_section}"  # noqa: E501
             )
 
         return RawProblem(
             name,
             used_domain_name,
-            requirements,
-            object_types,
-            action_fallibilities
-            if action_fallibilities
-            else ActionFallibilitySet(),
-            revealables if revealables else RevealableSet(),
-            true_predicates,
-            goal_conditions
-            if isinstance(goal_conditions, GoalList)
-            else GoalList([goal_conditions]),
+            requirements_section,
+            objects_section,
+            action_fallibilities_section
+            if action_fallibilities_section
+            else ActionFallibilitiesSection(),
+            revealables_section
+            if revealables_section
+            else RevealablesSection(),
+            initialization_section,
+            goal if isinstance(goal, GoalsSection) else GoalsSection([goal]),
         )
 
 
@@ -1258,105 +1328,56 @@ class Problem:
         return self.raw_problem.used_domain_name
 
     @property
-    def requirements(self) -> RequirementSet:
+    def requirements_section(self) -> RequirementsSection:
         """The problem's requirements."""
-        return self.raw_problem.requirements
+        return self.raw_problem.requirements_section
 
     @property
-    def object_types(self) -> dict[Object, Type]:
+    def objects_section(self) -> ObjectsSection:
         """The objects of the PDDL problem (and their types)."""
-        return self.raw_problem.object_types
+        return self.raw_problem.objects_section
 
     @property
-    def action_fallibilities(self) -> ActionFallibilitySet:
+    def action_fallibilities_section(self) -> ActionFallibilitiesSection:
         """The action fallibilities of the problem."""
-        return self.raw_problem.action_fallibilities
+        return self.raw_problem.action_fallibilities_section
 
     @property
-    def revealables(self) -> RevealableSet:
+    def revealables_section(self) -> RevealablesSection:
         """The revealables of the problem."""
-        return self.raw_problem.revealables
+        return self.raw_problem.revealables_section
 
     @property
-    def initialization(self) -> Set[Predicate[Object]]:
+    def initialization_section(self) -> InitializationSection:
         """The problem's initialization."""
-        return self.raw_problem.initialization
+        return self.raw_problem.initialization_section
 
     @property
-    def goals(self) -> GoalList:
+    def goals_section(self) -> GoalsSection:
         """The problem's goal conditions."""
-        return self.raw_problem.goals
+        return self.raw_problem.goals_section
 
     def __post_init__(self, domain: Domain) -> None:
         """Validate the problem (e.g., that all referenced predicates exist)."""
         self._validate(domain)
+
+    def _validate(self, domain: Domain) -> None:
+        self._validate_used_domain_name(domain)
+        self.objects_section._validate(domain)
+
+        objects = ChainMap(
+            self.objects_section._items, domain.constants_section._items
+        )
+
+        self.action_fallibilities_section._validate(objects, domain)
+        self.initialization_section._validate(objects, domain)
+        self.goals_section._validate(objects, domain)
 
     def _validate_used_domain_name(self, domain: Domain) -> None:
         if domain.name != self.used_domain_name:
             raise ValueError(
                 f"used domain name {self.used_domain_name} doesn't match paired domain name {domain.name}"  # noqa: E501
             )
-
-    def _validate_object_types(self, domain: Domain) -> None:
-        for object_, type in self.object_types.items():
-            if type not in domain.type_hierarchy:
-                raise ValueError(
-                    f"object {object_} is of an undefined type {type}"
-                )
-
-            if object_ in domain.constant_types:
-                raise ValueError(
-                    f"object with name {object_} is also defined in domain"
-                )
-
-    def _validate_action_fallibilities(self, domain: Domain) -> None:
-        for fallibility in self.action_fallibilities:
-            if fallibility.name not in domain.action_definitions:
-                raise ValueError(
-                    f"{fallibility} uses an undefined action {fallibility.name}"
-                )
-
-            fallibility.condition._validate(
-                {},
-                ChainMap(self.object_types, domain.constant_types),
-                domain.predicate_definitions,
-                domain.type_hierarchy,
-                domain.requirements,
-            )
-
-    def _validate_initialization(self, domain: Domain) -> None:
-        for predicate in self.initialization:
-            predicate._validate(
-                {},
-                ChainMap(self.object_types, domain.constant_types),
-                domain.predicate_definitions,
-                domain.type_hierarchy,
-                domain.requirements,
-            )
-
-    def _validate_goal_conditions(self, domain: Domain) -> None:
-        if (
-            len(self.goals) != 1
-            and Requirement.MULTIPLE_GOALS not in self.requirements
-        ):
-            raise ValueError(
-                f"number of goals is {len(self.goals)} (not one), but `{Requirement.MULTIPLE_GOALS}` does not appear in {self.requirements}"  # noqa: E501
-            )
-
-        for goal_condition in self.goals:
-            goal_condition._validate(
-                {},
-                ChainMap(self.object_types, domain.constant_types),
-                domain.predicate_definitions,
-                domain.type_hierarchy,
-                domain.requirements,
-            )
-
-    def _validate(self, domain: Domain) -> None:
-        self._validate_used_domain_name(domain)
-        self._validate_object_types(domain)
-        self._validate_initialization(domain)
-        self._validate_goal_conditions(domain)
 
     @override
     def __repr__(self) -> str:
@@ -1366,17 +1387,4 @@ class Problem:
         problem_name = f"(problem {self.name!r})"
         used_domain_name = f"(:domain {self.used_domain_name!r})"
 
-        requirements_section = (
-            f"(:requirements {' '.join(map(repr, self.requirements))})"
-        )
-
-        object_type_pairs = _as_typed_iter(self.object_types)
-        objects_section = f"(:objects {' '.join(map(repr, object_type_pairs))})"
-
-        initialization_section = (
-            f"(:init {' '.join(map(repr, self.initialization))})"
-        )
-
-        goal_section = f"(:goal {' '.join(map(repr, self.goals))})"
-
-        return f"(define {problem_name} {used_domain_name} {requirements_section} {objects_section} {initialization_section} {goal_section})"  # noqa: E501
+        return f"(define {problem_name} {used_domain_name} {self.requirements_section!r} {self.objects_section!r} {self.initialization_section!r} {self.goals_section!r})"  # noqa: E501

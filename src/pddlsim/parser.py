@@ -11,37 +11,46 @@ from lark import Lark, Token, Transformer, v_args
 from pddlsim import _RESOURCES
 from pddlsim.ast import (
     ActionDefinition,
+    ActionFallibilitiesSection,
     ActionFallibility,
-    ActionFallibilitySet,
+    ActionsSection,
     AndCondition,
     AndEffect,
     Argument,
     Condition,
+    ConstantsSection,
     CustomType,
     Domain,
     Effect,
     EqualityCondition,
     FileLocation,
-    GoalList,
+    GoalsSection,
+    GroundedActionSchematic,
+    Grounder,
     Identifier,
+    InitializationSection,
     Location,
     NotCondition,
     NotPredicate,
     Object,
+    ObjectsSection,
     ObjectType,
     OrCondition,
+    Parameters,
+    Placeholder,
     Predicate,
     PredicateDefinition,
+    PredicatesSection,
     ProbabilisticEffect,
     Problem,
     RawProblem,
     Requirement,
-    RequirementSet,
+    RequirementsSection,
     Revealable,
-    RevealableSet,
+    RevealablesSection,
     Type,
     Typed,
-    TypeHierarchy,
+    TypesSection,
     Variable,
 )
 
@@ -97,8 +106,10 @@ class _PDDLTransformer(Transformer):
 
     def requirements_section(
         self, location: Location, requirements: list[Requirement]
-    ) -> RequirementSet:
-        return RequirementSet.from_raw_parts(requirements, location=location)
+    ) -> RequirementsSection:
+        return RequirementsSection.from_raw_parts(
+            requirements, location=location
+        )
 
     def object_type(self) -> ObjectType:
         return ObjectType()
@@ -126,29 +137,31 @@ class _PDDLTransformer(Transformer):
 
     def types_section(
         self, location: Location, types: Iterable[Typed[CustomType]]
-    ) -> TypeHierarchy:
-        return TypeHierarchy.from_raw_parts(types, location=location)
+    ) -> TypesSection:
+        return TypesSection.from_raw_parts(types, location=location)
 
     def object_(self, identifier: Identifier) -> Object:
         return Object(identifier.value, location=identifier.location)
 
     def constants_section(
         self, objects: list[Typed[Object]]
-    ) -> list[Typed[Object]]:
-        return objects
+    ) -> ConstantsSection:
+        return ConstantsSection.from_raw_parts(objects)
 
     def predicate_definition(
         self,
         name: Identifier,
         parameters: Iterable[Typed[Variable]],
     ) -> PredicateDefinition:
-        return PredicateDefinition.from_raw_parts(name, list(parameters))
+        return PredicateDefinition.from_raw_parts(
+            name, Parameters.from_raw_parts(parameters)
+        )
 
     def predicates_section(
         self,
         predicate_definitions: list[PredicateDefinition],
-    ) -> list[PredicateDefinition]:
-        return predicate_definitions
+    ) -> PredicatesSection:
+        return PredicatesSection.from_raw_parts(predicate_definitions)
 
     def predicate[A: Argument](
         self,
@@ -225,47 +238,55 @@ class _PDDLTransformer(Transformer):
     ) -> ActionDefinition:
         return ActionDefinition.from_raw_parts(
             name,
-            list(parameters),
+            Parameters.from_raw_parts(parameters),
             precondition if precondition else AndCondition([]),
             effect if effect else AndEffect([]),
         )
 
     def actions_section(
         self, action_definitions: list[ActionDefinition]
-    ) -> list[ActionDefinition]:
-        return action_definitions
+    ) -> ActionsSection:
+        return ActionsSection.from_raw_parts(action_definitions)
 
     def domain(
         self,
         name: Identifier,
-        requirements: list[Requirement] | None,
-        type_hierarchy: TypeHierarchy | None,
-        constants: list[Typed[Object]] | None,
-        predicate_definitions: list[PredicateDefinition] | None,
-        action_definitions: list[ActionDefinition] | None,
+        requirements: RequirementsSection | None,
+        type_hierarchy: TypesSection | None,
+        constants: ConstantsSection | None,
+        predicate_definitions: PredicatesSection | None,
+        action_definitions: ActionsSection | None,
     ) -> Domain:
         return Domain.from_raw_parts(
             name,
-            requirements if requirements else RequirementSet({}),  # type: ignore
+            requirements if requirements else RequirementsSection({}),  # type: ignore
             type_hierarchy,
-            constants if constants else [],
-            predicate_definitions if predicate_definitions else [],
-            action_definitions if action_definitions else [],
+            constants if constants else ConstantsSection(),
+            predicate_definitions
+            if predicate_definitions
+            else PredicatesSection(),
+            action_definitions if action_definitions else ActionsSection(),
         )
 
-    def objects_section(
-        self, objects: list[Typed[Object]]
-    ) -> list[Typed[Object]]:
-        return objects
+    def objects_section(self, objects: list[Typed[Object]]) -> ObjectsSection:
+        return ObjectsSection.from_raw_parts(objects)
+
+    def placeholder(self) -> Placeholder:
+        return Placeholder()
+
+    def grounded_action_schematic(
+        self, name: Identifier, grounding: list[Grounder]
+    ) -> GroundedActionSchematic:
+        return GroundedActionSchematic(name, grounding)
 
     def action_fallibility(
         self,
-        action_name: Identifier,
+        grounded_action_schematic: GroundedActionSchematic,
         with_probability: Decimal | None,
         condition: Condition[Object],
     ) -> ActionFallibility:
         return ActionFallibility(
-            action_name,
+            grounded_action_schematic,
             condition,
             with_probability if with_probability else Decimal(value=1),
         )
@@ -275,8 +296,8 @@ class _PDDLTransformer(Transformer):
 
     def action_fallibilities_section(
         self, location: Location, fallibilities: list[ActionFallibility]
-    ) -> ActionFallibilitySet:
-        return ActionFallibilitySet.from_raw_parts(
+    ) -> ActionFallibilitiesSection:
+        return ActionFallibilitiesSection.from_raw_parts(
             fallibilities, location=location
         )
 
@@ -297,42 +318,44 @@ class _PDDLTransformer(Transformer):
 
     def revealables_section(
         self, location: Location, revealables: list[Revealable]
-    ) -> RevealableSet:
-        return RevealableSet.from_raw_parts(revealables, location=location)
+    ) -> RevealablesSection:
+        return RevealablesSection.from_raw_parts(revealables, location=location)
 
     def initialization_section(
         self, predicates: list[Predicate[Object]]
-    ) -> list[Predicate[Object]]:
-        return predicates
+    ) -> InitializationSection:
+        return InitializationSection.from_raw_parts(predicates)
 
     def GOALS_KEYWORD(self, token: Token) -> Location:  # noqa: N802
         return FileLocation._from_token(token)
 
     def goals_section(
         self, location: Location, goals: list[Condition[Object]]
-    ) -> GoalList:
-        return GoalList(goals, location=location)
+    ) -> GoalsSection:
+        return GoalsSection(goals, location=location)
 
     def problem(
         self,
         name: Identifier,
         used_domain_name: Identifier,
-        requirements: RequirementSet,
-        objects: list[Typed[Object]] | None,
-        fallible_actions: ActionFallibilitySet | None,
-        revealables: RevealableSet | None,
-        initialization: list[Predicate[Object]] | None,
-        goal_conditions: GoalList | Condition[Object],
+        requirements_section: RequirementsSection,
+        objects_section: ObjectsSection | None,
+        action_fallibilities_section: ActionFallibilitiesSection | None,
+        revealables_section: RevealablesSection | None,
+        initialization_section: InitializationSection | None,
+        goals_section: GoalsSection | Condition[Object],
     ) -> RawProblem:
         return RawProblem.from_raw_parts(
             name,
             used_domain_name,
-            requirements,
-            objects if objects else [],
-            fallible_actions,
-            revealables,
-            initialization if initialization else [],
-            goal_conditions,
+            requirements_section,
+            objects_section if objects_section else ObjectsSection(),
+            action_fallibilities_section,
+            revealables_section,
+            initialization_section
+            if initialization_section
+            else InitializationSection(),
+            goals_section,
         )
 
 

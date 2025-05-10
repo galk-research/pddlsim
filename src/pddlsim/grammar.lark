@@ -37,8 +37,8 @@ object_type: "object"
 _type: object_type | custom_type
 
 typed_list_part{item}: nonempty_list{item} "-" _type
-typed_list{item}: typed_list_part{item} [typed_list{item}]
-                | nonempty_list{item}                      -> object_typed_list
+typed_list{item}: typed_list_part{item} typed_list{item}
+                | list_{item}                              -> object_typed_list
 
 // We need the location of the types section in case `:typing` is not enabled
 TYPES_KEYWORD: ":types"
@@ -92,7 +92,11 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
 objects_section: "(" ":objects" typed_list{object_} ")"
 
-action_fallibility: "(" ":action" IDENTIFIER ":on" [NUMBER] condition{object_} ")"
+placeholder: "_"
+_grounder: object_
+        | placeholder
+grounded_action_schematic: "(" IDENTIFIER list_{_grounder} ")"
+action_fallibility: "(" ":action" grounded_action_schematic ":on" [NUMBER] condition{object_} ")"
 FAIL_KEYWORD: ":fails"
 action_fallibilities_section: "(" FAIL_KEYWORD list_{action_fallibility} ")"
 

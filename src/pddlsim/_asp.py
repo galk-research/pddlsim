@@ -273,11 +273,9 @@ def objects_asp_part(
 ) -> ASPPart:
     part = ASPPart(ASPPartKind.OBJECTS)
 
-    for object_, type in chain(
-        problem.object_types.items(), domain.constant_types.items()
-    ):
-        type_id = type_id_allocator.get_id_or_insert(type)
-        object_id = object_id_allocator.get_id_or_insert(object_)
+    for object_ in chain(problem.objects_section, domain.constants_section):
+        type_id = type_id_allocator.get_id_or_insert(object_.type)
+        object_id = object_id_allocator.get_id_or_insert(object_.value)
 
         part.add_fact(
             part.create_function_literal(
@@ -285,7 +283,7 @@ def objects_asp_part(
             )
         )
 
-    for member in domain.type_hierarchy:
+    for member in domain.types_section:
         custom_type = member.value
         supertype = member.type
 
@@ -464,9 +462,9 @@ def action_definition_asp_part(
     part = ASPPart(ASPPartKind.ACTION_DEFINITION)
 
     # Require each parameter have a single object as its value
-    for variable, type in action_definition.variable_types.items():
-        variable_id = variable_id_allocator.get_id_or_insert(variable)
-        type_id = type_id_allocator.get_id_or_insert(type)
+    for parameter in action_definition.parameters:
+        variable_id = variable_id_allocator.get_id_or_insert(parameter.value)
+        type_id = type_id_allocator.get_id_or_insert(parameter.type)
 
         part.add_single_instantiation_constraint(
             part.create_function_literal(

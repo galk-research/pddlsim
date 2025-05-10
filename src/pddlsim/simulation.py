@@ -15,10 +15,9 @@ from collections.abc import (
 from dataclasses import dataclass
 from functools import cached_property
 from random import Random
-from typing import TypedDict, cast, override
+from typing import cast
 
 from clingo import Control
-from koda_validate import TypedDictValidator, Validator
 
 from pddlsim._asp import (
     ASPPart,
@@ -32,7 +31,6 @@ from pddlsim._asp import (
     objects_asp_part,
     simulation_state_asp_part,
 )
-from pddlsim._serde import Serdeable
 from pddlsim.ast import (
     ActionDefinition,
     ActionFallibility,
@@ -43,6 +41,7 @@ from pddlsim.ast import (
     Domain,
     Effect,
     EqualityCondition,
+    GroundedAction,
     Identifier,
     NotCondition,
     NotPredicate,
@@ -135,44 +134,6 @@ def _ground_effect(
             )
 
 
-class _ActionGroundingPair(TypedDict):
-    name: str
-    grounding: list[str]
-
-
-@dataclass(frozen=True)
-class GroundedAction(Serdeable[_ActionGroundingPair]):
-    """Stores a grounded action: the action name, and a parameter assignment.
-
-    Used to represent actions by the agent that can change the simulation
-    (like actions in a PDDL domain). When creating an agent, this is the
-    principal value to use to indicate it is performing an action in
-    the environment.
-    """
-
-    name: Identifier
-    grounding: list[Object]
-
-    @override
-    def serialize(self) -> _ActionGroundingPair:
-        return _ActionGroundingPair(
-            name=self.name.value,
-            grounding=[object_.value for object_ in self.grounding],
-        )
-
-    @classmethod
-    @override
-    def _validator(cls) -> Validator[_ActionGroundingPair]:
-        return TypedDictValidator(_ActionGroundingPair)
-
-    @classmethod
-    def _create(cls, value: _ActionGroundingPair) -> "GroundedAction":
-        return GroundedAction(
-            Identifier(value["name"]),
-            [Object(object_) for object_ in value["grounding"]],
-        )
-
-
 @dataclass(frozen=True)
 class Simulation:
     """Low-level interface for PDDL simulation, backed by `SimulationState`.
@@ -230,8 +191,10 @@ class Simulation:
     ) -> Mapping[Identifier, Iterable[ActionFallibility]]:
         fallibilities = defaultdict(list)
 
-        for fallibility in self.problem.action_fallibilities:
-            fallibilities[fallibility.name].append(fallibility)
+        for fallibility in self.problem.action_fallibilities_section:
+            fallibilities[fallibility.grounded_action_schematic.name].append(
+                fallibility
+            )
 
         return fallibilities
 
@@ -261,7 +224,7 @@ class Simulation:
                 ),
                 variable_id_allocator,
             )
-            for action_definition in self.domain.action_definitions.values()
+            for action_definition in self.domain.actions_section
         }
 
     @classmethod
@@ -294,7 +257,10 @@ class Simulation:
             state_override._copy()
             if state_override
             else SimulationState(
-                {true_predicate for true_predicate in problem.initialization}
+                {
+                    true_predicate
+                    for true_predicate in problem.initialization_section
+                }
             ),
             # Technically speaking, the seed could be cracked under very
             # specific circumstances (system time is known and is used
@@ -302,8 +268,8 @@ class Simulation:
             # be exploited.
             Random(seed),
             reached_goal_indices,
-            set(range(len(problem.goals))) - reached_goal_indices,
-            set(problem.revealables),
+            set(range(len(problem.goals_section))) - reached_goal_indices,
+            set(problem.revealables_section),
         )
 
     def __post_init__(self) -> None:
@@ -320,7 +286,7 @@ class Simulation:
 
         for goal_index in self._unreached_goal_indices:
             if self.state.does_condition_hold(
-                self.problem.goals.get_goal(goal_index)
+                self.problem.goals_section[goal_index]
             ):
                 self._reached_goal_indices.add(goal_index)
                 newly_reached_goals.add(goal_index)
@@ -377,11 +343,11 @@ class Simulation:
                 if does_fail:
                     return
 
-        action_definition = self.domain.action_definitions[grounded_action.name]
+        action_definition = self.domain.actions_section[grounded_action.name]
         grounding = {
             variable: object_
             for variable, object_ in zip(
-                action_definition.variable_types,
+                (parameter.value for parameter in action_definition.parameters),
                 grounded_action.grounding,
                 strict=True,
             )
@@ -448,8 +414,8 @@ class Simulation:
             GroundedAction(
                 action_definition.name,
                 [
-                    grounding[variable]
-                    for variable in action_definition.variable_types
+                    grounding[parameter.value]
+                    for parameter in action_definition.parameters
                 ],
             )
             for grounding in self._get_groundings(action_definition, state_part)
@@ -465,7 +431,7 @@ class Simulation:
 
         return (
             grounded_action
-            for action_definition in self.domain.action_definitions.values()
+            for action_definition in self.domain.actions_section
             for grounded_action in self._get_grounded_actions(
                 action_definition, state_part
             )
@@ -473,4 +439,6 @@ class Simulation:
 
     def is_solved(self) -> bool:
         """Check if all goals of the problem have been achieved."""
-        return len(self._reached_goal_indices) == len(self.problem.goals)
+        return len(self._reached_goal_indices) == len(
+            self.problem.goals_section
+        )

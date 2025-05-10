@@ -35,13 +35,13 @@ class Agent:
         problem = await client.get_problem()
 
         for requirement in cls.UNSUPPORTED_DOMAIN_REQUIREMENTS:
-            if requirement in domain.requirements:
+            if requirement in domain.requirements_section:
                 raise ValueError(
                     f"`{requirement}` requirement is not supported"
                 )
 
         for requirement in cls.UNSUPPORTED_PROBLEM_REQUIREMENTS:
-            if requirement in problem.requirements:
+            if requirement in problem.requirements_section:
                 raise ValueError(
                     f"`{requirement}` requirement are not supported"
                 )
