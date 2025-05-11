@@ -33,7 +33,7 @@ jobs:
           python-version-file: "pyproject.toml"
 
       - name: Install the project
-        run: uv sync --all-extras --group doc
+        run: uv sync --locked --all-extras --group doc
 
       - name: Build the documentation
         run: uv run pdoc -o docs/ --logo "https://raw.githubusercontent.com/galk-research/pddlsim/refs/heads/main/assets/logo/pddlsim-light.svg" ./src/pddlsim/
