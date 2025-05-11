@@ -36,7 +36,7 @@ jobs:
         run: uv sync --locked --all-extras --group doc
 
       - name: Build the documentation
-      - run: uv run pdoc -o docs/ --logo "https://raw.githubusercontent.com/galk-research/pddlsim/refs/heads/main/assets/logo/pddlsim-light.svg"
+        run: uv run pdoc -o docs/ --logo "https://raw.githubusercontent.com/galk-research/pddlsim/refs/heads/main/assets/logo/pddlsim-light.svg"
 
       - uses: actions/upload-pages-artifact@v3
         with:
