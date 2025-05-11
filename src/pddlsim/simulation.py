@@ -134,7 +134,7 @@ def _ground_effect(
             )
 
 
-@dataclass(frozen=True)
+@dataclass
 class Simulation:
     """Low-level interface for PDDL simulation, backed by `SimulationState`.
 
