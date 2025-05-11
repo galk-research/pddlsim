@@ -113,7 +113,7 @@ class _Locationed(ABC):
 
 
 @dataclass(frozen=True)
-class _LocationedSet[T](Iterable[T], Container, _Locationed):
+class _LocationedSet[T](Iterable[T], Container, Sized, _Locationed):
     _items: Set[T] = field(default_factory=set)
 
     @classmethod
@@ -143,6 +143,10 @@ class _LocationedSet[T](Iterable[T], Container, _Locationed):
     @override
     def __contains__(self, item: object) -> bool:
         return item in self._items
+
+    @override
+    def __len__(self) -> int:
+        return len(self._items)
 
 
 @dataclass(frozen=True)
@@ -1412,4 +1416,8 @@ class Problem:
         problem_name = f"(problem {self.name!r})"
         used_domain_name = f"(:domain {self.used_domain_name!r})"
 
-        return f"(define {problem_name} {used_domain_name} {self.requirements_section!r} {self.objects_section!r} {self.initialization_section!r} {self.goals_section!r})"  # noqa: E501
+        requirements_section = (
+            repr(self.requirements_section) if self.requirements_section else ""
+        )
+
+        return f"(define {problem_name} {used_domain_name} {requirements_section} {self.objects_section!r} {self.initialization_section!r} {self.goals_section!r})"  # noqa: E501
