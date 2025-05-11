@@ -371,7 +371,9 @@ class Simulation:
                 self._rng,
             )
 
-            del self._state_asp_part  # Regenerate the cached state ASP part
+            if hasattr(self, "_state_asp_part"):
+                del self._state_asp_part  # Regenerate the cached state ASP part
+
             self._update_reached_goals()
             self._update_revealables()
         else:
