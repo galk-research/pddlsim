@@ -125,20 +125,21 @@ class IDAllocator[T]:
         return self._values[id]
 
 
+# Used to enforce parameters to methods on `ASPPart` are correct
 SymbolAST = NewType("SymbolAST", clingo.ast.AST)
 VariableAST = NewType("VariableAST", clingo.ast.AST)
 type ArgumentAST = SymbolAST | VariableAST
 LiteralAST = NewType("LiteralAST", clingo.ast.AST)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ASPPart:
     name: str
     _statements: list[clingo.ast.AST] = field(default_factory=list)
 
     def next_location(self) -> clingo.ast.Location:
         # We add one to the length as lines start at 1
-        position = clingo.ast.Position("<string>", len(self._statements) + 1, 1)
+        position = clingo.ast.Position("<ast>", len(self._statements) + 1, 1)
 
         return clingo.ast.Location(position, position)
 
