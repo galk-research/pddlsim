@@ -515,6 +515,14 @@ class OrCondition[A: Argument](_Locationed):
         objects: Mapping[Object, Type],
         domain: "Domain",
     ) -> None:
+        if (
+            Requirement.DISJUNCTIVE_PRECONDITIONS
+            not in domain.requirements_section
+        ):
+            raise ValueError(
+                f"{self} used in condition, but `{Requirement.DISJUNCTIVE_PRECONDITIONS}` is not in {domain.requirements_section}"  # noqa: E501
+            )
+
         for subcondition in self.subconditions:
             subcondition._validate(parameters, objects, domain)
 
