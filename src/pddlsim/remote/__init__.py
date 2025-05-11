@@ -17,7 +17,6 @@ import cbor2
 from pddlsim.remote._message import (
     Custom,
     Error,
-    GoalsReached,
     Message,
     Payload,
     TerminationPayload,
@@ -29,7 +28,7 @@ _RSP_VERSION = 1
 _FRAME_LENGTH_BYTES = 4
 
 
-class SessionTermination(Exception):  # noqa: N818
+class _SessionTerminationError(Exception):
     """Represents the way in which a simulation session terminated."""
 
     def __init__(
@@ -44,13 +43,9 @@ class SessionTermination(Exception):  # noqa: N818
         self._termination_payload = termination_payload
         self.source = source
 
-    def is_goals_reached(self) -> bool:
-        """Check if the session terminated as all goals have been reached."""
-        return isinstance(self._termination_payload, GoalsReached)
-
-    def is_error(self) -> bool:
-        """Check if the session has been terminated due to an error."""
-        return isinstance(self._termination_payload, Error)
+    @property
+    def payload(self) -> TerminationPayload:
+        return self._termination_payload
 
     @override
     def __str__(self):
@@ -81,7 +76,7 @@ class _RSPMessageBridge:
             self._writer.write(data)
             await self._writer.drain()
         except ConnectionResetError as exception:
-            raise SessionTermination(
+            raise _SessionTerminationError(
                 Custom.from_communication_channel_closed(),
                 TerminationSource.EXTERNAL,
             ) from exception
@@ -93,7 +88,7 @@ class _RSPMessageBridge:
             )
             value_bytes: bytes = await self._reader.readexactly(byte_size)
         except (asyncio.IncompleteReadError, ConnectionResetError) as exception:
-            raise SessionTermination(
+            raise _SessionTerminationError(
                 Custom.from_communication_channel_closed(),
                 TerminationSource.EXTERNAL,
             ) from exception
@@ -101,18 +96,20 @@ class _RSPMessageBridge:
         serialized_message = cbor2.loads(value_bytes)
         logging.info(f"receiving: {serialized_message}")
 
-        message = Message.deserialize(serialized_message).payload
+        payload = Message.deserialize(serialized_message).payload
 
-        if isinstance(message, TerminationPayload):
-            raise SessionTermination(message, TerminationSource.EXTERNAL)
+        if isinstance(payload, TerminationPayload):
+            raise _SessionTerminationError(payload, TerminationSource.EXTERNAL)
 
-        return message
+        return payload
 
     async def error(
         self, source: TerminationSource, reason: str | None
-    ) -> SessionTermination:
+    ) -> _SessionTerminationError:
         error_message = Error(source, reason)
 
         await self.send_message(error_message)
 
-        return SessionTermination(error_message, TerminationSource.INTERNAL)
+        return _SessionTerminationError(
+            error_message, TerminationSource.INTERNAL
+        )

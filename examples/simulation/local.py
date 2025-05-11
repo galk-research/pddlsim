@@ -32,13 +32,12 @@ async def get_next_action(simulation: SimulationClient) -> SimulationAction:
 
 
 async def main() -> None:
-    termination = await simulate_domain_problem_pair_from_files(
+    summary = await simulate_domain_problem_pair_from_files(
         "assets/problems/gripper/domain.pddl",
         "assets/problems/gripper/instance.pddl",
         with_no_initializer(get_next_action),
     )
-
-    print(termination)
+    print(summary)
 
 
 if __name__ == "__main__":

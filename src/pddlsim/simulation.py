@@ -336,8 +336,12 @@ class Simulation:
         """Indices of uncompleted problem goals, from 0, in definition order."""
         return list(self._unreached_goal_indices)
 
-    def apply_grounded_action(self, grounded_action: GroundedAction) -> None:
+    def apply_grounded_action(self, grounded_action: GroundedAction) -> bool:
         """Apply a grounded action to the `Simulation`, affecting its state.
+
+        The returned boolean represents if the action was successful, or failed.
+        Grounded actions that are invalid will raise a `ValueError`, and not
+        just fail.
 
         If the problem the simulation has any action fallibilities, these may
         apply, making the action have no effect. If the action has as a
@@ -351,7 +355,7 @@ class Simulation:
                 does_fail = self._rng.random() < fallibility.with_probability
 
                 if does_fail:
-                    return
+                    return False
 
         action_definition = self.domain.actions_section[grounded_action.name]
         grounding = {
@@ -363,21 +367,23 @@ class Simulation:
             )
         }
 
-        if self.state.does_condition_hold(
+        if not self.state.does_condition_hold(
             _ground_condition(action_definition.precondition, grounding)
         ):
-            self.state._make_effect_hold(
-                _ground_effect(action_definition.effect, grounding),
-                self._rng,
-            )
-
-            if hasattr(self, "_state_asp_part"):
-                del self._state_asp_part  # Regenerate the cached state ASP part
-
-            self._update_reached_goals()
-            self._update_revealables()
-        else:
             raise ValueError("grounded action doesn't satisfy precondition")
+
+        self.state._make_effect_hold(
+            _ground_effect(action_definition.effect, grounding),
+            self._rng,
+        )
+
+        if hasattr(self, "_state_asp_part"):
+            del self._state_asp_part  # Regenerate the cached state ASP part
+
+        self._update_reached_goals()
+        self._update_revealables()
+
+        return True
 
     def _get_groundings(
         self, action_definition: ActionDefinition

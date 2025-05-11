@@ -72,13 +72,13 @@ class AgentConfiguration:
 
 async def main() -> None:
     port = int(input("What port to connect to? (0-65535): "))
-    termination = await act_in_simulation(
+    summary = await act_in_simulation(
         "127.0.0.1",
         port,
         AgentConfiguration(300).initialize,
     )
 
-    print(f"Finished with: {termination}")
+    print(f"Finished with: {summary}")
 
 
 if __name__ == "__main__":

@@ -11,8 +11,8 @@ from pddlsim.ast import Domain, Problem
 from pddlsim.parser import parse_domain_problem_pair_from_files
 from pddlsim.remote import (
     _RSP_VERSION,
-    SessionTermination,
     _RSPMessageBridge,
+    _SessionTerminationError,
 )
 from pddlsim.remote._message import (
     Error,
@@ -42,7 +42,7 @@ async def _receive_message[T: Payload](
     message = await bridge.receive_payload()
 
     if not isinstance(message, expected_message_type):
-        raise SessionTermination(
+        raise _SessionTerminationError(
             Error.from_type_mismatch(expected_message_type, type(message)),
             TerminationSource.INTERNAL,
         )
@@ -58,7 +58,7 @@ async def _start_session(bridge: _RSPMessageBridge) -> None:
 
         await bridge.send_message(session_unsupported)
 
-        raise SessionTermination(
+        raise _SessionTerminationError(
             session_unsupported, TerminationSource.INTERNAL
         )
     else:
@@ -102,10 +102,10 @@ async def _perform_grounded_action(
     simulation: Simulation,
     bridge: _RSPMessageBridge,
 ) -> None:
-    simulation.apply_grounded_action(grounded_action)
+    success = simulation.apply_grounded_action(grounded_action)
 
     if not simulation.is_solved():
-        await bridge.send_message(PerformGroundedActionResponse())
+        await bridge.send_message(PerformGroundedActionResponse(success))
 
 
 async def _handle_requests(
@@ -131,7 +131,7 @@ async def _handle_requests(
                     bridge,
                 )
             case _:
-                raise SessionTermination(
+                raise _SessionTerminationError(
                     Error(
                         TerminationSource.EXTERNAL,
                         f"expected request, got {request.type()}",
@@ -139,7 +139,7 @@ async def _handle_requests(
                     TerminationSource.INTERNAL,
                 )
 
-    raise SessionTermination(GoalsReached(), TerminationSource.INTERNAL)
+    raise _SessionTerminationError(GoalsReached(), TerminationSource.INTERNAL)
 
 
 async def _operate_session(
@@ -147,7 +147,7 @@ async def _operate_session(
     problem: Problem,
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
-) -> SessionTermination:
+) -> _SessionTerminationError:
     bridge = _RSPMessageBridge(reader, writer)
 
     try:
@@ -155,7 +155,7 @@ async def _operate_session(
 
         await _start_session(bridge)
         await _handle_requests(simulation, bridge)
-    except SessionTermination as termination:
+    except _SessionTerminationError as termination:
         logging.info(str(termination))
 
         if termination.source is TerminationSource.INTERNAL:

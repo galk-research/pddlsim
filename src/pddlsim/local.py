@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from pddlsim.ast import Domain, Problem
 from pddlsim.parser import parse_domain_problem_pair_from_files
-from pddlsim.remote import SessionTermination, client
+from pddlsim.remote import client
 from pddlsim.remote.server import _SimulationServer
 
 
@@ -45,7 +45,7 @@ class LocalSimulator:
 
     async def simulate(
         self, initializer: client.AgentInitializer
-    ) -> SessionTermination:
+    ) -> client.SessionSummary:
         """Run the provided agent on the simulation until termination.
 
         The returned value is an object representing how the simulation ended.
@@ -57,7 +57,7 @@ class LocalSimulator:
 
 async def simulate_domain_problem_pair(
     domain: Domain, problem: Problem, initializer: client.AgentInitializer
-) -> SessionTermination:
+) -> client.SessionSummary:
     """Simulate the provided agent on a domain-problem pair.
 
     The returned value is an object representing how the simulation ended.
@@ -71,7 +71,7 @@ async def simulate_domain_problem_pair_from_files(
     domain_path: str | os.PathLike,
     problem_path: str | os.PathLike,
     initializer: client.AgentInitializer,
-) -> SessionTermination:
+) -> client.SessionSummary:
     """Simulate the provided agent on a domain-problem pair, given their paths.
 
     The returned value is an object representing how the simulation ended.
