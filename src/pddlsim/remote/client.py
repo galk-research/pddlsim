@@ -76,10 +76,25 @@ class SessionStatistics:
     """Statistics on the behavior of the agent during the session."""
 
     actions_attempted: int = 0
+    """The number of actions the agent attempted (including failures)."""
     failed_actions: int = 0
+    """The number of actions failed due to action fallibilities."""
     perception_requests: int = 0
+    """The number of unique perception requests by the agent."""
     goal_tracking_requests: int = 0
+    """The number of unique goal tracking requests by the agent.
+    
+    When calling either `SimulationClient.get_reached_goal_indices` or
+    `SimulationClient.get_unreached_goal_indices`, the same underlying
+    query is sent, meaning calling both only increases the count by one.
+    Repeated calls, without performing actions in between, are likewise
+    not counted."""
     get_grounded_actions_requests: int = 0
+    """The number of unique "get grounded actions" requests by the agent.
+    
+    When repeatedly making such requests, without performing actions in between,
+    the count only increases by one.
+    """
 
 
 @dataclass(frozen=True)
@@ -87,8 +102,11 @@ class SessionSummary:
     """A summary of the behavior of the agent in a simulation session."""
 
     result: SessionResult
+    """The result of the session: success, failure, or error."""
     statistics: SessionStatistics
-    time_elapsed: float
+    """Statistics on the behavior of the agent during the session."""
+    seconds_elapsed: float
+    """The total time, in seconds, of the session."""
 
     def is_success(self) -> bool:
         """Check if the result of the session is a success."""
