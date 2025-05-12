@@ -39,7 +39,11 @@ lint = ["mypy>=1.15.0", "ruff>=0.11.8"]
 examples = ["unified-planning[fast-downward]>=1.2.0"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/unit/*.py", "tests/integration/*.py", "tests/benches/*.py"]
+testpaths = [
+    "tests/unit/**/*.py",
+    "tests/integration/**/*.py",
+    "tests/benches/**/*.py",
+]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
 addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"

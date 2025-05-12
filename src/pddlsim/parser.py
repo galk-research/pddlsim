@@ -154,7 +154,7 @@ class _PDDLTransformer(Transformer):
         parameters: Iterable[Typed[Variable]],
     ) -> PredicateDefinition:
         return PredicateDefinition.from_raw_parts(
-            name, Parameters.from_raw_parts(parameters)
+            name, Parameters.from_raw_parts(parameters, definition=name)
         )
 
     def predicates_section(
@@ -238,7 +238,7 @@ class _PDDLTransformer(Transformer):
     ) -> ActionDefinition:
         return ActionDefinition.from_raw_parts(
             name,
-            Parameters.from_raw_parts(parameters),
+            Parameters.from_raw_parts(parameters, definition=name),
             precondition if precondition else AndCondition([]),
             effect if effect else AndEffect([]),
         )

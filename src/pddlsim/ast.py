@@ -78,7 +78,7 @@ class FileLocation(Location):
 
     @override
     def as_str_with_value(self, value: Any) -> str:
-        return f"`{value}` ({self.line}:{self.column})"
+        return f"{value} ({self.line}:{self.column})"
 
 
 @dataclass(frozen=True)
@@ -123,18 +123,22 @@ class _LocationedSet[T](Iterable[T], Container, Sized, _Locationed):
         *,
         location: Location | None = None,
     ) -> Self:
-        item_set = set()
+        item_set: set[T] = set()
 
-        for item in items:
-            if item in item_set:
-                raise ValueError(f"{item} is defined multiple times")
-
-            item_set.add(item)
-
-        return cls(
+        result = cls(
             item_set,
             location=location if location else EmptyLocation(),
         )
+
+        for item in items:
+            if item in item_set:
+                raise ValueError(
+                    f"{item} is defined multiple times in {result}"
+                )
+
+            item_set.add(item)
+
+        return result
 
     @override
     def __iter__(self) -> Iterator[T]:
@@ -166,32 +170,32 @@ class _LocationedList[T](Iterable[T], Sized, _Locationed):
 
 
 @dataclass(frozen=True)
-class _LocationedItems[T, U, ID](Iterable[T], Container, _Locationed):
+class _LocationedItems[T, U, ID](Iterable[T], Container, Sized, _Locationed):
     _items: dict[ID, U] = field(default_factory=dict)
 
     @classmethod
     def from_raw_parts(
         cls,
         items: Iterable[T],
-        *,
-        location: Location | None = None,
+        **kwargs,
     ) -> Self:
-        item_map = dict()
+        item_map: dict[ID, U] = dict()
+        result = cls(
+            item_map,
+            **kwargs,
+        )
 
         for item in items:
             name = cls._get_id(item)
 
             if name in item_map:
                 raise ValueError(
-                    f"{cls._item_name()} with name {name} is defined multiple times"  # noqa: E501
+                    f"{cls._item_name()} with name {name} is defined multiple times in {result}"  # noqa: E501
                 )
 
             item_map[name] = cls._get_value(item)
 
-        return cls(
-            item_map,
-            location=location if location else EmptyLocation(),
-        )
+        return result
 
     @classmethod
     @abstractmethod
@@ -223,6 +227,10 @@ class _LocationedItems[T, U, ID](Iterable[T], Container, _Locationed):
     @override
     def __contains__(self, item: object) -> bool:
         return item in self._items
+
+    @override
+    def __len__(self) -> int:
+        return len(self._items)
 
 
 @dataclass(frozen=True)
@@ -258,6 +266,10 @@ class Requirement(StrEnum):
     """Allows problems to use [revealables](https://github.com/galk-research/pddlsim/wiki/Revealables)."""
     MULTIPLE_GOALS = ":multiple-goals"
     """Allows problems specify [multiple goals](https://github.com/galk-research/pddlsim/wiki/Multiple-Goals)."""
+
+    @override
+    def __str__(self) -> str:
+        return f"`{self.value}`"
 
     @override
     def __repr__(self) -> str:
@@ -307,11 +319,11 @@ class Identifier(_Locationed, Serdeable[str]):
 
     @override
     def _as_str_without_location(self) -> str:
-        return self.value
+        return f"`{self.value}`"
 
     @override
     def __repr__(self) -> str:
-        return self._as_str_without_location()
+        return self.value
 
 
 @dataclass(frozen=True, eq=True)
@@ -320,11 +332,11 @@ class Variable(Identifier):
 
     @override
     def _as_str_without_location(self) -> str:
-        return f"?{self.value}"
+        return f"`?{self.value}`"
 
     @override
     def __repr__(self) -> str:
-        return self._as_str_without_location()
+        return f"?{self.value}"
 
 
 @dataclass(frozen=True, eq=True)
@@ -333,12 +345,16 @@ class CustomType(Identifier):
 
     @override
     def __repr__(self) -> str:
-        return self._as_str_without_location()
+        return super().__repr__()
 
 
 @dataclass(eq=True, frozen=True)
 class ObjectType:
     """Represents the type `object` in PDDL. All types are subtypes of it."""
+
+    @override
+    def __str__(self) -> str:
+        return "`object`"
 
     @override
     def __repr__(self) -> str:
@@ -429,8 +445,11 @@ class TypesSection(_LocationedTypedItems[CustomType]):
         return f"(:types {' '.join(map(repr, self))})"
 
 
+@dataclass(frozen=True)
 class Parameters(_LocationedTypedItems[Variable]):
     """Represents action and predicate definition parameters in PDDL."""
+
+    definition: Identifier | None = None
 
     @classmethod
     @override
@@ -439,7 +458,11 @@ class Parameters(_LocationedTypedItems[Variable]):
 
     @override
     def _as_str_without_location(self) -> str:
-        return "parameters"
+        return (
+            "parameters"
+            if not self.definition
+            else f"parameters of {self.definition}"
+        )
 
 
 @dataclass(frozen=True)
@@ -524,7 +547,7 @@ class OrCondition[A: Argument](_Locationed):
             not in domain.requirements_section
         ):
             raise ValueError(
-                f"{self} used in condition, but `{Requirement.DISJUNCTIVE_PRECONDITIONS}` is not in {domain.requirements_section}"  # noqa: E501
+                f"{self} used in condition, but {Requirement.DISJUNCTIVE_PRECONDITIONS} is not in {domain.requirements_section}"  # noqa: E501
             )
 
         for subcondition in self.subconditions:
@@ -557,7 +580,7 @@ class NotCondition[A: Argument](_Locationed):
             not in domain.requirements_section
         ):
             raise ValueError(
-                f"{self} used in condition, but `{Requirement.NEGATIVE_PRECONDITIONS}` is not in {domain.requirements_section}"  # noqa: E501
+                f"{self} used in condition, but {Requirement.NEGATIVE_PRECONDITIONS} is not in {domain.requirements_section}"  # noqa: E501
             )
 
         self.base_condition._validate(parameters, objects, domain)
@@ -588,7 +611,7 @@ class EqualityCondition[A: Argument](_Locationed):
     ) -> None:
         if Requirement.EQUALITY not in domain.requirements_section:
             raise ValueError(
-                f"{self} used in condition, but `{Requirement.EQUALITY}` is not in {domain.requirements_section}"  # noqa: E501
+                f"{self} used in condition, but {Requirement.EQUALITY} is not in {domain.requirements_section}"  # noqa: E501
             )
 
         def validate_argument(argument: A) -> None:
@@ -640,6 +663,14 @@ class Predicate[A: Argument](Serdeable[_SerializedPredicate]):
             raise ValueError(f"predicate {self.name} is undefined")
 
         predicate_definition = domain.predicates_section[self.name]
+
+        found_arity = len(self.assignment)
+        expected_arity = len(predicate_definition.parameters)
+
+        if found_arity != expected_arity:
+            raise ValueError(
+                f"predicate {self.name} is defined with arity {expected_arity}, but is used with arity {found_arity}"  # noqa: E501
+            )
 
         for parameter, argument in zip(
             predicate_definition.parameters, self.assignment, strict=True
@@ -769,9 +800,16 @@ class ProbabilisticEffect[A: Argument](Iterable, _Locationed):
         location: Location | None = None,
     ) -> "ProbabilisticEffect":
         """Construct a `ProbabilisticEffect` from effect-probability pairs."""
-        possible_effects: list[Effect[A]] = []
-        cummulative_probabilities: list[Decimal] = []
-        cummulative_probability = Decimal()
+        possible_effects: list[Effect[A]] = [
+            effect for _, effect in possibilities
+        ]
+        cummulative_probabilities: list[Decimal] = list(
+            itertools.accumulate(
+                (probability for probability, _ in possibilities),
+                operator.add,
+                initial=Decimal(),
+            )
+        )
 
         result = ProbabilisticEffect(
             possible_effects,
@@ -779,22 +817,7 @@ class ProbabilisticEffect[A: Argument](Iterable, _Locationed):
             location=location if location else EmptyLocation(),
         )
 
-        for probability, possibility in possibilities:
-            if probability < 0:
-                raise ValueError(
-                    f"probability {probability} in {result} is negative"
-                )
-
-            cummulative_probability += probability
-
-            cummulative_probabilities.append(cummulative_probability)
-            possible_effects.append(possibility)
-
-        cummulative_probabilities = list(
-            itertools.accumulate(
-                (probability for probability, _ in possibilities), operator.add
-            )
-        )
+        cummulative_probability = cummulative_probabilities[-1]
 
         if cummulative_probability > 1:
             raise ValueError(
@@ -825,7 +848,7 @@ class ProbabilisticEffect[A: Argument](Iterable, _Locationed):
     ) -> None:
         if Requirement.PROBABILISTIC_EFFECTS not in domain.requirements_section:
             raise ValueError(
-                f"{self} used in action, but `{Requirement.PROBABILISTIC_EFFECTS}` does not appear in {domain.requirements_section}"  # noqa: E501
+                f"{self} used in action, but {Requirement.PROBABILISTIC_EFFECTS} does not appear in {domain.requirements_section}"  # noqa: E501
             )
 
         for subeffect in self._possible_effects:
@@ -1006,7 +1029,7 @@ class Domain:
             and types_section is not None
         ):
             raise ValueError(
-                f"{types_section} is defined in domain, but `{Requirement.TYPING}` does not appear in {requirements_section}"  # noqa: E501
+                f"{types_section} is defined in domain, but {Requirement.TYPING} does not appear in {requirements_section}"  # noqa: E501
             )
 
         return Domain(
@@ -1302,7 +1325,7 @@ class RawProblem:
             and Requirement.FALLIBLE_ACTIONS not in requirements_section
         ):
             raise ValueError(
-                f"{action_fallibilities_section} defined, but `{Requirement.FALLIBLE_ACTIONS}` does not appear in {requirements_section}"  # noqa: E501
+                f"{action_fallibilities_section} defined, but {Requirement.FALLIBLE_ACTIONS} does not appear in {requirements_section}"  # noqa: E501
             )
 
         if (
@@ -1310,7 +1333,7 @@ class RawProblem:
             and Requirement.REVEALABLES not in requirements_section
         ):
             raise ValueError(
-                f"{revealables_section} defined, but `{Requirement.REVEALABLES}` does not appear in {requirements_section}"  # noqa: E501
+                f"{revealables_section} defined, but {Requirement.REVEALABLES} does not appear in {requirements_section}"  # noqa: E501
             )
 
         if (
@@ -1318,7 +1341,7 @@ class RawProblem:
             and Requirement.MULTIPLE_GOALS not in requirements_section
         ):
             raise ValueError(
-                f"{goal} defined, but `{Requirement.MULTIPLE_GOALS}` does not appear in {requirements_section}"  # noqa: E501
+                f"{goal} defined, but {Requirement.MULTIPLE_GOALS} does not appear in {requirements_section}"  # noqa: E501
             )
 
         return RawProblem(
