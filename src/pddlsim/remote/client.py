@@ -39,6 +39,7 @@ class ErrorResult:
     """Represents a session prematurely terminated due to an error."""
 
     reason: str | None
+    """The reason, if any, for the error."""
 
     @override
     def __str__(self) -> str:
@@ -50,6 +51,7 @@ class FailureResult:
     """Represents a session where not all problem goals were reached."""
 
     reason: str | None
+    """The reason, if any, for the failure."""
 
     @override
     def __str__(self) -> str:
