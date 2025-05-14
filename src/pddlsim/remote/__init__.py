@@ -2,9 +2,9 @@
 
 This module contains two main submodules:
 
-- `remote.client` contains items related to interfacing with simulations
+- `pddlsim.remote.client` contains items related to interfacing with simulations
 and creating agents
-- `remote.server` contains items related to create a simulator server
+- `pddlsim.remote.server` contains items related to create a simulator server
 """
 
 import asyncio
