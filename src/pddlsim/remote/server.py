@@ -1,27 +1,23 @@
 """Code for opening a simulation server accessible by the internet."""
 
 import asyncio
-import logging
 import os
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import NoReturn
 
-from pddlsim.ast import Domain, Problem
+from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.parser import parse_domain_problem_pair_from_files
 from pddlsim.remote import (
     _RSP_VERSION,
     _RSPMessageBridge,
-    _SessionTerminationError,
 )
 from pddlsim.remote._message import (
     Error,
+    ErrorSource,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GoalsReached,
     GoalTrackingRequest,
     GoalTrackingResponse,
-    Payload,
     PerceptionRequest,
     PerceptionResponse,
     PerformGroundedActionRequest,
@@ -31,182 +27,183 @@ from pddlsim.remote._message import (
     SessionSetupRequest,
     SessionSetupResponse,
     SessionUnsupported,
-    TerminationSource,
+    TerminationPayload,
 )
-from pddlsim.simulation import GroundedAction, Simulation
+from pddlsim.simulation import Simulation
 
 
-async def _receive_message[T: Payload](
-    expected_message_type: type[T], bridge: _RSPMessageBridge
-) -> T:
-    message = await bridge.receive_payload()
+@dataclass
+class SimulatorConfiguration:
+    """Configuration for simulation servers (local or otherwise).
 
-    if not isinstance(message, expected_message_type):
-        raise _SessionTerminationError(
-            Error.from_type_mismatch(expected_message_type, type(message)),
-            TerminationSource.INTERNAL,
+    The individual fields of `ServerConfiguration` may be modified,
+    as it simply stores data.
+    """
+
+    domain: Domain
+    """The domain to simulate."""
+    problem: Problem
+    """The problem to simulate."""
+    show_revealables: bool = False
+    """Whether clients of the simulation should be able to access the revealables of the problem."""  # noqa: E501
+    show_fallible_actions: bool = False
+    """Whether clients of the simulation should be able to access the action fallibilities of the problem."""  # noqa: E501
+
+    @classmethod
+    def from_domain_and_problem_files(
+        cls, domain_path: str | os.PathLike, problem_path: str | os.PathLike
+    ) -> "SimulatorConfiguration":
+        """Create a default `ServerConfiguration` from paths to a domain and problem."""  # noqa: E501
+        domain, problem = parse_domain_problem_pair_from_files(
+            domain_path, problem_path
         )
 
-    return message
+        return cls(domain, problem)
 
+    async def __call__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        """Operates a full simulation using the passed communication objects.
 
-async def _start_session(bridge: _RSPMessageBridge) -> None:
-    message = await _receive_message(SessionSetupRequest, bridge)
-
-    if message.supported_rsp_version != _RSP_VERSION:
-        session_unsupported = SessionUnsupported()
-
-        await bridge.send_message(session_unsupported)
-
-        raise _SessionTerminationError(
-            session_unsupported, TerminationSource.INTERNAL
+        > [!NOTE]
+        > This is a very low-level API, and `start_simulation_server`/
+        > `pddlsim.local` should be used instead, if possible.
+        """
+        server = await _SimulationServerInstance.start_session(
+            _RSPMessageBridge(reader, writer), self
         )
-    else:
-        await bridge.send_message(SessionSetupResponse())
+        await server.operate_session()
 
 
-async def _problem_setup(
-    simulation: Simulation, bridge: _RSPMessageBridge
-) -> None:
-    await bridge.send_message(
-        ProblemSetupResponse(simulation.domain, simulation.problem)
-    )
+@dataclass(frozen=True)
+class _SimulationServerInstance:
+    _simulation: Simulation
+    _bridge: _RSPMessageBridge
+    _configuration: SimulatorConfiguration
 
-
-async def _perception(
-    simulation: Simulation, bridge: _RSPMessageBridge
-) -> None:
-    await bridge.send_message(PerceptionResponse(list(simulation.state)))
-
-
-async def _goal_tracking(
-    simulation: Simulation, bridge: _RSPMessageBridge
-) -> None:
-    await bridge.send_message(
-        GoalTrackingResponse(
-            simulation.reached_goal_indices, simulation.unreached_goal_indices
+    @classmethod
+    async def start_session(
+        cls,
+        bridge: _RSPMessageBridge,
+        configuration: SimulatorConfiguration,
+    ) -> "_SimulationServerInstance":
+        session_setup_request = await bridge.receive_payload(
+            SessionSetupRequest
         )
-    )
 
+        if session_setup_request.supported_rsp_version != _RSP_VERSION:
+            session_unsupported = SessionUnsupported()
 
-async def _get_grounded_actions(
-    simulation: Simulation, bridge: _RSPMessageBridge
-) -> None:
-    await bridge.send_message(
-        GetGroundedActionsResponse(list(simulation.get_grounded_actions()))
-    )
+            await bridge.send_payload(session_unsupported)
+            raise session_unsupported
+        else:
+            await bridge.send_payload(SessionSetupResponse())
 
+        simulation = Simulation.from_domain_and_problem(
+            configuration.domain, configuration.problem
+        )
 
-async def _perform_grounded_action(
-    grounded_action: GroundedAction,
-    simulation: Simulation,
-    bridge: _RSPMessageBridge,
-) -> None:
-    success = simulation.apply_grounded_action(grounded_action)
+        return cls(simulation, bridge, configuration)
 
-    if not simulation.is_solved():
-        await bridge.send_message(PerformGroundedActionResponse(success))
-
-
-async def _handle_requests(
-    simulation: Simulation,
-    bridge: _RSPMessageBridge,
-) -> NoReturn:
-    while not simulation.is_solved():
-        request = await bridge.receive_payload()
-
-        match request:
-            case ProblemSetupRequest():
-                await _problem_setup(simulation, bridge)
-            case PerceptionRequest():
-                await _perception(simulation, bridge)
-            case GoalTrackingRequest():
-                await _goal_tracking(simulation, bridge)
-            case GetGroundedActionsRequest():
-                await _get_grounded_actions(simulation, bridge)
-            case PerformGroundedActionRequest(grounded_action):
-                await _perform_grounded_action(
-                    grounded_action,
-                    simulation,
-                    bridge,
-                )
-            case _:
-                raise _SessionTerminationError(
-                    Error(
-                        TerminationSource.EXTERNAL,
-                        f"expected request, got {request.type()}",
-                    ),
-                    TerminationSource.INTERNAL,
-                )
-
-    raise _SessionTerminationError(GoalsReached(), TerminationSource.INTERNAL)
-
-
-async def _operate_session(
-    domain: Domain,
-    problem: Problem,
-    reader: asyncio.StreamReader,
-    writer: asyncio.StreamWriter,
-) -> _SessionTerminationError:
-    bridge = _RSPMessageBridge(reader, writer)
-
-    try:
-        simulation = Simulation.from_domain_and_problem(domain, problem)
-
-        await _start_session(bridge)
-        await _handle_requests(simulation, bridge)
-    except _SessionTerminationError as termination:
-        logging.info(str(termination))
-
-        if termination.source is TerminationSource.INTERNAL:
-            await bridge.send_message(termination._termination_payload)
-
-        return termination
-    except Exception as exception:
-        exception_reason = str(exception)
-
-        await bridge.send_message(
-            Error(
-                TerminationSource.INTERNAL,
-                exception_reason
-                if exception_reason
-                else str(type(exception).__name__),
+    async def _handle_problem_setup_request(self) -> None:
+        await self._bridge.send_payload(
+            ProblemSetupResponse(
+                self._simulation.domain,
+                self._simulation.problem,
+                self._configuration.show_revealables,
+                self._configuration.show_fallible_actions,
             )
         )
 
-        raise exception
+    async def _handle_perception_request(self) -> None:
+        await self._bridge.send_payload(
+            PerceptionResponse(list(self._simulation.state))
+        )
 
+    async def _handle_goal_tracking_request(self) -> None:
+        await self._bridge.send_payload(
+            GoalTrackingResponse(
+                self._simulation.reached_goal_indices,
+                self._simulation.unreached_goal_indices,
+            )
+        )
 
-def _server_constructor(
-    domain: Domain, problem: Problem
-) -> Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]:
-    async def _serve(
-        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    async def _handle_get_grounded_actions_request(self) -> None:
+        await self._bridge.send_payload(
+            GetGroundedActionsResponse(
+                list(self._simulation.get_grounded_actions())
+            )
+        )
+
+    async def _handle_perform_grounded_action_request(
+        self, grounded_action: GroundedAction
     ) -> None:
-        await _operate_session(domain, problem, reader, writer)
+        success = self._simulation.apply_grounded_action(grounded_action)
 
-    return _serve
+        if not self._simulation.is_solved():
+            await self._bridge.send_payload(
+                PerformGroundedActionResponse(success)
+            )
+
+    async def _handle_request(self) -> None:
+        payload = await self._bridge.receive_any_payload()
+
+        match payload:
+            case ProblemSetupRequest():
+                await self._handle_problem_setup_request()
+            case PerceptionRequest():
+                await self._handle_perception_request()
+            case GoalTrackingRequest():
+                await self._handle_goal_tracking_request()
+            case GetGroundedActionsRequest():
+                await self._handle_get_grounded_actions_request()
+            case PerformGroundedActionRequest():
+                await self._handle_perform_grounded_action_request(
+                    payload.grounded_action
+                )
+            case _:
+                error = Error(
+                    ErrorSource.EXTERNAL,
+                    f"expected request, found {payload.type()}",
+                )
+
+                await self._bridge.send_payload(error)
+                raise error
+
+    async def operate_session(self) -> None:
+        try:
+            while not self._simulation.is_solved():
+                await self._handle_request()
+
+            await self._bridge.send_payload(GoalsReached())
+        except TerminationPayload:
+            pass
+        except Exception as exception:
+            exception_reason = str(exception)
+
+            await self._bridge.send_payload(
+                Error(
+                    ErrorSource.INTERNAL,
+                    exception_reason if exception_reason else None,
+                )
+            )
+            raise exception
 
 
 @dataclass(frozen=True)
 class _SimulationServer:
-    domain: Domain
-    problem: Problem
     _server: asyncio.Server
 
     @classmethod
     async def from_host_and_port(
         cls,
-        domain: Domain,
-        problem: Problem,
+        configuration: SimulatorConfiguration,
         host: str,
         port: int | None = None,
     ) -> "_SimulationServer":
-        server = await asyncio.start_server(
-            _server_constructor(domain, problem), host, port
-        )
+        server = await asyncio.start_server(configuration, host, port)
 
-        return _SimulationServer(domain, problem, server)
+        return _SimulationServer(server)
 
     @property
     def host(self) -> str:
@@ -216,45 +213,23 @@ class _SimulationServer:
     def port(self) -> int:
         return self._server.sockets[0].getsockname()[1]
 
-    async def serve(self) -> NoReturn:
+    async def serve(self) -> None:
         async with self._server:
             await self._server.serve_forever()
 
-        raise AssertionError("serve must never end normally")
-
 
 async def start_simulation_server(
-    domain: Domain, problem: Problem, host: str, port: int | None = None
-) -> None:
-    """Open a simulation server for a domain and problem.
-
-    `host` and `port` form a pair, specifying the network interface
-    to open the server on. If the port is unspecified, it is chosen by the OS.
-    """
-    server = await _SimulationServer.from_host_and_port(
-        domain, problem, host, port
-    )
-
-    await server.serve()
-
-
-async def start_simulation_server_from_files(
-    domain_path: str | os.PathLike,
-    problem_path: str | os.PathLike,
+    configuration: SimulatorConfiguration,
     host: str,
     port: int | None = None,
 ) -> None:
-    """Open a simulation server for a domain and problem, specified by path.
+    """Open a simulation server for a given configuration.
 
     `host` and `port` form a pair, specifying the network interface
     to open the server on. If the port is unspecified, it is chosen by the OS.
     """
-    domain, problem = parse_domain_problem_pair_from_files(
-        domain_path, problem_path
-    )
-
     server = await _SimulationServer.from_host_and_port(
-        domain, problem, host, port
+        configuration, host, port
     )
 
     await server.serve()

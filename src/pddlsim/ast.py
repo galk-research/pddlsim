@@ -1054,8 +1054,8 @@ class Domain:
         self.predicates_section._validate(self)
         self.actions_section._validate(self)
 
-    @override
-    def __repr__(self) -> str:
+    def as_pddl(self) -> str:
+        """Return a PDDL string representing this domain."""
         domain_name = f"(domain {self.name!r})"
 
         return f"(define {domain_name} {self.requirements_section!r} {self.types_section!r} {self.constants_section!r} {self.predicates_section!r} {self.actions_section!r})"  # noqa: E501
@@ -1103,8 +1103,9 @@ class GroundedActionSchematic[A: Argument]:
     def does_match(self, grounded_action: "GroundedAction") -> bool:
         """Check if the grounded action matches the schematic.
 
-        This means that for each non-placeholder grounder, it matches
-        the object at the grounded action in that position.
+        This means that for parameter of the action, the grounded object
+        matches the specified object, or in the case of variables, parameters
+        with the same variable, are grounded to the same object.
         """
         variable_assignment: dict[Variable, Object] = {}
 
@@ -1157,6 +1158,10 @@ class GroundedActionSchematic[A: Argument]:
                         raise ValueError(
                             f"object {argument} in {self.name} is of type {object_type}, but is supposed to be of type {parameter.type}"  # noqa: E501
                         )
+
+    @override
+    def __repr__(self) -> str:
+        return f"({self.name} {' '.join(map(repr, self.grounding))})"
 
 
 class _SerializedGroundedAction(TypedDict):
@@ -1226,6 +1231,10 @@ class ActionFallibility:
         self.grounded_action_schematic._validate(objects, domain)
         self.condition._validate(Parameters(), objects, domain)
 
+    @override
+    def __repr__(self) -> str:
+        return f"(:action {self.grounded_action_schematic!r} :on {self.with_probability} {self.condition!r})"  # noqa: E501
+
 
 @dataclass(frozen=True)
 class ActionFallibilitiesSection(_LocationedList[ActionFallibility]):
@@ -1238,6 +1247,10 @@ class ActionFallibilitiesSection(_LocationedList[ActionFallibility]):
     def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
         for fallibility in self:
             fallibility._validate(objects, domain)
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:fails {' '.join(map(repr, self))})"
 
 
 @dataclass(frozen=True, eq=True)
@@ -1268,6 +1281,12 @@ class Revealable:
     def __str__(self) -> str:
         return "revealable"
 
+    @override
+    def __repr__(self) -> str:
+        return (
+            f"(when {self.with_probability} {self.condition!r} {self.effect!r})"
+        )
+
 
 @dataclass(frozen=True)
 class RevealablesSection(_LocationedList[Revealable]):
@@ -1280,6 +1299,10 @@ class RevealablesSection(_LocationedList[Revealable]):
     def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
         for fallibility in self:
             fallibility._validate(objects, domain)
+
+    @override
+    def __repr__(self) -> str:
+        return f"(:reveals {' '.join(map(repr, self))})"
 
 
 class InitializationSection(_LocationedSet[Predicate[Object]]):
@@ -1462,14 +1485,17 @@ class Problem:
                 f"used domain name {self.used_domain_name} doesn't match paired domain name"  # noqa: E501
             )
 
-    @override
-    def __repr__(self) -> str:
-        # NOTE: We purposefully don't include the revealables and
-        # fallible actions, as these are considered hidden information.
-
+    def as_pddl(
+        self,
+        show_revealables: bool = False,
+        show_action_fallibilities: bool = False,
+    ) -> str:
+        """Return a PDDL string representing this problem."""
         problem_name = f"(problem {self.name!r})"
         used_domain_name = f"(:domain {self.used_domain_name!r})"
 
+        # Some parsers don't support a problem-specific requirements section,
+        # ]so we omit it completely if not necessary.
         requirements_section = (
             repr(self.requirements_section) if self.requirements_section else ""
         )

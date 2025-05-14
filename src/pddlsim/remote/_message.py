@@ -104,12 +104,16 @@ class SerializedProblemSetupResponse(TypedDict):
 class ProblemSetupResponse(Payload[SerializedProblemSetupResponse]):
     domain: Domain
     problem: Problem
+    _show_revealables: bool = False
+    _show_action_fallibilities: bool = False
 
     @override
     def serialize(self) -> SerializedProblemSetupResponse:
         return SerializedProblemSetupResponse(
-            domain=repr(self.domain),
-            problem=repr(self.problem),
+            domain=self.domain.as_pddl(),
+            problem=self.problem.as_pddl(
+                self._show_revealables, self._show_action_fallibilities
+            ),
         )
 
     @override
@@ -293,7 +297,7 @@ class PerformGroundedActionResponse(Payload[bool]):
         return "perform-grounded-action-response"
 
 
-class TerminationPayload[T](Payload[T]):
+class TerminationPayload[T](Payload[T], Exception):  # noqa: N818
     @abstractmethod
     def description(self) -> str:
         raise NotImplementedError
@@ -310,7 +314,7 @@ class GoalsReached(EmptyPayload, TerminationPayload):
         return "goals reached"
 
 
-class TerminationSource(SerdeableEnum):
+class ErrorSource(SerdeableEnum):
     INTERNAL = "internal"
     EXTERNAL = "external"
 
@@ -322,7 +326,7 @@ class ErrorReason(TypedDict):
 
 @dataclass(frozen=True)
 class Error(TerminationPayload[ErrorReason]):
-    source: TerminationSource
+    source: ErrorSource
     reason: str | None
 
     @classmethod
@@ -332,9 +336,13 @@ class Error(TerminationPayload[ErrorReason]):
         received_payload_type: type[Payload],
     ) -> "Error":
         return Error(
-            TerminationSource.EXTERNAL,
+            ErrorSource.EXTERNAL,
             f"expected {expected_payload_type.type()}, got {received_payload_type.type()}",  # noqa: E501
         )
+
+    @classmethod
+    def from_communication_channel_closed(cls) -> "Error":
+        return Error(ErrorSource.EXTERNAL, "communication channel closed")
 
     @override
     def serialize(self) -> ErrorReason:
@@ -348,9 +356,7 @@ class Error(TerminationPayload[ErrorReason]):
     @override
     @classmethod
     def _create(cls, value: ErrorReason) -> "Error":
-        return Error(
-            TerminationSource.deserialize(value["source"]), value["reason"]
-        )
+        return Error(ErrorSource.deserialize(value["source"]), value["reason"])
 
     @override
     @classmethod
@@ -423,10 +429,6 @@ class GiveUp(TerminationPayload[str | None]):
 @dataclass(frozen=True)
 class Custom(TerminationPayload[str | None]):
     reason: str | None
-
-    @classmethod
-    def from_communication_channel_closed(cls) -> "Custom":
-        return Custom("communication channel closed")
 
     @override
     def serialize(self) -> str | None:

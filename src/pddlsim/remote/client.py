@@ -10,17 +10,16 @@ from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.remote import (
     _RSP_VERSION,
     _RSPMessageBridge,
-    _SessionTerminationError,
 )
 from pddlsim.remote._message import (
     Error,
+    ErrorSource,
     GetGroundedActionsRequest,
     GetGroundedActionsResponse,
     GiveUp,
     GoalsReached,
     GoalTrackingRequest,
     GoalTrackingResponse,
-    Payload,
     PerceptionRequest,
     PerceptionResponse,
     PerformGroundedActionRequest,
@@ -29,7 +28,7 @@ from pddlsim.remote._message import (
     ProblemSetupResponse,
     SessionSetupRequest,
     SessionSetupResponse,
-    TerminationSource,
+    TerminationPayload,
 )
 from pddlsim.simulation import SimulationState
 
@@ -143,50 +142,16 @@ class SimulationClient:
             )
         )
 
-    async def _receive_payload[P: Payload](
-        self, expected_payload_type: type[P]
-    ) -> P:
-        try:
-            payload = await self._bridge.receive_payload()
-
-            if not isinstance(payload, expected_payload_type):
-                await self._terminate_session(
-                    _SessionTerminationError(
-                        Error.from_type_mismatch(
-                            expected_payload_type, type(payload)
-                        ),
-                        TerminationSource.INTERNAL,
-                    )
-                )
-
-            return payload
-        except _SessionTerminationError as termination:
-            await self._terminate_session(termination.with_traceback(None))
-
-    async def _send_payload(self, payload: Payload) -> None:
-        try:
-            await self._bridge.send_message(payload)
-        except _SessionTerminationError as termination:
-            await self._terminate_session(termination.with_traceback(None))
-
-    async def _terminate_session(
-        self, termination: _SessionTerminationError
-    ) -> NoReturn:
-        if termination.source is TerminationSource.INTERNAL:
-            await self._send_payload(termination._termination_payload)
-
-        raise termination
-
     async def _start_session(self) -> None:
-        await self._send_payload(SessionSetupRequest(_RSP_VERSION))
+        await self._bridge.send_payload(SessionSetupRequest(_RSP_VERSION))
 
-        _payload = await self._receive_payload(SessionSetupResponse)
+        _payload = await self._bridge.receive_payload(SessionSetupResponse)
 
     async def _get_problem_setup(self) -> tuple[Domain, Problem]:
         if not self._domain_problem_pair:
-            await self._send_payload(ProblemSetupRequest())
+            await self._bridge.send_payload(ProblemSetupRequest())
 
-            payload = await self._receive_payload(ProblemSetupResponse)
+            payload = await self._bridge.receive_payload(ProblemSetupResponse)
 
             self._domain_problem_pair = (
                 payload.domain,
@@ -214,9 +179,9 @@ class SimulationClient:
     ) -> tuple[list[int], list[int]]:
         if not self._reached_and_unreached_goal_indices:
             self._statistics.goal_tracking_requests += 1
-            await self._send_payload(GoalTrackingRequest())
+            await self._bridge.send_payload(GoalTrackingRequest())
 
-            payload = await self._receive_payload(GoalTrackingResponse)
+            payload = await self._bridge.receive_payload(GoalTrackingResponse)
 
             self._reached_and_unreached_goal_indices = (
                 payload.reached_goal_indices,
@@ -255,9 +220,9 @@ class SimulationClient:
         """
         if not self._state:
             self._statistics.perception_requests += 1
-            await self._send_payload(PerceptionRequest())
+            await self._bridge.send_payload(PerceptionRequest())
 
-            payload = await self._receive_payload(PerceptionResponse)
+            payload = await self._bridge.receive_payload(PerceptionResponse)
 
             self._state = SimulationState(set(payload.true_predicates))
 
@@ -275,9 +240,11 @@ class SimulationClient:
         """
         if not self._grounded_actions:
             self._statistics.get_grounded_actions_requests += 1
-            await self._send_payload(GetGroundedActionsRequest())
+            await self._bridge.send_payload(GetGroundedActionsRequest())
 
-            payload = await self._receive_payload(GetGroundedActionsResponse)
+            payload = await self._bridge.receive_payload(
+                GetGroundedActionsResponse
+            )
 
             self._grounded_actions = payload.grounded_actions
 
@@ -291,14 +258,19 @@ class SimulationClient:
         self._reached_and_unreached_goal_indices = None
 
         self._statistics.actions_attempted += 1
-        await self._send_payload(PerformGroundedActionRequest(grounded_action))
-        response = await self._receive_payload(PerformGroundedActionResponse)
+        await self._bridge.send_payload(
+            PerformGroundedActionRequest(grounded_action)
+        )
+        response = await self._bridge.receive_payload(
+            PerformGroundedActionResponse
+        )
         self._statistics.failed_actions += not response.success
 
-    async def _give_up(self, reason: str | None) -> None:
-        await self._terminate_session(
-            _SessionTerminationError(GiveUp(reason), TerminationSource.INTERNAL)
-        )
+    async def _give_up(self, reason: str | None) -> NoReturn:
+        give_up = GiveUp(reason)
+
+        await self._bridge.send_payload(give_up)
+        raise give_up
 
 
 @dataclass(frozen=True)
@@ -390,8 +362,8 @@ async def act_in_simulation(
                     await client._give_up(reason)
                 case GroundedAction():
                     await client._perform_grounded_action(action)
-    except _SessionTerminationError as termination:
-        match termination.payload:
+    except TerminationPayload as payload:
+        match payload:
             case GoalsReached():
                 result: SessionResult = SuccessResult()
             case Error(reason):
@@ -405,12 +377,10 @@ async def act_in_simulation(
     except Exception as exception:
         exception_reason = str(exception)
 
-        await client._bridge.send_message(
+        await client._bridge.send_payload(
             Error(
-                TerminationSource.INTERNAL,
-                exception_reason
-                if exception_reason
-                else type(exception).__name__,
+                ErrorSource.INTERNAL,
+                exception_reason if exception_reason else None,
             )
         )
 

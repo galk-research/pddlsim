@@ -4,13 +4,14 @@ import random
 from collections.abc import Sequence
 
 from pddlsim.ast import GroundedAction
-from pddlsim.local import simulate_domain_problem_pair_from_files
+from pddlsim.local import simulate_configuration
 from pddlsim.remote.client import (
     GiveUpAction,
     SimulationAction,
     SimulationClient,
     with_no_initializer,
 )
+from pddlsim.remote.server import SimulatorConfiguration
 
 
 def pick_grounded_action(
@@ -32,9 +33,11 @@ async def get_next_action(simulation: SimulationClient) -> SimulationAction:
 
 
 async def main() -> None:
-    summary = await simulate_domain_problem_pair_from_files(
-        "assets/problems/gripper/domain.pddl",
-        "assets/problems/gripper/instance.pddl",
+    summary = await simulate_configuration(
+        SimulatorConfiguration.from_domain_and_problem_files(
+            "assets/problems/gripper/domain.pddl",
+            "assets/problems/gripper/instance.pddl",
+        ),
         with_no_initializer(get_next_action),
     )
     print(summary)
