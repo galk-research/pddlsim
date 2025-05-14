@@ -1,0 +1,5 @@
+; object `backroom` (4:19) is of undefined type `a-room` (4:30)
+(define (problem object-definition-with-undefined-type)
+        (:domain invalid-problems-domain)
+        (:objects backroom - a-room)
+        (:goal (and)))

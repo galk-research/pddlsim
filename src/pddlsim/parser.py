@@ -26,7 +26,6 @@ from pddlsim.ast import (
     FileLocation,
     GoalsSection,
     GroundedActionSchematic,
-    Grounder,
     Identifier,
     InitializationSection,
     Location,
@@ -37,7 +36,6 @@ from pddlsim.ast import (
     ObjectType,
     OrCondition,
     Parameters,
-    Placeholder,
     Predicate,
     PredicateDefinition,
     PredicatesSection,
@@ -271,24 +269,21 @@ class _PDDLTransformer(Transformer):
     def objects_section(self, objects: list[Typed[Object]]) -> ObjectsSection:
         return ObjectsSection.from_raw_parts(objects)
 
-    def placeholder(self) -> Placeholder:
-        return Placeholder()
-
     def grounded_action_schematic(
-        self, name: Identifier, grounding: list[Grounder]
+        self, name: Identifier, grounding: list[Argument]
     ) -> GroundedActionSchematic:
-        return GroundedActionSchematic(name, grounding)
+        return GroundedActionSchematic(name, tuple(grounding))
 
     def action_fallibility(
         self,
         grounded_action_schematic: GroundedActionSchematic,
-        with_probability: Decimal | None,
+        with_probability: Decimal,
         condition: Condition[Object],
     ) -> ActionFallibility:
         return ActionFallibility(
             grounded_action_schematic,
             condition,
-            with_probability if with_probability else Decimal(value=1),
+            with_probability,
         )
 
     def FAIL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
@@ -297,9 +292,7 @@ class _PDDLTransformer(Transformer):
     def action_fallibilities_section(
         self, location: Location, fallibilities: list[ActionFallibility]
     ) -> ActionFallibilitiesSection:
-        return ActionFallibilitiesSection.from_raw_parts(
-            fallibilities, location=location
-        )
+        return ActionFallibilitiesSection(fallibilities, location=location)
 
     def revealable(
         self,
@@ -319,7 +312,7 @@ class _PDDLTransformer(Transformer):
     def revealables_section(
         self, location: Location, revealables: list[Revealable]
     ) -> RevealablesSection:
-        return RevealablesSection.from_raw_parts(revealables, location=location)
+        return RevealablesSection(revealables, location=location)
 
     def initialization_section(
         self, predicates: list[Predicate[Object]]
@@ -338,7 +331,7 @@ class _PDDLTransformer(Transformer):
         self,
         name: Identifier,
         used_domain_name: Identifier,
-        requirements_section: RequirementsSection,
+        requirements_section: RequirementsSection | None,
         objects_section: ObjectsSection | None,
         action_fallibilities_section: ActionFallibilitiesSection | None,
         revealables_section: RevealablesSection | None,
@@ -348,7 +341,9 @@ class _PDDLTransformer(Transformer):
         return RawProblem.from_raw_parts(
             name,
             used_domain_name,
-            requirements_section,
+            requirements_section
+            if requirements_section
+            else RequirementsSection(),
             objects_section if objects_section else ObjectsSection(),
             action_fallibilities_section,
             revealables_section,

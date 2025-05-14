@@ -92,11 +92,8 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 
 objects_section: "(" ":objects" typed_list{object_} ")"
 
-placeholder: "_"
-_grounder: object_
-        | placeholder
-grounded_action_schematic: "(" IDENTIFIER list_{_grounder} ")"
-action_fallibility: "(" ":action" grounded_action_schematic ":on" [NUMBER] condition{object_} ")"
+grounded_action_schematic: "(" IDENTIFIER list_{_argument} ")"
+action_fallibility: "(" ":action" grounded_action_schematic ":on" NUMBER condition{object_} ")"
 FAIL_KEYWORD: ":fails"
 action_fallibilities_section: "(" FAIL_KEYWORD list_{action_fallibility} ")"
 

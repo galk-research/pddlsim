@@ -1,0 +1,7 @@
+; object `dining-hall` (6:32) in `move` (6:27) is of type `room` (5:33), but is supposed to be of type `person` (7:28)
+(define (problem action-fallibility-with-type-mismatch-via-object)
+        (:domain invalid-problems-domain)
+        (:requirements :fallible-actions)
+        (:objects dining-hall - room)
+        (:fails (:action (move dining-hall) :on 0.5 (and)))
+        (:goal (and)))

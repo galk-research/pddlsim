@@ -502,7 +502,7 @@ class Object(Identifier):
 
     @override
     def __repr__(self) -> str:
-        return self._as_str_without_location()
+        return self.value
 
 
 type Argument = Variable | Object
@@ -724,6 +724,10 @@ class Predicate[A: Argument](Serdeable[_SerializedPredicate]):
     @override
     def __repr__(self) -> str:
         return f"({self.name!r} {' '.join(map(repr, self.assignment))})"
+
+    @override
+    def __str__(self):
+        return f"`{self!r}`"
 
 
 type Condition[A: Argument] = (
@@ -1025,8 +1029,8 @@ class Domain:
     ) -> "Domain":
         """Construct a `Domain` from the subnodes returned by a parser."""
         if (
-            Requirement.TYPING not in requirements_section
-            and types_section is not None
+            types_section is not None
+            and Requirement.TYPING not in requirements_section
         ):
             raise ValueError(
                 f"{types_section} is defined in domain, but {Requirement.TYPING} does not appear in {requirements_section}"  # noqa: E501
@@ -1074,29 +1078,17 @@ class ObjectsSection(_LocationedTypedItems[Object]):
         return f"(:objects {' '.join(map(repr, self))})"
 
     def _validate(self, domain: Domain) -> None:
-        for object_ in self:
-            if object_.type not in domain.types_section:
-                raise ValueError(
-                    f"object {object_.value} is of an undefined type {object_.type}"  # noqa: E501
-                )
+        super()._validate(domain)
 
-            if object_ in domain.constants_section:
+        for object_ in self:
+            if object_.value in domain.constants_section:
                 raise ValueError(
-                    f"object with name {object_} is also defined in domain"
+                    f"object {object_.value} shares name with a constant in domain"  # noqa: E501
                 )
 
 
 @dataclass(frozen=True, eq=True)
-class Placeholder:
-    """Specifies any object can replace it as grounder in a grounded action."""
-
-
-type Grounder = Object | Placeholder
-"""Assignment to a parameter of an action when specifying a grounded action."""
-
-
-@dataclass(frozen=True)
-class GroundedActionSchematic[G: Grounder]:
+class GroundedActionSchematic[A: Argument]:
     """Stores a partially grounded action: the action name, and grounding.
 
     Used to represent an action schematic in an `ActionFallibility`.
@@ -1105,7 +1097,7 @@ class GroundedActionSchematic[G: Grounder]:
 
     name: Identifier
     """The name of the action."""
-    grounding: list[G]
+    grounding: tuple[A, ...]
     """The action's grounding."""
 
     def does_match(self, grounded_action: "GroundedAction") -> bool:
@@ -1114,16 +1106,57 @@ class GroundedActionSchematic[G: Grounder]:
         This means that for each non-placeholder grounder, it matches
         the object at the grounded action in that position.
         """
-        for grounder, object_ in zip(
+        variable_assignment: dict[Variable, Object] = {}
+
+        for argument, object_ in zip(
             self.grounding, grounded_action.grounding, strict=True
         ):
-            match grounder:
-                case Placeholder():
-                    pass
-                case Object() if grounder != object_:
+            match argument:
+                case Variable():
+                    if (
+                        variable_assignment.setdefault(argument, object_)
+                        != object_
+                    ):
+                        return False
+                case Object() if argument != object_:
                     return False
 
         return True
+
+    def _validate(
+        self,
+        objects: Mapping[Object, Type],
+        domain: Domain,
+    ) -> None:
+        if self.name not in domain.actions_section:
+            raise ValueError(f"action with name {self.name} is undefined")
+
+        action_parameters = domain.actions_section[self.name].parameters
+
+        found_arity = len(self.grounding)
+        expected_arity = len(action_parameters)
+
+        if found_arity != expected_arity:
+            raise ValueError(
+                f"{self.name} is defined with arity {expected_arity}, but is used with arity {found_arity}"  # noqa: E501
+            )
+
+        for argument, parameter in zip(
+            self.grounding, action_parameters, strict=True
+        ):
+            match argument:
+                case Object():
+                    if argument not in objects:
+                        raise ValueError(
+                            f"object with name {argument} is undefined"
+                        )
+
+                    object_type = objects[argument]
+
+                    if object_type != parameter.type:
+                        raise ValueError(
+                            f"object {argument} in {self.name} is of type {object_type}, but is supposed to be of type {parameter.type}"  # noqa: E501
+                        )
 
 
 class _SerializedGroundedAction(TypedDict):
@@ -1159,7 +1192,9 @@ class GroundedAction(
     def _create(cls, value: _SerializedGroundedAction) -> "GroundedAction":
         return GroundedAction(
             Identifier.deserialize(value["name"]),
-            [Object.deserialize(object_) for object_ in value["grounding"]],
+            tuple(
+                Object.deserialize(object_) for object_ in value["grounding"]
+            ),
         )
 
 
@@ -1178,9 +1213,9 @@ class ActionFallibility:
 
     def __post_init__(self) -> None:
         """Make sure the specified probability is a valid probability."""
-        if not (0 <= self.with_probability <= 1):
+        if not (self.with_probability <= 1):
             raise ValueError(
-                f"fallible action {self.grounded_action_schematic.name} is with impossible probability {self.with_probability}"  # noqa: E501
+                f"{self} for {self.grounded_action_schematic.name} is with impossible probability {self.with_probability}"  # noqa: E501
             )
 
     @override
@@ -1188,16 +1223,12 @@ class ActionFallibility:
         return "action fallibility"
 
     def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
-        if self.grounded_action_schematic.name not in domain.actions_section:
-            raise ValueError(
-                f"{self} uses an undefined action {self.grounded_action_schematic.name}"  # noqa: E501
-            )
-
+        self.grounded_action_schematic._validate(objects, domain)
         self.condition._validate(Parameters(), objects, domain)
 
 
 @dataclass(frozen=True)
-class ActionFallibilitiesSection(_LocationedSet[ActionFallibility]):
+class ActionFallibilitiesSection(_LocationedList[ActionFallibility]):
     """Represents the `:fails` section of a PDDL problem."""
 
     @override
@@ -1239,7 +1270,7 @@ class Revealable:
 
 
 @dataclass(frozen=True)
-class RevealablesSection(_LocationedSet):
+class RevealablesSection(_LocationedList[Revealable]):
     """Represents the revealables section of a PDDL problem."""
 
     @override
@@ -1273,7 +1304,7 @@ class GoalsSection(_LocationedList[Condition[Object]]):
 
     @override
     def _as_str_without_location(self) -> str:
-        return "goal conditions"
+        return "goals section"
 
     def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
         for condition in self:
@@ -1321,7 +1352,7 @@ class RawProblem:
     ) -> "RawProblem":
         """Construct a `RawProblem` from the subnodes returned by a parser."""
         if (
-            action_fallibilities_section
+            action_fallibilities_section is not None
             and Requirement.FALLIBLE_ACTIONS not in requirements_section
         ):
             raise ValueError(
@@ -1329,7 +1360,7 @@ class RawProblem:
             )
 
         if (
-            revealables_section
+            revealables_section is not None
             and Requirement.REVEALABLES not in requirements_section
         ):
             raise ValueError(
@@ -1428,7 +1459,7 @@ class Problem:
     def _validate_used_domain_name(self, domain: Domain) -> None:
         if domain.name != self.used_domain_name:
             raise ValueError(
-                f"used domain name {self.used_domain_name} doesn't match paired domain name {domain.name}"  # noqa: E501
+                f"used domain name {self.used_domain_name} doesn't match paired domain name"  # noqa: E501
             )
 
     @override

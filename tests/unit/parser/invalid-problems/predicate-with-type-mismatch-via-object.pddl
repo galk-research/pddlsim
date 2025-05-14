@@ -1,0 +1,5 @@
+; argument `bob` (5:29) in `at` (5:22) is of type `person` (4:25), but is supposed to be of type `room` (5:43)
+(define (problem predicate-with-type-mismatch-via-object)
+        (:domain invalid-problems-domain)
+        (:objects bob - person)
+        (:goal (and (at bob bob))))
