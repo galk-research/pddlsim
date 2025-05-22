@@ -40,7 +40,7 @@ async def main() -> None:
         ),
         with_no_initializer(get_next_action),
     )
-    print(summary)
+    print(f"Finished with: {summary}")
 
 
 if __name__ == "__main__":

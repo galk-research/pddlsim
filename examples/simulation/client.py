@@ -1,81 +1,67 @@
 import asyncio
 import logging
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import NewType, override
 
-from pddlsim.ast import Domain, GroundedAction, Problem
+from pddlsim.ast import GroundedAction
 from pddlsim.remote.client import (
+    ConfigurableAgent,
     GiveUpAction,
-    NextActionGetter,
     SimulationAction,
     SimulationClient,
     act_in_simulation,
 )
-from pddlsim.simulation import Simulation
-from pddlsim.state import SimulationState
+
+MaxSteps = NewType("MaxSteps", int)
 
 
 @dataclass
-class Agent:
-    configuration: "AgentConfiguration"
-    client: SimulationClient
-    domain: Domain
-    problem: Problem
-    previous_state: SimulationState | None
-    steps: int = 0
+class RandomLimitedWalker(ConfigurableAgent[MaxSteps]):
+    """An agent performing actions at random, with a maximum number of steps.
 
-    async def _is_action_backtracking(
-        self, grounded_action: GroundedAction
-    ) -> bool:
-        simulation = Simulation.from_domain_and_problem(
-            self.domain, self.problem, await self.client.get_perceived_state()
-        )
-        simulation.apply_grounded_action(grounded_action)
+    Once the maximum number of simulation steps is reached, the agent gives up.
+    """
 
-        return simulation.state == self.previous_state
+    _client: SimulationClient
+    _max_steps: int
+    _current_steps: int
 
-    async def get_next_action(self) -> SimulationAction:
-        if self.steps >= self.configuration.max_steps:
-            return GiveUpAction("max steps reached")
+    @override
+    @classmethod
+    async def _initialize(
+        cls, client: SimulationClient, max_steps: MaxSteps
+    ) -> "RandomLimitedWalker":
+        return cls(client, max_steps, 0)
 
-        grounded_actions = await self.client.get_grounded_actions()
-        non_backtracking_actions = [
-            grounded_action
-            for grounded_action in grounded_actions
-            if not await self._is_action_backtracking(grounded_action)
-        ]
+    def _pick_grounded_action(
+        self, actions: Sequence[GroundedAction]
+    ) -> GroundedAction:
+        return random.choice(actions)
 
-        possibilities = (
-            non_backtracking_actions
-            if non_backtracking_actions
-            else grounded_actions
-        )
+    @override
+    async def _get_next_action(self) -> SimulationAction:
+        if self._current_steps >= self._max_steps:
+            return GiveUpAction(f"maximum steps reached: {self._max_steps}")
 
-        picked_action = random.choice(possibilities)
+        self._current_steps += 1
 
-        self.steps += 1
-        self.previous_state = await self.client.get_perceived_state()
+        options = await self._client.get_grounded_actions()
 
-        return picked_action
-
-
-@dataclass(frozen=True)
-class AgentConfiguration:
-    max_steps: int
-
-    async def initialize(self, client: SimulationClient) -> NextActionGetter:
-        domain = await client.get_domain()
-        problem = await client.get_problem()
-
-        return Agent(self, client, domain, problem, None).get_next_action
+        match len(options):
+            case 0:
+                return GiveUpAction.from_dead_end()
+            case 1:
+                return options[0]
+            case _:
+                return self._pick_grounded_action(options)
 
 
 async def main() -> None:
     port = int(input("What port to connect to? (0-65535): "))
     summary = await act_in_simulation(
-        "127.0.0.1",
-        port,
-        AgentConfiguration(300).initialize,
+        "127.0.0.1", port, RandomLimitedWalker.configure(MaxSteps(300))
     )
 
     print(f"Finished with: {summary}")
