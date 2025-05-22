@@ -15,6 +15,8 @@ and interfacing with them
 - `pddlsim.simulation` contains a low-level interface for simulations
 - `pddlsim.state` contains a data structure for the representation
 of the state of a simulation
+- `pddlsim.agents` (available with the `agents` extra) contains several
+built-in agents that can be used when interacting with simulations.
 """
 
 import importlib.resources
