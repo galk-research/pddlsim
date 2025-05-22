@@ -1161,7 +1161,7 @@ class GroundedActionSchematic[A: Argument]:
 
     @override
     def __repr__(self) -> str:
-        return f"({self.name} {' '.join(map(repr, self.grounding))})"
+        return f"({self.name!r} {' '.join(map(repr, self.grounding))})"
 
 
 class _SerializedGroundedAction(TypedDict):
@@ -1201,6 +1201,10 @@ class GroundedAction(
                 Object.deserialize(object_) for object_ in value["grounding"]
             ),
         )
+
+    @override
+    def __repr__(self) -> str:
+        return super().__repr__()
 
 
 @dataclass(frozen=True, eq=True)
