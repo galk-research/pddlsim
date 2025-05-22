@@ -38,7 +38,7 @@ agents = ["unified-planning[fast-downward]>=1.2.0"]
 cli = ["click>=8.2.1", "pddlsim[agents]"]
 
 [project.scripts]
-pddlsim = "pddlsim.cli:pddlsim_command"
+pddlsim = "pddlsim._cli:pddlsim_command"
 
 [dependency-groups]
 dev = [
