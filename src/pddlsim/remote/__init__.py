@@ -25,6 +25,9 @@ _RSP_VERSION = 1
 _FRAME_LENGTH_BYTES = 4
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class _RSPMessageBridge:
     _reader: asyncio.StreamReader
@@ -32,7 +35,7 @@ class _RSPMessageBridge:
 
     async def send_payload(self, payload: Payload) -> None:
         serialized_message = Message(payload).serialize()
-        logging.info(f"sending: {serialized_message}")
+        _LOGGER.debug(f"sending: {serialized_message}")
 
         data = cbor2.dumps(serialized_message)
 
@@ -55,7 +58,7 @@ class _RSPMessageBridge:
             raise Error.from_communication_channel_closed() from exception
 
         serialized_message = cbor2.loads(value_bytes)
-        logging.info(f"receiving: {serialized_message}")
+        _LOGGER.debug(f"receiving: {serialized_message}")
 
         payload = Message.deserialize(serialized_message).payload
 

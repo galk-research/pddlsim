@@ -1,10 +1,12 @@
 """Interface for interacting with simulations, and code to connect to them."""
 
 import asyncio
+import logging
 import time
+from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
-from typing import NoReturn, override
+from typing import NoReturn, Self, override
 
 from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.remote import (
@@ -32,6 +34,8 @@ from pddlsim.remote._message import (
 )
 from pddlsim.simulation import SimulationState
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class ErrorResult:
@@ -42,7 +46,7 @@ class ErrorResult:
 
     @override
     def __str__(self) -> str:
-        return f"error: {self.reason if self.reason else ''}"
+        return f"error ({self.reason})" if self.reason else "error"
 
 
 @dataclass(frozen=True)
@@ -54,7 +58,7 @@ class FailureResult:
 
     @override
     def __str__(self) -> str:
-        return f"failure: {self.reason if self.reason else ''}"
+        return f"failure ({self.reason})" if self.reason else "failure"
 
 
 @dataclass(frozen=True)
@@ -146,9 +150,12 @@ class SimulationClient:
         await self._bridge.send_payload(SessionSetupRequest(_RSP_VERSION))
 
         _payload = await self._bridge.receive_payload(SessionSetupResponse)
+        _LOGGER.info("started simulation session")
 
     async def _get_problem_setup(self) -> tuple[Domain, Problem]:
         if not self._domain_problem_pair:
+            _LOGGER.info("getting domain and problem used in simulation")
+
             await self._bridge.send_payload(ProblemSetupRequest())
 
             payload = await self._bridge.receive_payload(ProblemSetupResponse)
@@ -178,6 +185,8 @@ class SimulationClient:
         self,
     ) -> tuple[list[int], list[int]]:
         if not self._reached_and_unreached_goal_indices:
+            _LOGGER.info("getting reached and unreached goal indices")
+
             self._statistics.goal_tracking_requests += 1
             await self._bridge.send_payload(GoalTrackingRequest())
 
@@ -219,6 +228,8 @@ class SimulationClient:
         > are considered hidden information.
         """
         if not self._state:
+            _LOGGER.info("getting perceived state")
+
             self._statistics.perception_requests += 1
             await self._bridge.send_payload(PerceptionRequest())
 
@@ -239,6 +250,8 @@ class SimulationClient:
         > information.
         """
         if not self._grounded_actions:
+            _LOGGER.info("getting possible grounded actions for current state")
+
             self._statistics.get_grounded_actions_requests += 1
             await self._bridge.send_payload(GetGroundedActionsRequest())
 
@@ -296,6 +309,7 @@ state of the simulation, an indication by the agent that it is giving up
 on the simulation, etc.
 """
 
+
 type NextActionGetter = Callable[[], Awaitable[SimulationAction]]
 """A simple model of an agent, sequentially returning `SimulationAction`s.
 
@@ -330,6 +344,76 @@ def with_no_initializer(
     return no_op_initializer
 
 
+class ConfigurableAgent[C](ABC):
+    """An agent which sequentially performs actions in a simulation.
+
+    To create an `AgentInitializer`, `Agent.configure` is used. Thus, it is
+    the agent's main entry point.
+    """
+
+    @classmethod
+    def configure(cls, configuration: C) -> AgentInitializer:
+        """Pre-configure an agent, but don't initialize it yet.
+
+        Returns an `AgentInitializer ` which can be used throughout PDDLSIM's
+        different APIs, such as `pddlsim.local.simulate_configuration`, or
+        `pddlsim.remote.client.act_in_simulation`.
+        """
+
+        async def initializer(client: SimulationClient) -> NextActionGetter:
+            agent = await cls._initialize(client, configuration)
+
+            return agent._get_next_action
+
+        return initializer
+
+    @classmethod
+    @abstractmethod
+    async def _initialize(
+        cls, client: SimulationClient, configuration: C
+    ) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def _get_next_action(self) -> SimulationAction:
+        raise NotImplementedError
+
+
+class Agent(ConfigurableAgent[None]):
+    """An agent which sequentially performs actions in a simulation.
+
+    To create an `AgentInitializer`, `Agent.configure` is used. Thus, it is
+    the agent's main entry point.
+    """
+
+    @classmethod
+    def configure(cls, _configuration: None = None) -> AgentInitializer:
+        """Pre-configure an agent, but don't initialize it yet.
+
+        Returns an `AgentInitializer ` which can be used throughout PDDLSIM's
+        different APIs, such as `pddlsim.local.simulate_configuration`, or
+        `pddlsim.remote.client.act_in_simulation`.
+        """
+
+        async def initializer(client: SimulationClient) -> NextActionGetter:
+            agent = await cls._initialize(client, _configuration)
+
+            return agent._get_next_action
+
+        return initializer
+
+    @classmethod
+    @abstractmethod
+    async def _initialize(
+        cls, client: SimulationClient, configuration: None
+    ) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def _get_next_action(self) -> SimulationAction:
+        raise NotImplementedError
+
+
 async def act_in_simulation(
     host: str,
     port: int,
@@ -353,9 +437,12 @@ async def act_in_simulation(
         await client._start_session()
 
         get_next_action = await initializer(client)
+        _LOGGER.info("initialized agent")
 
         while True:
             action = await get_next_action()
+
+            _LOGGER.info(f"performing action `{action}`")
 
             match action:
                 case GiveUpAction(reason):
@@ -370,6 +457,8 @@ async def act_in_simulation(
                 result = ErrorResult(reason)
             case other_payload:
                 result = FailureResult(other_payload.description())
+
+        _LOGGER.info(f"finished simulation with {result}")
 
         return SessionSummary(
             result, client._statistics, time.monotonic() - start

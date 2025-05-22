@@ -1,6 +1,7 @@
 """Code for opening a simulation server accessible by the internet."""
 
 import asyncio
+import logging
 import os
 from dataclasses import dataclass
 
@@ -31,6 +32,8 @@ from pddlsim.remote._message import (
 )
 from pddlsim.simulation import Simulation
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class SimulatorConfiguration:
@@ -46,7 +49,7 @@ class SimulatorConfiguration:
     """The problem to simulate."""
     show_revealables: bool = False
     """Whether clients of the simulation should be able to access the revealables of the problem."""  # noqa: E501
-    show_fallible_actions: bool = False
+    show_action_fallibilities: bool = False
     """Whether clients of the simulation should be able to access the action fallibilities of the problem."""  # noqa: E501
 
     @classmethod
@@ -69,10 +72,19 @@ class SimulatorConfiguration:
         > This is a very low-level API, and `start_simulation_server`/
         > `pddlsim.local` should be used instead, if possible.
         """
+        peer_host, peer_port = writer.get_extra_info("peername")
+        _LOGGER.info(
+            f"attempting simulation negotiation with `{peer_host}:{peer_port}`"
+        )
+
         server = await _SimulationServerInstance.start_session(
             _RSPMessageBridge(reader, writer), self
         )
         await server.operate_session()
+
+        _LOGGER.info(
+            f"finished simulation session with `{peer_host}:{peer_port}`"
+        )
 
 
 @dataclass(frozen=True)
@@ -111,7 +123,7 @@ class _SimulationServerInstance:
                 self._simulation.domain,
                 self._simulation.problem,
                 self._configuration.show_revealables,
-                self._configuration.show_fallible_actions,
+                self._configuration.show_action_fallibilities,
             )
         )
 
@@ -191,7 +203,13 @@ class _SimulationServerInstance:
 
 
 @dataclass(frozen=True)
-class _SimulationServer:
+class SimulationServer:
+    """A simulation server that agents can interact with.
+
+    To construct, use `SimulationServer.from_host_and_port`. Alternatively, to
+    simply run a simulation, you can use `start_simulation_server`.
+    """
+
     _server: asyncio.Server
 
     @classmethod
@@ -200,20 +218,38 @@ class _SimulationServer:
         configuration: SimulatorConfiguration,
         host: str,
         port: int | None = None,
-    ) -> "_SimulationServer":
-        server = await asyncio.start_server(configuration, host, port)
+    ) -> "SimulationServer":
+        """Create a simulation server running on the specified host-port pair.
 
-        return _SimulationServer(server)
+        The configuration for the actual simulation is handled by
+        `SimulationConfiguration`.
+
+        If the port passed is `None`, a random port is chosen by the OS. You
+        can later use `SimulationServer.host` to see the chosen port.
+        """
+        server = await asyncio.start_server(configuration, host, port)
+        result = SimulationServer(server)
+
+        _LOGGER.info(
+            f"created simulation server on `{result.host}:{result.port}`"
+        )
+
+        return result
 
     @property
     def host(self) -> str:
+        """The host that the server is running on."""
         return self._server.sockets[0].getsockname()[0]
 
     @property
     def port(self) -> int:
+        """The port that the server is running on."""
         return self._server.sockets[0].getsockname()[1]
 
     async def serve(self) -> None:
+        """Start the simulation server, allowing agents to connect to it."""
+        _LOGGER.info("starting simulation server")
+
         async with self._server:
             await self._server.serve_forever()
 
@@ -228,7 +264,7 @@ async def start_simulation_server(
     `host` and `port` form a pair, specifying the network interface
     to open the server on. If the port is unspecified, it is chosen by the OS.
     """
-    server = await _SimulationServer.from_host_and_port(
+    server = await SimulationServer.from_host_and_port(
         configuration, host, port
     )
 
