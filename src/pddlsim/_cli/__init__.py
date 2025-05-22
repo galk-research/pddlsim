@@ -15,8 +15,8 @@ except ImportError as error:
 
 import logging
 
-from pddlsim.cli.client import client_command
-from pddlsim.cli.server import server_command
+from pddlsim._cli.client import client_command
+from pddlsim._cli.server import server_command
 
 
 @click.group("pddlsim")
