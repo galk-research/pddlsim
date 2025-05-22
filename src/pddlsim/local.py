@@ -5,8 +5,8 @@ from typing import ClassVar
 
 from pddlsim.remote import client
 from pddlsim.remote.server import (
+    SimulationServer,
     SimulatorConfiguration,
-    _SimulationServer,
 )
 
 
@@ -17,7 +17,7 @@ class LocalSimulator:
     The main constructor is `LocalSimulator.from_domain_problem_pair`.
     """
 
-    _server: _SimulationServer
+    _server: SimulationServer
 
     _HOST: ClassVar = "127.0.0.1"
 
@@ -27,7 +27,7 @@ class LocalSimulator:
     ) -> "LocalSimulator":
         """Create a `LocalSimulator` from a `pddlsim.ast.Domain` and a `pddlsim.ast.Problem`."""  # noqa: E501
         return LocalSimulator(
-            await _SimulationServer.from_host_and_port(
+            await SimulationServer.from_host_and_port(
                 configuration, LocalSimulator._HOST
             )
         )
