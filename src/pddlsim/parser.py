@@ -274,8 +274,12 @@ class _PDDLTransformer(Transformer):
     ) -> GroundedActionSchematic:
         return GroundedActionSchematic(name, tuple(grounding))
 
+    def ACTION_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation._from_token(token)
+
     def action_fallibility(
         self,
+        location: Location,
         grounded_action_schematic: GroundedActionSchematic,
         with_probability: Decimal,
         condition: Condition[Object],
@@ -284,6 +288,7 @@ class _PDDLTransformer(Transformer):
             grounded_action_schematic,
             condition,
             with_probability,
+            location=location,
         )
 
     def FAIL_KEYWORD(self, token: Token) -> Location:  # noqa: N802
@@ -294,8 +299,12 @@ class _PDDLTransformer(Transformer):
     ) -> ActionFallibilitiesSection:
         return ActionFallibilitiesSection(fallibilities, location=location)
 
+    def WHEN_KEYWORD(self, token: Token) -> Location:  # noqa: N802
+        return FileLocation._from_token(token)
+
     def revealable(
         self,
+        location: Location,
         with_probability: Decimal | None,
         condition: Condition[Object],
         effect: Effect[Object],
@@ -304,6 +313,7 @@ class _PDDLTransformer(Transformer):
             effect,
             condition,
             with_probability if with_probability else Decimal(value=1),
+            location=location,
         )
 
     def REVEAL_KEYWORD(self, token: Token) -> Location:  # noqa: N802

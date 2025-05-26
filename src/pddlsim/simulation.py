@@ -432,10 +432,10 @@ class Simulation:
         return (
             GroundedAction(
                 action_definition.name,
-                [
+                tuple(
                     grounding[parameter.value]
                     for parameter in action_definition.parameters
-                ],
+                ),
             )
             for grounding in self._get_groundings(action_definition)
         )

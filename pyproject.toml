@@ -43,7 +43,7 @@ pddlsim = "pddlsim._cli:pddlsim_command"
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
-    "pytest-asyncio>=0.26.0",
+    "pytest-asyncio>=1.0.0",
     "pytest-benchmark[histogram]>=5.1.0",
 ]
 doc = ["pdoc>=15.0.3"]

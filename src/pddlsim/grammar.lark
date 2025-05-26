@@ -93,11 +93,13 @@ _used_domain_name: "(" ":domain" IDENTIFIER ")"
 objects_section: "(" ":objects" typed_list{object_} ")"
 
 grounded_action_schematic: "(" IDENTIFIER list_{_argument} ")"
-action_fallibility: "(" ":action" grounded_action_schematic ":on" NUMBER condition{object_} ")"
+ACTION_KEYWORD: ":action"
+action_fallibility: "(" ACTION_KEYWORD grounded_action_schematic ":on" NUMBER condition{object_} ")"
 FAIL_KEYWORD: ":fails"
 action_fallibilities_section: "(" FAIL_KEYWORD list_{action_fallibility} ")"
 
-revealable: "(" "when" [NUMBER] condition{object_} effect{object_} ")"
+WHEN_KEYWORD: "when"
+revealable: "(" WHEN_KEYWORD [NUMBER] condition{object_} effect{object_} ")"
 REVEAL_KEYWORD: ":reveals"
 revealables_section: "(" REVEAL_KEYWORD list_{revealable} ")"
 

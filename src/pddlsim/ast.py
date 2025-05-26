@@ -93,7 +93,7 @@ class EmptyLocation(Location):
         return str(value)
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class _Locationed(ABC):
     location: Location = field(
         hash=False,
@@ -289,7 +289,7 @@ class RequirementsSection(_LocationedSet[Requirement]):
         return f"(:requirements {' '.join(map(repr, self._items))})"
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class Identifier(_Locationed, Serdeable[str]):
     """Represents a PDDL identifier."""
 
@@ -326,7 +326,7 @@ class Identifier(_Locationed, Serdeable[str]):
         return self.value
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class Variable(Identifier):
     """Represents a PDDL variable."""
 
@@ -339,7 +339,7 @@ class Variable(Identifier):
         return f"?{self.value}"
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class CustomType(Identifier):
     """Represents a user-defineable type in PDDL."""
 
@@ -348,7 +348,7 @@ class CustomType(Identifier):
         return super().__repr__()
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(frozen=True)
 class ObjectType:
     """Represents the type `object` in PDDL. All types are subtypes of it."""
 
@@ -365,7 +365,7 @@ type Type = CustomType | ObjectType
 """Represents the type of a PDDL object/variable."""
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(frozen=True)
 class Typed[T]:
     """Represents an AST item with a type attached."""
 
@@ -496,7 +496,7 @@ class PredicateDefinition:
         return f"({self.name!r} {' '.join(map(repr, self.parameters))})"
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class Object(Identifier):
     """Represents the name of an object in PDDL."""
 
@@ -1087,7 +1087,7 @@ class ObjectsSection(_LocationedTypedItems[Object]):
                 )
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(frozen=True)
 class GroundedActionSchematic[A: Argument]:
     """Stores a partially grounded action: the action name, and grounding.
 
@@ -1207,8 +1207,8 @@ class GroundedAction(
         return super().__repr__()
 
 
-@dataclass(frozen=True, eq=True)
-class ActionFallibility:
+@dataclass(frozen=True)
+class ActionFallibility(_Locationed):
     """Represents an [action fallibility](https://github.com/galk-research/pddlsim/wiki/Fallible-Actions)."""
 
     grounded_action_schematic: GroundedActionSchematic
@@ -1224,11 +1224,11 @@ class ActionFallibility:
         """Make sure the specified probability is a valid probability."""
         if not (self.with_probability <= 1):
             raise ValueError(
-                f"{self} for {self.grounded_action_schematic.name} is with impossible probability {self.with_probability}"  # noqa: E501
+                f"{self} is with impossible probability {self.with_probability}"
             )
 
     @override
-    def __str__(self) -> str:
+    def _as_str_without_location(self) -> str:
         return "action fallibility"
 
     def _validate(self, objects: Mapping[Object, Type], domain: Domain) -> None:
@@ -1257,8 +1257,8 @@ class ActionFallibilitiesSection(_LocationedList[ActionFallibility]):
         return f"(:fails {' '.join(map(repr, self))})"
 
 
-@dataclass(frozen=True, eq=True)
-class Revealable:
+@dataclass(frozen=True)
+class Revealable(_Locationed):
     """Represents a [revealable](https://github.com/galk-research/pddlsim/wiki/Revealables)."""
 
     effect: Effect[Object]
@@ -1282,7 +1282,7 @@ class Revealable:
         self.effect._validate(Parameters(), objects, domain)
 
     @override
-    def __str__(self) -> str:
+    def _as_str_without_location(self) -> str:
         return "revealable"
 
     @override
@@ -1491,8 +1491,8 @@ class Problem:
 
     def as_pddl(
         self,
-        show_revealables: bool = False,
-        show_action_fallibilities: bool = False,
+        show_action_fallibilities: bool = True,
+        show_revealables: bool = True,
     ) -> str:
         """Return a PDDL string representing this problem."""
         problem_name = f"(problem {self.name!r})"
@@ -1504,4 +1504,15 @@ class Problem:
             repr(self.requirements_section) if self.requirements_section else ""
         )
 
-        return f"(define {problem_name} {used_domain_name} {requirements_section} {self.objects_section!r} {self.initialization_section!r} {self.goals_section!r})"  # noqa: E501
+        action_fallibilities_section = (
+            repr(self.action_fallibilities_section)
+            if show_action_fallibilities and self.action_fallibilities_section
+            else ""
+        )
+        revealables_section = (
+            repr(self.revealables_section)
+            if show_revealables and self.revealables_section
+            else ""
+        )
+
+        return f"(define {problem_name} {used_domain_name} {requirements_section} {self.objects_section!r} {action_fallibilities_section} {revealables_section} {self.initialization_section!r} {self.goals_section!r})"  # noqa: E501

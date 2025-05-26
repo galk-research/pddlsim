@@ -104,15 +104,15 @@ class SerializedProblemSetupResponse(TypedDict):
 class ProblemSetupResponse(Payload[SerializedProblemSetupResponse]):
     domain: Domain
     problem: Problem
-    _show_revealables: bool = False
     _show_action_fallibilities: bool = False
+    _show_revealables: bool = False
 
     @override
     def serialize(self) -> SerializedProblemSetupResponse:
         return SerializedProblemSetupResponse(
             domain=self.domain.as_pddl(),
             problem=self.problem.as_pddl(
-                self._show_revealables, self._show_action_fallibilities
+                self._show_action_fallibilities, self._show_revealables
             ),
         )
 

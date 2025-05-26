@@ -122,8 +122,8 @@ class _SimulationServerInstance:
             ProblemSetupResponse(
                 self._simulation.domain,
                 self._simulation.problem,
-                self._configuration.show_revealables,
                 self._configuration.show_action_fallibilities,
+                self._configuration.show_revealables,
             )
         )
 
