@@ -1,6 +1,6 @@
 import inspect
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, ClassVar, Self, TypedDict, override
 
 from koda_validate import (
@@ -104,8 +104,8 @@ class SerializedProblemSetupResponse(TypedDict):
 class ProblemSetupResponse(Payload[SerializedProblemSetupResponse]):
     domain: Domain
     problem: Problem
-    _show_action_fallibilities: bool = False
-    _show_revealables: bool = False
+    _show_action_fallibilities: bool = field(default=True, compare=False)
+    _show_revealables: bool = field(default=True, compare=False)
 
     @override
     def serialize(self) -> SerializedProblemSetupResponse:

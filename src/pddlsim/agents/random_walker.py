@@ -14,33 +14,38 @@ from collections.abc import Sequence
 
 from pddlsim.ast import GroundedAction
 from pddlsim.remote.client import (
+    AgentInitializer,
     GiveUpAction,
     SimulationAction,
     SimulationClient,
     with_no_initializer,
 )
+from pddlsim.simulation import Seed
 
 
-def _pick_grounded_action(
-    actions: Sequence[GroundedAction],
-) -> GroundedAction:
-    return random.choice(actions)
+def configure(seed: Seed | None = None) -> AgentInitializer:
+    """Configure an initializer for the random walker agent.
 
+    The agent simply chooses a random action at each possible step.
+    """
+    random_ = random.Random(seed)
 
-async def _get_next_action(simulation: SimulationClient) -> SimulationAction:
-    options = await simulation.get_grounded_actions()
+    def _pick_grounded_action(
+        actions: Sequence[GroundedAction],
+    ) -> GroundedAction:
+        return random_.choice(actions)
 
-    match len(options):
-        case 0:
-            return GiveUpAction.from_dead_end()
-        case 1:
-            return options[0]
-        case _:
-            return _pick_grounded_action(options)
+    async def _get_next_action(
+        simulation: SimulationClient,
+    ) -> SimulationAction:
+        options = await simulation.get_grounded_actions()
 
+        match len(options):
+            case 0:
+                return GiveUpAction.from_dead_end()
+            case 1:
+                return options[0]
+            case _:
+                return _pick_grounded_action(options)
 
-INITIALIZER = with_no_initializer(_get_next_action)
-"""The initializer for the random walker agent.
-
-The agent simply chooses a random action at each possible step.
-"""
+    return with_no_initializer(_get_next_action)

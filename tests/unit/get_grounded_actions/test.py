@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from importlib.abc import Traversable
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture  # type: ignore
 
 from pddlsim.ast import Domain, GroundedAction, Identifier, Object, Problem
 from pddlsim.parser import (
@@ -17,13 +16,10 @@ RESOURCES = importlib.resources.files(__name__)
 
 
 @dataclass
-class GGACase:
+class _GetGroundedActionsCase:
     domain: Domain
     problem: Problem
     expected_grounded_actions: Set[GroundedAction]
-
-    def assert_match(self, found_grounded_actions: Set[GroundedAction]) -> None:
-        assert self.expected_grounded_actions == found_grounded_actions
 
 
 def _grounded_action_from_text(text: str) -> GroundedAction:
@@ -38,7 +34,9 @@ def _grounded_action_from_text(text: str) -> GroundedAction:
     )
 
 
-def _preprocess_gga_case(traversable: Traversable) -> GGACase:
+def _preprocess_get_grounded_actions_case(
+    traversable: Traversable,
+) -> _GetGroundedActionsCase:
     domain_text = traversable.joinpath("domain.pddl").read_text()
     problem_text = traversable.joinpath("problem.pddl").read_text()
 
@@ -49,26 +47,22 @@ def _preprocess_gga_case(traversable: Traversable) -> GGACase:
         for line in traversable.joinpath("output.txt").read_text().splitlines()
     )
 
-    return GGACase(domain, problem, expected_grounded_actions)
+    return _GetGroundedActionsCase(domain, problem, expected_grounded_actions)
 
 
-CASES = preprocess_traversables(
-    RESOURCES.joinpath("cases"), _preprocess_gga_case
+_CASES = preprocess_traversables(
+    RESOURCES.joinpath("cases"), _preprocess_get_grounded_actions_case
 )
 
 
 @pytest.mark.parametrize(
     "case",
-    CASES.values(),
-    ids=CASES.keys(),
+    _CASES.values(),
+    ids=_CASES.keys(),
 )
-def test_gga(benchmark: BenchmarkFixture, case: GGACase) -> None:
-    grounded_actions = benchmark(
-        lambda: set(
-            Simulation.from_domain_and_problem(
-                case.domain, case.problem
-            ).get_grounded_actions()
-        )
-    )
+def test_get_grounded_actions(case: _GetGroundedActionsCase) -> None:
+    grounded_actions = Simulation.from_domain_and_problem(
+        case.domain, case.problem
+    ).get_grounded_actions()
 
-    case.assert_match(grounded_actions)
+    assert case.expected_grounded_actions == set(grounded_actions)

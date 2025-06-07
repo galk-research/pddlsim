@@ -41,23 +41,15 @@ cli = ["click>=8.2.1", "pddlsim[agents]"]
 pddlsim = "pddlsim._cli:pddlsim_command"
 
 [dependency-groups]
-dev = [
-    "pytest>=8.3.5",
-    "pytest-asyncio>=1.0.0",
-    "pytest-benchmark[histogram]>=5.1.0",
-]
+dev = ["pytest>=8.4.0", "pytest-asyncio>=1.0.0"]
 doc = ["pdoc>=15.0.3"]
 lint = ["mypy>=1.15.0", "ruff>=0.11.8"]
 
 [tool.pytest.ini_options]
-testpaths = [
-    "tests/unit/**/*.py",
-    "tests/integration/**/*.py",
-    "tests/benches/**/*.py",
-]
+testpaths = ["tests/unit/**/test.py", "tests/integration/**/test.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 # See: https://pytest-benchmark.readthedocs.io/en/latest/usage.html#commandline-options
-addopts = "-ra --benchmark-skip --benchmark-autosave --benchmark-compare"
+addopts = "-ra"
 
 [tool.ruff]
 line-length = 80

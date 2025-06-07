@@ -12,16 +12,16 @@ from typing import override
 
 from pddlsim.ast import Domain, GroundedAction, Problem
 from pddlsim.remote.client import (
-    Agent,
+    ConfigurableAgent,
     SimulationAction,
     SimulationClient,
 )
-from pddlsim.simulation import Simulation
+from pddlsim.simulation import Seed, Simulation
 from pddlsim.state import SimulationState
 
 
 @dataclass
-class PreviousStateAvoider(Agent):
+class PreviousStateAvoider(ConfigurableAgent[Seed]):
     """An agent that attempts to avoid the previous state if possible.
 
     See `pddlsim.agents.previous_state_avoider` for more information.
@@ -30,17 +30,22 @@ class PreviousStateAvoider(Agent):
     _client: SimulationClient
     _domain: Domain
     _problem: Problem
+    _random: random.Random
     _previous_state: SimulationState | None = None
 
     @override
     @classmethod
     async def _initialize(
-        cls, client: SimulationClient, _configuration: None
+        cls,
+        client: SimulationClient,
+        configuration: Seed,
     ) -> "PreviousStateAvoider":
         domain = await client.get_domain()
         problem = await client.get_problem()
 
-        return PreviousStateAvoider(client, domain, problem)
+        return PreviousStateAvoider(
+            client, domain, problem, random.Random(configuration)
+        )
 
     async def _is_action_backtracking(
         self, grounded_action: GroundedAction
@@ -70,7 +75,7 @@ class PreviousStateAvoider(Agent):
             else grounded_actions
         )
 
-        picked_action = random.choice(possibilities)
+        picked_action = self._random.choice(possibilities)
 
         self._previous_state = await self._client.get_perceived_state()
 

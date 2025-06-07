@@ -15,7 +15,10 @@ from pddlsim.agents import random_walker
 from pddlsim.agents.multiple_goal_planner import MultipleGoalPlanner
 from pddlsim.agents.planner import Planner
 from pddlsim.agents.previous_state_avoider import PreviousStateAvoider
-from pddlsim.agents.random_limited_walker import MaxSteps, RandomLimitedWalker
+from pddlsim.agents.random_limited_walker import (
+    RandomLimitedWalker,
+    RandomLimitedWalkerConfiguration,
+)
 from pddlsim.remote.client import AgentInitializer, act_in_simulation
 
 
@@ -41,9 +44,15 @@ def client_command(
 
 
 @client_command.command("random-walker")
-def _random_walker() -> AgentInitializer:
+@click.option(
+    "--seed",
+    "seed",
+    type=int,
+    help="A seed for powering random functionality in the agent.",
+)
+def _random_walker(seed: int | None) -> AgentInitializer:
     """Configure an agent performing actions at random."""
-    return random_walker.INITIALIZER
+    return random_walker.configure(seed)
 
 
 @client_command.command("random-limited-walker")
@@ -54,24 +63,40 @@ def _random_walker() -> AgentInitializer:
     required=True,
     help="The maximum amount of steps the agent may take. Once it reaches this maximum, it gives up.",  # noqa: E501
 )
-def _random_limited_walker(max_steps: int) -> AgentInitializer:
+@click.option(
+    "--seed",
+    "seed",
+    type=int,
+    help="A seed for powering random functionality in the agent.",
+)
+def _random_limited_walker(
+    max_steps: int, seed: int | None
+) -> AgentInitializer:
     """Configure an agent performing actions at random.
 
     This agent has a configurable step-maximum. Once the simulation
     reaches that maximum, it gives up.
     """
-    return RandomLimitedWalker.configure(MaxSteps(max_steps))
+    return RandomLimitedWalker.configure(
+        RandomLimitedWalkerConfiguration(max_steps, seed)
+    )
 
 
 @client_command.command("previous-state-avoider")
-def _previous_state_avoider() -> AgentInitializer:
+@click.option(
+    "--seed",
+    "seed",
+    type=int,
+    help="A seed for powering random functionality in the agent.",
+)
+def _previous_state_avoider(seed: int | None) -> AgentInitializer:
     """Configure an agent acting randomly while avoiding the previous state.
 
     If the previous state was `X`, and the current state is `Y`, the agent
     will attempt to avoid state `X`, as it would otherwise render its previous
     action useless.
     """
-    return PreviousStateAvoider.configure()
+    return PreviousStateAvoider.configure(seed)
 
 
 @client_command.command("planner")

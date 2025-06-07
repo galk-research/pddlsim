@@ -30,7 +30,7 @@ from pddlsim.remote._message import (
     SessionUnsupported,
     TerminationPayload,
 )
-from pddlsim.simulation import Simulation
+from pddlsim.simulation import Seed, Simulation
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +51,8 @@ class SimulatorConfiguration:
     """Whether clients of the simulation should be able to access the revealables of the problem."""  # noqa: E501
     show_action_fallibilities: bool = False
     """Whether clients of the simulation should be able to access the action fallibilities of the problem."""  # noqa: E501
+    seed: Seed | None = None
+    """Random seed used to derive probabilistics aspects of simulation."""
 
     @classmethod
     def from_domain_and_problem_files(
@@ -112,7 +114,7 @@ class _SimulationServerInstance:
             await bridge.send_payload(SessionSetupResponse())
 
         simulation = Simulation.from_domain_and_problem(
-            configuration.domain, configuration.problem
+            configuration.domain, configuration.problem, seed=configuration.seed
         )
 
         return cls(simulation, bridge, configuration)
