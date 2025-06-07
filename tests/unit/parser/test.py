@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from importlib.abc import Traversable
 
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture  # type: ignore
 
 from pddlsim.ast import Domain, Problem
 from pddlsim.parser import (
@@ -11,44 +10,38 @@ from pddlsim.parser import (
 )
 from tests import preprocess_traversables
 
-RESOURCES = importlib.resources.files(__name__)
+_RESOURCES = importlib.resources.files(__name__)
 
 
 @dataclass
-class ParserCase:
+class _ParserCase:
     domain: Domain
     problem: Problem
 
 
-def _preprocess_gga_case(traversable: Traversable) -> ParserCase:
+def _preprocess_parser_case(traversable: Traversable) -> _ParserCase:
     domain_text = traversable.joinpath("domain.pddl").read_text()
     problem_text = traversable.joinpath("problem.pddl").read_text()
 
     domain, problem = parse_domain_problem_pair(domain_text, problem_text)
 
-    return ParserCase(domain, problem)
+    return _ParserCase(domain, problem)
 
 
-CASES = preprocess_traversables(
-    RESOURCES.joinpath("cases"), _preprocess_gga_case
+_CASES = preprocess_traversables(
+    _RESOURCES.joinpath("cases"), _preprocess_parser_case
 )
 
 
 @pytest.mark.parametrize(
     "case",
-    CASES.values(),
-    ids=CASES.keys(),
+    _CASES.values(),
+    ids=_CASES.keys(),
 )
-def test_parser_roundtrip(
-    benchmark: BenchmarkFixture, case: ParserCase
-) -> None:
-    def roundtrip() -> tuple[Domain, Problem]:
-        domain_text = case.domain.as_pddl()
-        problem_text = case.problem.as_pddl()
-
-        return parse_domain_problem_pair(domain_text, problem_text)
-
-    domain, problem = benchmark(roundtrip)
+def test_parser_roundtrip(case: _ParserCase) -> None:
+    domain, problem = parse_domain_problem_pair(
+        case.domain.as_pddl(), case.problem.as_pddl()
+    )
 
     assert domain == case.domain
     assert problem == case.problem

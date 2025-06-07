@@ -134,6 +134,10 @@ def _ground_effect(
             )
 
 
+type Seed = int | float | str | bytes | bytearray | None
+"""A seed for a simulation's RNG, powering its probabilistic aspects."""
+
+
 @dataclass
 class Simulation:
     """Low-level interface for PDDL simulation, backed by `SimulationState`.
@@ -242,7 +246,7 @@ class Simulation:
         problem: Problem,
         state_override: SimulationState | None = None,
         reached_goal_indices_override: Iterable[int] | None = None,
-        seed: int | float | str | bytes | bytearray | None = None,
+        seed: Seed = None,
     ) -> "Simulation":
         """Construct a new `Simulation` from a domain and a problem.
 

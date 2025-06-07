@@ -16,12 +16,23 @@ from pddlsim.remote.client import (
     SimulationAction,
     SimulationClient,
 )
+from pddlsim.simulation import Seed
 
 MaxSteps = NewType("MaxSteps", int)
 
 
+@dataclass(frozen=True)
+class RandomLimitedWalkerConfiguration:
+    """Configuration for the `RandomnLimitedWalker` agent."""
+
+    max_steps: int
+    """Maximum number of steps the agent will take before giving up."""
+    seed: Seed | None = None
+    """Optional seed to power the agent's random actions."""
+
+
 @dataclass
-class RandomLimitedWalker(ConfigurableAgent[MaxSteps]):
+class RandomLimitedWalker(ConfigurableAgent[RandomLimitedWalkerConfiguration]):
     """An agent performing actions at random, with a maximum number of steps.
 
     Once the maximum number of simulation steps is reached, the agent gives up.
@@ -29,19 +40,27 @@ class RandomLimitedWalker(ConfigurableAgent[MaxSteps]):
 
     _client: SimulationClient
     _max_steps: int
+    _random: random.Random
     _current_steps: int
 
     @override
     @classmethod
     async def _initialize(
-        cls, client: SimulationClient, max_steps: MaxSteps
+        cls,
+        client: SimulationClient,
+        configuration: RandomLimitedWalkerConfiguration,
     ) -> "RandomLimitedWalker":
-        return cls(client, max_steps, 0)
+        return cls(
+            client,
+            configuration.max_steps,
+            random.Random(configuration.seed),
+            0,
+        )
 
     def _pick_grounded_action(
         self, actions: Sequence[GroundedAction]
     ) -> GroundedAction:
-        return random.choice(actions)
+        return self._random.choice(actions)
 
     @override
     async def _get_next_action(self) -> SimulationAction:
