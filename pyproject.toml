@@ -1,6 +1,6 @@
 [project]
 name = "pddlsim"
-version = "0.2.0.dev1"
+version = "0.2.0.dev2"
 description = "PDDL-based simulator for the BIU course \"Introduction to Intelligent, Knowledge-Based and Cognitive Systems\""
 authors = [
     { name = "Gal A. Kaminka", email = "galk@cs.biu.ac.il" },
@@ -11,7 +11,7 @@ dependencies = [
     "cbor2>=5.6.5",
     "lark>=1.2.2",
     "clingo>=5.8.0",
-    "koda-validate>=4.2.0",
+    "koda-validate>=5.0.0",
 ]
 requires-python = ">=3.12"
 readme = "README.md"

@@ -155,14 +155,14 @@ wheels = [
 
 [[package]]
 name = "koda-validate"
-version = "4.2.0"
+version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "koda" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1c/26/c3c5fa3c49fa32f81485f60298af8cabe5dae3ef49ff29336a10f2286301/koda_validate-4.2.0.tar.gz", hash = "sha256:c7d17283e85c37783ff50537d6fd30c515510f27aa29a9e2f4f43d27d76068ea", size = 42104, upload-time = "2024-09-05T06:32:54.28Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/f1/9949b112d0a3e32d36a2a591a50052d1fdd996539894592aa43d642c5a10/koda_validate-5.0.0.tar.gz", hash = "sha256:fd27c51c53b82ad39425e671f5ad29e84526a6e2102dc1c757eeb4aa5f08f6b6", size = 40458, upload-time = "2025-06-11T02:28:48.702Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/1b/e04f77d9013159e8e9b2617d28f55ae9c918e3bb8af26088be652dbeb8ac/koda_validate-4.2.0-py3-none-any.whl", hash = "sha256:3bae7a416d6cf69d94be3094cb51fb5700482f6852cf6df063ad3d084eca6a81", size = 53781, upload-time = "2024-09-05T06:32:52.228Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/1a/cb9660b786fad4099a3065e9ddbdc76688426b8f4830c762c27723cd8f7d/koda_validate-5.0.0-py3-none-any.whl", hash = "sha256:3c26486fe9d8168f363d270867ed0439427e5e3fa25e9c7ec7909776fa2c206c", size = 53788, upload-time = "2025-06-11T02:28:47.269Z" },
 ]
 
 [[package]]
@@ -313,7 +313,7 @@ wheels = [
 
 [[package]]
 name = "pddlsim"
-version = "0.2.0.dev1"
+version = "0.2.0.dev2"
 source = { editable = "." }
 dependencies = [
     { name = "cbor2" },
@@ -349,7 +349,7 @@ requires-dist = [
     { name = "cbor2", specifier = ">=5.6.5" },
     { name = "click", marker = "extra == 'cli'", specifier = ">=8.2.1" },
     { name = "clingo", specifier = ">=5.8.0" },
-    { name = "koda-validate", specifier = ">=4.2.0" },
+    { name = "koda-validate", specifier = ">=5.0.0" },
     { name = "lark", specifier = ">=1.2.2" },
     { name = "pddlsim", extras = ["agents"], marker = "extra == 'cli'" },
     { name = "unified-planning", extras = ["fast-downward"], marker = "extra == 'agents'", specifier = ">=1.2.0" },
