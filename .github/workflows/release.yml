@@ -4,9 +4,13 @@ on:
   release:
     types: ["published"]
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     environment: release
 
     steps:
@@ -27,5 +31,5 @@ jobs:
       - name: Build the project
         run: uv build
 
-      - name: Publish
+      - name: Publish to Test PyPI
         run: uv publish --trusted-publishing --url https://test.pypi.org/legacy/
