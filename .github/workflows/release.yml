@@ -32,4 +32,4 @@ jobs:
         run: uv build
 
       - name: Publish to Test PyPI
-        run: uv publish --trusted-publishing --url https://test.pypi.org/legacy/
+        run: uv publish --trusted-publishing --publish-url https://test.pypi.org/legacy/
