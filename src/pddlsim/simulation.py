@@ -14,6 +14,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from functools import cached_property
+import itertools
 from random import Random
 from typing import cast
 
@@ -41,6 +42,7 @@ from pddlsim.ast import (
     Domain,
     Effect,
     EqualityCondition,
+    ForallCondition,
     GroundedAction,
     Identifier,
     NotCondition,
@@ -76,30 +78,53 @@ def _ground_predicate(
 
 
 def _ground_condition(
-    condition: Condition[Argument], grounding: Mapping[Variable, Object]
+    condition: Condition[Argument], grounding: Mapping[Variable, Object], problem: Problem
 ) -> Condition[Object]:
     match condition:
         case AndCondition(subconditions):
             return AndCondition(
                 [
-                    _ground_condition(subcondition, grounding)
+                    _ground_condition(subcondition, grounding, problem)
                     for subcondition in subconditions
                 ]
             )
         case OrCondition(subconditions):
             return OrCondition(
                 [
-                    _ground_condition(subcondition, grounding)
+                    _ground_condition(subcondition, grounding, problem)
                     for subcondition in subconditions
                 ]
             )
         case NotCondition(base_condition):
-            return NotCondition(_ground_condition(base_condition, grounding))
+            return NotCondition(_ground_condition(base_condition, grounding, problem))
         case EqualityCondition(left_side, right_side):
             return EqualityCondition(
                 _ground_argument(left_side, grounding),
                 _ground_argument(right_side, grounding),
             )
+        case ForallCondition(variables, condition):
+            names = []      # list[variable_name]
+            choices = []    # list[list[variable_grounding]]
+            objects_by_type = {}
+            for param in problem.objects_section:
+                if param.type not in objects_by_type:
+                    objects_by_type[param.type] = []
+                objects_by_type[param.type].append(param.value)
+            for typed_variable in variables:
+                names.append(typed_variable.value)
+                choices.append(objects_by_type.get(typed_variable.type, []))
+
+            all_choices = itertools.product(*choices)
+            grounded_conditions = []
+            for choice in all_choices:
+                # Copy grounding dict, and add in the specific choice
+                # NOTE: this can explode memory if you make big foralls,
+                # maybe this pipeline should be entirely generator based?
+                # Would require rewriting the grounding and checking pipeline though.
+                instance_grounding = dict(grounding)
+                instance_grounding.update({name: value for name, value in zip(names, choice)})
+                grounded_conditions.append(_ground_condition(condition, instance_grounding, problem))
+            return AndCondition(grounded_conditions)
         case Predicate():
             return _ground_predicate(condition, grounding)
 
@@ -218,6 +243,7 @@ class Simulation:
         return {
             action_definition.name: (
                 action_definition_asp_part(
+                    self.problem,
                     action_definition,
                     variable_id_allocator := IDAllocator[
                         Variable
@@ -372,7 +398,7 @@ class Simulation:
         }
 
         if not self.state.does_condition_hold(
-            _ground_condition(action_definition.precondition, grounding)
+            _ground_condition(action_definition.precondition, grounding, self.problem)
         ):
             raise ValueError("grounded action doesn't satisfy precondition")
 
@@ -389,6 +415,7 @@ class Simulation:
 
         return True
 
+
     def _get_groundings(
         self, action_definition: ActionDefinition
     ) -> Generator[Mapping[Variable, Object]]:
@@ -403,7 +430,7 @@ class Simulation:
         control = Control(["-Wno-atom-undefined"])
 
         # Set number of threads to use
-        control.configuration.solve.parallel_mode = os.cpu_count()  # type: ignore
+        control.configuration.solve.parallel_mode = min(64, os.cpu_count())  # type: ignore
         # Compute all models (all groundings)
         control.configuration.solve.models = 0  # type: ignore
 
@@ -421,14 +448,13 @@ class Simulation:
 
         with control.solve(yield_=True) as handle:
             for model in handle:
-                yield {
-                    variable_id_allocator.get_value(
-                        VariableID.from_str(symbol.name)
-                    ): self._object_name_id_allocator.get_value(
-                        ObjectNameID.from_str(symbol.arguments[0].name)
+                for symbol in model.symbols(shown=True):
+                    yield tuple(
+                        self._object_name_id_allocator.get_value(
+                            ObjectNameID.from_str(arg.name)
+                        )
+                        for arg in symbol.arguments
                     )
-                    for symbol in model.symbols(shown=True)
-                }
 
     def _get_grounded_actions(
         self, action_definition: ActionDefinition
@@ -436,10 +462,7 @@ class Simulation:
         return (
             GroundedAction(
                 action_definition.name,
-                tuple(
-                    grounding[parameter.value]
-                    for parameter in action_definition.parameters
-                ),
+                grounding
             )
             for grounding in self._get_groundings(action_definition)
         )

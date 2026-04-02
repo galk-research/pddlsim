@@ -24,6 +24,7 @@ from pddlsim.ast import (
     Effect,
     EqualityCondition,
     FileLocation,
+    ForallCondition,
     GoalsSection,
     GroundedActionSchematic,
     Identifier,
@@ -199,6 +200,13 @@ class _PDDLTransformer(Transformer):
         right_side: A,
     ) -> EqualityCondition[A]:
         return EqualityCondition(left_side, right_side, location=location)
+
+    def forall_condition[A: Argument](
+        self,
+        parameters: Iterable[Typed[Variable]],
+        condition: Condition[A],
+    ) -> ForallCondition[A]:
+        return ForallCondition(list(parameters), condition)
 
     def not_predicate[A: Argument](
         self, base_predicate: Predicate[A]

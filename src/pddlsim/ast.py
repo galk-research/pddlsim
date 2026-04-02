@@ -638,6 +638,38 @@ class EqualityCondition[A: Argument](_Locationed):
     def __repr__(self) -> str:
         return f"(= {self.left_side!r} {self.right_side!r})"
 
+@dataclass(frozen=True)
+class ForallCondition[A: Argument]:
+    """Represents a universal precondition (`forall`) in PDDL."""
+
+    variables: list[Typed[Variable]]
+    """Parameters local to the forall predicate."""
+    condition: "Condition[A]"
+    """Single subcondition to evaluate for valid choices of parameters."""
+
+    def _validate(
+        self,
+        parameters: Parameters,
+        objects: Mapping[Object, Type],
+        domain: "Domain",
+    ) -> None:
+        scope_dict = dict(parameters._items)
+        for typed_variable in self.variables:
+            scope_dict[typed_variable.value] = typed_variable.type
+        scoped_parameters = Parameters(_items=scope_dict, definition=parameters.definition)
+        self.condition._validate(scoped_parameters, objects, domain)
+
+    @override
+    def _as_str_without_location(self) -> str:
+        return "forall predicate"
+
+    @override
+    def __repr__(self) -> str:
+        parameters = (
+            f"({' '.join(map(repr, self.variables))})"
+        )
+        return f"(forall {parameters} {self.condition!r})"
+
 
 class _SerializedPredicate(TypedDict):
     name: Any
@@ -735,6 +767,7 @@ type Condition[A: Argument] = (
     | OrCondition[A]
     | NotCondition[A]
     | EqualityCondition[A]
+    | ForallCondition[A]
     | Predicate[A]
 )
 """Represents a condition in PDDL, over objects, or variables."""
